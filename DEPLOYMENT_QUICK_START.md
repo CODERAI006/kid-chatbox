@@ -24,7 +24,7 @@
 4. **Deploy application**
    ```bash
    cd /var/www
-   git clone https://github.com/AIcoder45/kid-chatbox.git kidchatbox
+   git clone https://github.com/CODERAI006/kid-chatbox.git kidchatbox
    cd kidchatbox
    npm install  # Install ALL dependencies (needed for build)
    npm run build  # Build frontend (requires TypeScript & Vite)

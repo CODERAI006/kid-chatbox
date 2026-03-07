@@ -106,7 +106,7 @@ sudo mkdir -p /var/www/kidchatbox
 cd /var/www/kidchatbox
 
 # Clone your repository
-git clone https://github.com/AIcoder45/kid-chatbox.git .
+git clone https://github.com/CODERAI006/kid-chatbox.git .
 # Or upload files via SFTP/FTP
 ```
 
