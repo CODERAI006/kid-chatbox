@@ -108,6 +108,37 @@ router.get('/subtopic/:subtopicId', async (req, res, next) => {
 });
 
 /**
+ * Get all quizzes available in the public library (student-accessible)
+ * GET /api/quizzes/library
+ * Must be registered before GET /:id — otherwise "library" is treated as a quiz id.
+ */
+router.get('/library', async (req, res, next) => {
+  try {
+    const { difficulty, subject, gradeLevel } = req.query;
+
+    let query = `
+      SELECT id, name, description, difficulty, grade_level, subject,
+             number_of_questions, passing_percentage, time_limit, created_at
+      FROM quizzes
+      WHERE in_library = true AND is_active = true`;
+
+    const params = [];
+    let idx = 1;
+
+    if (difficulty) { query += ` AND difficulty = $${idx++}`; params.push(difficulty); }
+    if (subject)    { query += ` AND subject = $${idx++}`;    params.push(subject); }
+    if (gradeLevel) { query += ` AND grade_level = $${idx++}`; params.push(gradeLevel); }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, quizzes: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Get quiz by ID with questions
  * GET /api/quizzes/:id
  */
@@ -239,36 +270,6 @@ router.patch('/:id/library', checkPermission('manage_quizzes'), async (req, res,
     }
 
     res.json({ success: true, quiz: result.rows[0] });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * Get all quizzes available in the public library (student-accessible)
- * GET /api/quizzes/library
- */
-router.get('/library', async (req, res, next) => {
-  try {
-    const { difficulty, subject, gradeLevel } = req.query;
-
-    let query = `
-      SELECT id, name, description, difficulty, grade_level, subject,
-             number_of_questions, passing_percentage, time_limit, created_at
-      FROM quizzes
-      WHERE in_library = true AND is_active = true`;
-
-    const params = [];
-    let idx = 1;
-
-    if (difficulty) { query += ` AND difficulty = $${idx++}`; params.push(difficulty); }
-    if (subject)    { query += ` AND subject = $${idx++}`;    params.push(subject); }
-    if (gradeLevel) { query += ` AND grade_level = $${idx++}`; params.push(gradeLevel); }
-
-    query += ' ORDER BY created_at DESC';
-
-    const result = await pool.query(query, params);
-    res.json({ success: true, quizzes: result.rows });
   } catch (error) {
     next(error);
   }
