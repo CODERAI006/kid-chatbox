@@ -117,8 +117,8 @@ const createSuperUser = async (email, password, name) => {
 };
 
 // Get parameters from command line
-const email = process.argv[2] || 'amithbti416@gmail.com';
-const password = process.argv[3] || 'Shanaya@123';
+const email = process.argv[2];
+const password = process.argv[3];
 const name = process.argv[4] || 'Super Admin';
 
 if (!email || !password) {

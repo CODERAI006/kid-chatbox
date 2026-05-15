@@ -54,10 +54,10 @@ const migrateAnalyticsSchema = async () => {
       ON activity_logs(user_id, event_type, created_at);
     `);
 
-    // Create index for time-based analytics
+    // Create index for time-based analytics (PostgreSQL expression index)
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at_date 
-      ON activity_logs(DATE(created_at));
+      ON activity_logs ((created_at::date));
     `);
 
     await client.query('COMMIT');

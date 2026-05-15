@@ -33,6 +33,12 @@ const plansRoutes = require('./routes/plans');
 const scheduledTestsRoutes = require('./routes/scheduled-tests');
 const quizLibraryRoutes = require('./routes/quiz-library');
 const publicRoutes = require('./routes/public');
+const wordsOfDayRoutes = require('./routes/words-of-day');
+const aiRoutes = require('./routes/ai');
+const learningBotRoutes = require('./routes/learning-bot');
+const quizSchedulerRoutes = require('./routes/quiz-scheduler');
+const bulkExamUploadRoutes = require('./routes/bulk-exam-upload');
+const { startScheduler } = require('./services/schedulerEngine');
 const { initializeDatabase } = require('./config/database');
 
 dotenv.config();
@@ -69,8 +75,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -100,7 +106,12 @@ app.use('/api/admin/study-library-content', studyLibraryContentRoutes);
 app.use('/api/plans', plansRoutes);
 app.use('/api/scheduled-tests', scheduledTestsRoutes);
 app.use('/api/quiz-library', quizLibraryRoutes);
+app.use('/api/public/words-of-day', wordsOfDayRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/learning-bot', learningBotRoutes);
+app.use('/api/quiz-scheduler', quizSchedulerRoutes);
+app.use('/api/bulk-exam-upload', bulkExamUploadRoutes);
 
 // Serve static files from React app in production
 if (NODE_ENV === 'production') {
@@ -116,6 +127,15 @@ if (NODE_ENV === 'production') {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
+
+// 404 handler — catches unmatched API routes in all environments and returns JSON
+// (prevents Express default HTML "Cannot GET /api/..." from breaking frontend JSON.parse)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ success: false, message: `API endpoint not found: ${req.method} ${req.path}` });
+  }
+  next();
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -134,6 +154,8 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
       console.log(`🌍 Environment: ${NODE_ENV}`);
+      // Start quiz scheduler after server is up
+      startScheduler();
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

@@ -3,10 +3,12 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
   VStack,
+  HStack,
   Text,
   Button,
   Alert,
@@ -23,21 +25,35 @@ import {
   useDisclosure,
 } from '@/shared/design-system';
 import { AllQuestionsView } from './AllQuestionsView';
+import { QuizInteractiveSession } from './QuizInteractiveSession';
 import { Timer } from './Timer';
 import { ResultsView } from './ResultsView';
 import { ConfigurationForm } from './ConfigurationForm';
 import { QuizLoading } from './QuizLoading';
 import { QuizLibrary } from './QuizLibrary';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { generateQuizQuestions, generateImprovementTips } from '@/services/openai';
-import { quizApi, authApi, scheduledTestsApi, profileApi, planApi, quizLibraryApi } from '@/services/api';
+import {
+  generateQuizQuestions,
+  isQuizGenerationAbort,
+  isOllamaUnreachable,
+} from '@/services/openai';
+import {
+  quizApi,
+  authApi,
+  scheduledTestsApi,
+  profileApi,
+  planApi,
+  quizLibraryApi,
+  getErrorMessage,
+} from '@/services/api';
 import { QuizConfig, AnswerResult, Question } from '@/types/quiz';
 import { QUIZ_CONSTANTS, SUBJECTS, MESSAGES } from '@/constants/quiz';
 import { isValidAnswer } from '@/utils/validation';
 import { User } from '@/types';
 import { useQuizTimer } from '@/contexts/QuizTimerContext';
 
-type QuizPhase = 'config' | 'loading' | 'quiz' | 'results';
+type QuizPhase = 'config' | 'loading' | 'checking' | 'quiz' | 'results';
+type QuizLayoutMode = 'steps' | 'overview';
 
 /**
  * Main quiz tutor component that manages the entire quiz flow
@@ -68,6 +84,20 @@ export const QuizTutor: React.FC = () => {
   const [scheduledTestId, setScheduledTestId] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | undefined>(undefined);
   const [isLibraryQuiz, setIsLibraryQuiz] = useState<boolean>(false);
+  const [quizLayoutMode, setQuizLayoutMode] = useState<QuizLayoutMode>('steps');
+  const [currentQuestionStep, setCurrentQuestionStep] = useState(0);
+  const [genBatchProgress, setGenBatchProgress] = useState<{ current: number; total: number } | null>(
+    null
+  );
+  /** AI question generation runs on the config screen (no full-page QuizLoading). */
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const quizGenAbortRef = useRef<AbortController | null>(null);
+  /** Only the latest generation may commit questions to UI (avoids stale runs overwriting a good response). */
+  const quizGenerationRunIdRef = useRef(0);
+  /** Prevents overlapping handleConfigComplete calls after awaits (avoids run-id races that drop a finished quiz). */
+  const quizGenerationLockRef = useRef(false);
+  /** Unix ms timestamp recorded when AI generation begins — passed to QuizLoading for the live timer */
+  const [generationStartedAt, setGenerationStartedAt] = useState(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedScheduledTestRef = useRef(false);
   const beepPlayedRef = useRef(false);
@@ -75,6 +105,14 @@ export const QuizTutor: React.FC = () => {
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
   const pendingNavigationRef = useRef<(() => void) | null>(null);
   const isSubmittingRef = useRef(false);
+  /** Mirrors phase/questions for async paths (avoids duplicate generation hiding an already-shown quiz). */
+  const phaseRef = useRef(phase);
+  const questionCountRef = useRef(questions.length);
+  phaseRef.current = phase;
+  questionCountRef.current = questions.length;
+  /** Auto-start from Study: once per navigation key so StrictMode / effect churn does not start two generations. */
+  const autoStartRouteKeyRef = useRef<string | null>(null);
+  const hasConsumedAutoStartForRouteRef = useRef(false);
 
   const handleConfigComplete = useCallback(async (quizConfig: {
     subject: string;
@@ -148,32 +186,70 @@ export const QuizTutor: React.FC = () => {
       sampleQuestion: quizConfig.sampleQuestion,
       examStyle: quizConfig.examStyle,
     };
+    // A slower duplicate invocation must not call setPhase('loading') after another run already reached the quiz.
+    if (phaseRef.current === 'quiz' && questionCountRef.current > 0) {
+      console.warn('[QuizTutor] Skipping quiz generation: a quiz is already on-screen.');
+      return;
+    }
+    if (quizGenerationLockRef.current) {
+      console.warn('[QuizTutor] Quiz generation already in progress; ignoring duplicate request.');
+      return;
+    }
+    quizGenerationLockRef.current = true;
+    quizGenAbortRef.current?.abort();
+    const genController = new AbortController();
+    quizGenAbortRef.current = genController;
+    const generationRunId = ++quizGenerationRunIdRef.current;
     setConfig(fullConfig);
-    setPhase('loading');
+    setIsAiGenerating(true);
+    setGenerationStartedAt(Date.now());
+    setGenBatchProgress(null);
     setError(null);
 
     try {
-      const generatedQuestions = await generateQuizQuestions(fullConfig);
-      setQuestions(generatedQuestions);
-      setPhase('quiz');
-      setAnswers(new Map());
-      // Calculate timer: use timeLimit if provided (convert minutes to seconds), otherwise calculate based on question count
+      const generatedQuestions = await generateQuizQuestions(fullConfig, {
+        signal: genController.signal,
+        onProgress: ({ batchIndex, totalBatches }) => {
+          if (generationRunId === quizGenerationRunIdRef.current) {
+            setGenBatchProgress({ current: batchIndex, total: totalBatches });
+          }
+        },
+      });
+      console.info('[QuizTutor] AI questions generated', {
+        runId: generationRunId,
+        questionCount: generatedQuestions.length,
+        subject: fullConfig.subject,
+        subtopics: fullConfig.subtopics,
+      });
       const totalTime = fullConfig.timeLimit
         ? fullConfig.timeLimit * 60
         : fullConfig.questionCount * QUIZ_CONSTANTS.TIME_PER_QUESTION_SECONDS;
-      totalTimeRef.current = totalTime;
-      beepPlayedRef.current = false;
-      setTimeRemaining(totalTime);
-      // Update context timer
-      setTimer(totalTime, totalTime, true);
-      setAllAnswerResults([]);
-      setImprovementTips([]);
-      setQuizStartTime(Date.now());
-      setResultSaved(false);
 
-      // Save to quiz library automatically
-      try {
-        await quizLibraryApi.saveToLibrary({
+      flushSync(() => {
+        setIsAiGenerating(false);
+        setGenBatchProgress(null);
+        setQuestions(generatedQuestions);
+        setCurrentQuestionStep(0);
+        setQuizLayoutMode('steps');
+        setPhase('quiz');
+        setAnswers(new Map());
+        totalTimeRef.current = totalTime;
+        beepPlayedRef.current = false;
+        setTimeRemaining(totalTime);
+        setTimer(totalTime, totalTime, true);
+        setAllAnswerResults([]);
+        setImprovementTips([]);
+        setQuizStartTime(Date.now());
+        setResultSaved(false);
+      });
+      console.info('[QuizTutor] Quiz state committed to UI', {
+        runId: generationRunId,
+        phase: 'quiz',
+        committedQuestions: generatedQuestions.length,
+      });
+
+      void quizLibraryApi
+        .saveToLibrary({
           subject: fullConfig.subject,
           subtopics: fullConfig.subtopics,
           difficulty: fullConfig.difficulty,
@@ -185,20 +261,38 @@ export const QuizTutor: React.FC = () => {
           exam_style: fullConfig.examStyle,
           questions: generatedQuestions,
           config: fullConfig,
+        })
+        .catch((libraryError) => {
+          console.warn('Failed to save quiz to library:', libraryError);
         });
-      } catch (libraryError) {
-        // Don't fail quiz generation if library save fails
-        console.warn('Failed to save quiz to library:', libraryError);
-      }
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to generate quiz questions. Please try again.'
-      );
+      if (isQuizGenerationAbort(err)) {
+        if (generationRunId === quizGenerationRunIdRef.current) {
+          setIsAiGenerating(false);
+          setGenBatchProgress(null);
+          setPhase('config');
+        }
+        return;
+      }
+      console.error('[QuizTutor] generateQuizQuestions failed:', err);
+      if (generationRunId !== quizGenerationRunIdRef.current) {
+        return;
+      }
+      setIsAiGenerating(false);
+      setGenBatchProgress(null);
+      const msg = isOllamaUnreachable(err)
+        ? '⚠️ Ollama is not running. Please start it with: ollama serve — then try again.'
+        : getErrorMessage(err);
+      setError(msg);
       setPhase('config');
+    } finally {
+      quizGenerationLockRef.current = false;
     }
-  }, [scheduledTestId]);
+  }, [scheduledTestId, isLibraryQuiz, setTimer]);
+
+  const handleCancelQuizGeneration = useCallback(() => {
+    quizGenAbortRef.current?.abort();
+  }, []);
 
   /**
    * Detect location changes during quiz and block navigation away from quiz page
@@ -252,7 +346,7 @@ export const QuizTutor: React.FC = () => {
     });
 
     setAllAnswerResults(answerResults);
-    setPhase('loading');
+    setPhase('checking');
     // Update context - quiz ended
     setTimer(0, totalTimeRef.current, false);
 
@@ -260,6 +354,29 @@ export const QuizTutor: React.FC = () => {
     const correctCount = answerResults.filter((r) => r.isCorrect).length;
     const wrongCount = answerResults.filter((r) => !r.isCorrect).length;
     const scorePercentage = Math.round((correctCount / answerResults.length) * 100);
+
+    // Build static improvement tips immediately — no AI call needed
+    const pct = scorePercentage;
+    if (correctCount === answerResults.length) {
+      setImprovementTips(['Perfect score! You answered all questions correctly! 🎉']);
+    } else if (pct >= 80) {
+      setImprovementTips([
+        `Excellent! ${correctCount}/${answerResults.length} correct (${pct}%). 🌟`,
+        'Review the explanations for the questions you missed.',
+      ]);
+    } else if (pct >= 60) {
+      setImprovementTips([
+        `Good effort! ${correctCount}/${answerResults.length} correct (${pct}%). 👍`,
+        'Study the explanations for the questions you got wrong.',
+        'A bit more practice and you\'ll ace it!',
+      ]);
+    } else {
+      setImprovementTips([
+        `${correctCount}/${answerResults.length} correct (${pct}%). Keep practising! 💪`,
+        'Review each explanation carefully to understand the concepts.',
+        'Try again after reviewing — you can improve!',
+      ]);
+    }
 
     // Save quiz result to backend
     try {
@@ -292,56 +409,14 @@ export const QuizTutor: React.FC = () => {
       console.error('Failed to save quiz result:', err);
     }
 
-    try {
-      // Only generate AI improvement tips for AI-generated quizzes, not scheduled tests
-      if (scheduledTestId) {
-        // For scheduled tests, use simple tips without AI
-        const wrongCount = answerResults.filter((r) => !r.isCorrect).length;
-        if (wrongCount === 0) {
-          setImprovementTips(['Great job! You answered all questions correctly! 🎉']);
-        } else {
-          setImprovementTips([
-            `You got ${correctCount} out of ${answerResults.length} questions correct!`,
-            'Review the explanations to understand the correct answers.',
-            'Keep practicing to improve your score!',
-          ]);
-        }
-        setPhase('results');
-      } else {
-        // Generate AI improvement tips for AI-generated quizzes
-        const wrongAnswers = answerResults
-          .filter((r) => !r.isCorrect)
-          .map((r) => ({
-            questionNumber: r.questionNumber,
-            question: r.question,
-            childAnswer: r.childAnswer || '',
-            correctAnswer: r.correctAnswer,
-            explanation: r.explanation,
-          }));
+    // Let the "checking answers" animation breathe for at least 1.5 s
+    await new Promise<void>((r) => setTimeout(r, 1500));
 
-        if (config && wrongAnswers.length > 0) {
-          const tips = await generateImprovementTips(
-            wrongAnswers,
-            config.age,
-            config.language
-          );
-          setImprovementTips(tips);
-        } else {
-          setImprovementTips(['Great job! You answered all questions correctly! 🎉']);
-        }
-        setPhase('results');
-      }
-    } catch (err) {
-      // Continue to results even if tips generation fails
-      console.error('Failed to generate improvement tips:', err);
-      setPhase('results');
-    } finally {
-      // Reset submitting flag after a delay to allow navigation
-      setTimeout(() => {
-        isSubmittingRef.current = false;
-      }, 1000);
-    }
-  }, [phase, questions, answers, config, quizStartTime, scheduledTestId]);
+    setPhase('results');
+    setTimeout(() => {
+      isSubmittingRef.current = false;
+    }, 1000);
+  }, [phase, questions, answers, config, quizStartTime, scheduledTestId, isLibraryQuiz]);
 
   /**
    * Handle confirmation to submit quiz and navigate
@@ -351,13 +426,12 @@ export const QuizTutor: React.FC = () => {
       return;
     }
 
-    isSubmittingRef.current = true;
     onConfirmClose();
 
-    // Submit quiz before navigating
+    // Do not set isSubmittingRef here: handleSubmitQuiz bails out when the ref is
+    // already true, which would skip the real submit for "Submit & Leave".
     await handleSubmitQuiz();
 
-    // Execute pending navigation if exists
     if (pendingNavigationRef.current) {
       pendingNavigationRef.current();
       pendingNavigationRef.current = null;
@@ -584,8 +658,10 @@ export const QuizTutor: React.FC = () => {
         }
       }
 
-      let attemptData: any;
-      let quiz: any;
+      // getQuizAttempt return type is a superset (includes attempt.answers) — use it for both paths
+      type _AttemptData = Awaited<ReturnType<typeof quizApi.getQuizAttempt>>;
+      let attemptData: _AttemptData;
+      let quiz: _AttemptData['quiz'];
       let restoredAnswers = new Map<number, 'A' | 'B' | 'C' | 'D'>();
       let timeElapsed = 0;
 
@@ -606,7 +682,7 @@ export const QuizTutor: React.FC = () => {
           if (attemptData.attempt.answers && Array.isArray(attemptData.attempt.answers)) {
             attemptData.attempt.answers.forEach((answer: { question_id: string; user_answer: string }) => {
               // Find question number by matching question_id
-              const questionIndex = quiz.questions.findIndex((q: any) => q.id === answer.question_id);
+              const questionIndex = quiz.questions.findIndex((q) => q.id === answer.question_id);
               if (questionIndex !== -1) {
                 try {
                   const userAnswer = JSON.parse(answer.user_answer);
@@ -641,7 +717,7 @@ export const QuizTutor: React.FC = () => {
       }
 
       // Map API questions to Question format
-      const mappedQuestions: Question[] = quiz.questions.map((q: any, index: number) => {
+      const mappedQuestions: Question[] = quiz.questions.map((q, index: number) => {
         const options = q.options as Record<string, string>;
         
         // Convert options to the format expected by Question type
@@ -689,9 +765,18 @@ export const QuizTutor: React.FC = () => {
         difficulty: test.quiz_difficulty as QuizConfig['difficulty'],
       };
 
+      if (!mappedQuestions.length) {
+        setError('This scheduled quiz has no questions. Ask your teacher to check the quiz content.');
+        setPhase('config');
+        hasLoadedScheduledTestRef.current = false;
+        return;
+      }
+
       setConfig(scheduledConfig);
       setQuestions(mappedQuestions);
       setAnswers(restoredAnswers);
+      setCurrentQuestionStep(0);
+      setQuizLayoutMode('steps');
       setPhase('quiz');
 
       // Set timer based on time limit or default
@@ -738,21 +823,54 @@ export const QuizTutor: React.FC = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const testId = searchParams.get('scheduledTestId');
-    
-    // Only auto-start AI quiz if there's no scheduled test in URL
-    if (config && phase === 'config' && !scheduledTestId && !testId) {
-      handleConfigComplete(config);
+    const routeKey = `${location.key}|${location.pathname}|${location.search}`;
+
+    if (autoStartRouteKeyRef.current !== routeKey) {
+      autoStartRouteKeyRef.current = routeKey;
+      hasConsumedAutoStartForRouteRef.current = false;
     }
-  }, [config, phase, handleConfigComplete, scheduledTestId, location.search]);
+
+    if (isAiGenerating) {
+      return;
+    }
+
+    // Only auto-start AI quiz if there's no scheduled test in URL
+    if (!config || phase !== 'config' || scheduledTestId || testId) {
+      return;
+    }
+
+    if (hasConsumedAutoStartForRouteRef.current) {
+      return;
+    }
+    hasConsumedAutoStartForRouteRef.current = true;
+
+    void handleConfigComplete(config);
+  }, [
+    config,
+    phase,
+    isAiGenerating,
+    handleConfigComplete,
+    scheduledTestId,
+    location.search,
+    location.pathname,
+    location.key,
+  ]);
 
   /**
    * Handle quiz selection from library
    */
   const handleLibraryQuizSelect = useCallback((data: { questions: Question[]; config: unknown }) => {
     const libraryConfig = data.config as QuizConfig;
+    if (!data.questions?.length) {
+      setError('This library quiz has no questions. Try another entry or generate a new quiz.');
+      setPhase('config');
+      return;
+    }
     setIsLibraryQuiz(true);
     setConfig(libraryConfig);
     setQuestions(data.questions);
+    setCurrentQuestionStep(0);
+    setQuizLayoutMode('steps');
     setPhase('quiz');
     setAnswers(new Map());
     
@@ -774,6 +892,38 @@ export const QuizTutor: React.FC = () => {
   const answeredCount = answers.size;
 
   if (phase === 'config') {
+    // During AI generation show the skeleton screen instead of the form
+    if (isAiGenerating) {
+      return (
+        <>
+          <QuizLoading
+            loadingType="generating"
+            batchProgress={genBatchProgress}
+            onCancelGeneration={handleCancelQuizGeneration}
+            generationStartedAt={generationStartedAt}
+          />
+          <Modal isOpen={isConfirmOpen} onClose={handleCancelLeave} isCentered>
+            <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(4px)" />
+            <ModalContent>
+              <ModalHeader>{MESSAGES.QUIZ_LEAVE_CONFIRMATION_TITLE}</ModalHeader>
+              <ModalCloseButton />
+              <ModalBody>
+                <Text>{MESSAGES.QUIZ_LEAVE_CONFIRMATION_MESSAGE}</Text>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="ghost" mr={3} onClick={handleCancelLeave}>
+                  Cancel
+                </Button>
+                <Button colorScheme="blue" onClick={handleConfirmLeave}>
+                  Submit &amp; Leave
+                </Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+        </>
+      );
+    }
+
     return (
       <>
         <Box display="flex" gap={6} padding={{ base: 4, md: 6 }} maxWidth="1400px" marginX="auto">
@@ -789,11 +939,14 @@ export const QuizTutor: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 }}
               >
-                <ConfigurationForm 
-                  onConfigComplete={(config) => {
-                    setSelectedSubject(config.subject);
-                    handleConfigComplete(config);
-                  }} 
+                <ConfigurationForm
+                  onConfigComplete={(cfg) => {
+                    setSelectedSubject(cfg.subject);
+                    handleConfigComplete(cfg);
+                  }}
+                  isGenerating={isAiGenerating}
+                  generatingBatch={isAiGenerating ? genBatchProgress : null}
+                  onCancelGeneration={handleCancelQuizGeneration}
                 />
               </motion.div>
               <AnimatePresence>
@@ -858,18 +1011,19 @@ export const QuizTutor: React.FC = () => {
     );
   }
 
+  if (phase === 'checking') {
+    return <QuizLoading loadingType="checking-answers" batchProgress={null} />;
+  }
+
   if (phase === 'loading') {
-    // Determine loading type based on context
-    const loadingType =
-      scheduledTestId
-        ? 'loading-test'
-        : config
-          ? 'generating'
-          : 'loading-results';
+    const loadingType = scheduledTestId ? 'loading-test' : 'loading-results';
 
     return (
       <>
-        <QuizLoading loadingType={loadingType} />
+        <QuizLoading
+          loadingType={loadingType}
+          batchProgress={null}
+        />
         {/* Confirmation Modal for Navigation */}
         <Modal isOpen={isConfirmOpen} onClose={handleCancelLeave} isCentered>
           <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(4px)" />
@@ -886,6 +1040,56 @@ export const QuizTutor: React.FC = () => {
                   </AlertDescription>
                 </Alert>
               )}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={handleCancelLeave}>
+                Cancel
+              </Button>
+              <Button colorScheme="blue" onClick={handleConfirmLeave}>
+                Submit & Leave
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </>
+    );
+  }
+
+  if (phase === 'quiz' && questions.length === 0) {
+    return (
+      <>
+        <Box padding={{ base: 4, md: 6 }} maxWidth="720px" marginX="auto">
+          <Alert status="warning" borderRadius="md" mb={4}>
+            <AlertIcon />
+            <Box>
+              <AlertTitle>No questions loaded</AlertTitle>
+              <AlertDescription>
+                The quiz is active but the question list is empty (library data, scheduled test, or a generation
+                race). Use the button below to return to setup and start again.
+              </AlertDescription>
+            </Box>
+          </Alert>
+          <Button
+            colorScheme="blue"
+            onClick={() => {
+              setPhase('config');
+              setQuestions([]);
+              setAnswers(new Map());
+              setScheduledTestId(null);
+              hasLoadedScheduledTestRef.current = false;
+              setError(null);
+            }}
+          >
+            Back to quiz setup
+          </Button>
+        </Box>
+        <Modal isOpen={isConfirmOpen} onClose={handleCancelLeave} isCentered>
+          <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(4px)" />
+          <ModalContent>
+            <ModalHeader>{MESSAGES.QUIZ_LEAVE_CONFIRMATION_TITLE}</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <Text>{MESSAGES.QUIZ_LEAVE_CONFIRMATION_MESSAGE}</Text>
             </ModalBody>
             <ModalFooter>
               <Button variant="ghost" mr={3} onClick={handleCancelLeave}>
@@ -935,6 +1139,34 @@ export const QuizTutor: React.FC = () => {
                       </Text>
                     </Box>
                   </motion.div>
+
+                  <Box width="100%" maxW="720px" mx="auto" mt={4}>
+                    <Text fontSize="xs" color="gray.500" textAlign="center" mb={2}>
+                      How do you want to work through this quiz?
+                    </Text>
+                    <HStack spacing={0} width="100%" borderRadius="md" overflow="hidden" borderWidth="1px" borderColor="gray.200">
+                      <Button
+                        flex={1}
+                        borderRadius={0}
+                        size="sm"
+                        colorScheme={quizLayoutMode === 'steps' ? 'blue' : 'gray'}
+                        variant={quizLayoutMode === 'steps' ? 'solid' : 'ghost'}
+                        onClick={() => setQuizLayoutMode('steps')}
+                      >
+                        Focus (one at a time)
+                      </Button>
+                      <Button
+                        flex={1}
+                        borderRadius={0}
+                        size="sm"
+                        colorScheme={quizLayoutMode === 'overview' ? 'blue' : 'gray'}
+                        variant={quizLayoutMode === 'overview' ? 'solid' : 'ghost'}
+                        onClick={() => setQuizLayoutMode('overview')}
+                      >
+                        All questions
+                      </Button>
+                    </HStack>
+                  </Box>
                 </motion.div>
               )}
 
@@ -944,11 +1176,22 @@ export const QuizTutor: React.FC = () => {
                 transition={{ delay: 0.2 }}
                 style={{ width: '100%' }}
               >
-                <AllQuestionsView
-                  questions={questions}
-                  answers={answers}
-                  onAnswerSelect={handleAnswerSelect}
-                />
+                {quizLayoutMode === 'steps' ? (
+                  <QuizInteractiveSession
+                    questions={questions}
+                    currentIndex={Math.min(currentQuestionStep, questions.length - 1)}
+                    answers={answers}
+                    onAnswerSelect={handleAnswerSelect}
+                    onStepChange={setCurrentQuestionStep}
+                    onShowOverview={() => setQuizLayoutMode('overview')}
+                  />
+                ) : (
+                  <AllQuestionsView
+                    questions={questions}
+                    answers={answers}
+                    onAnswerSelect={handleAnswerSelect}
+                  />
+                )}
               </motion.div>
 
               <motion.div

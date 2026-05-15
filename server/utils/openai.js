@@ -1,16 +1,12 @@
 /**
- * OpenAI service for server-side AI quiz generation
- * Uses OpenAI API to generate quiz questions
+ * Server-side AI quiz generation via local Ollama (POST /api/chat).
+ * @see docs/ollama-api.md
  */
 
-const OpenAI = require('openai');
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY,
-});
+const { ollamaChat, isLlmConfigured, getOllamaLogMode } = require('./ollamaClient');
 
 /**
- * Generates quiz questions using OpenAI
+ * Generates quiz questions using local Ollama
  * @param {Object} config - Quiz configuration
  * @param {number} config.numberOfQuestions - Number of questions to generate
  * @param {string} config.difficulty - Difficulty level (Basic, Advanced, Expert, Mix)
@@ -29,7 +25,6 @@ async function generateQuizQuestions(config) {
     numberOfQuestions = 15,
     difficulty = 'Basic',
     topics = [],
-    ageGroup = '6-8',
     language = 'English',
     subtopicId,
     description,
@@ -38,30 +33,44 @@ async function generateQuizQuestions(config) {
     examStyle,
   } = config;
 
-  if (!openai.apiKey) {
-    throw new Error('OpenAI API key is not configured');
+  if (!isLlmConfigured()) {
+    throw new Error(
+      'Ollama is disabled (OLLAMA_DISABLED). Unset it and ensure Ollama is running.'
+    );
   }
 
   // Determine difficulty level
   let difficultyLevel = 'medium';
-  let questionLength = 'Keep questions appropriate for the age.';
+  let questionLength = 'Write clear, well-structured questions.';
+  let answerDepth = '';
 
   switch (difficulty) {
     case 'Basic':
       difficultyLevel = 'easy';
-      questionLength = 'Keep questions short and simple (1 line maximum).';
+      questionLength = 'Keep questions short and simple (1 line maximum). Direct recall or recognition.';
+      answerDepth = 'Explanations should be clear and brief (3-4 sentences). Confirm the correct answer and briefly state why it is right.';
       break;
     case 'Advanced':
       difficultyLevel = 'moderately challenging';
-      questionLength = 'Use longer, more detailed questions (2-3 lines). Include context and scenarios.';
+      questionLength = 'Each question MUST be 2-3 lines long. Include context, scenario, or background information before the question. Questions should require reasoning and application of knowledge, not just recall.';
+      answerDepth = `Explanations MUST be highly descriptive and educational (minimum 3 full paragraphs):
+   - Paragraph 1: Explain the correct answer in depth — the underlying concept, rule, or principle, with real-world application.
+   - Paragraph 2: Explain WHY each wrong option is incorrect, identifying the misconception or error in each.
+   - Paragraph 3: Provide additional learning context — related concepts, examples, or tips to reinforce understanding.`;
       break;
     case 'Expert':
-      difficultyLevel = 'challenging';
-      questionLength = 'Use complex, multi-part questions (2-3 lines). Require deeper understanding and reasoning.';
+      difficultyLevel = 'challenging and analytical';
+      questionLength = 'Each question MUST be 2-3 lines long. Questions must involve complex scenarios, multi-step reasoning, analysis, or synthesis of concepts. Require critical thinking and deep understanding — no simple recall questions.';
+      answerDepth = `Explanations MUST be comprehensive and deeply analytical (minimum 4 full paragraphs):
+   - Paragraph 1: Provide a thorough explanation of why the correct answer is right, including the full concept, formula, or logic chain.
+   - Paragraph 2: Analyze each incorrect option individually — explain the specific misconception, error in reasoning, or why it seems plausible but is wrong.
+   - Paragraph 3: Provide broader context — related advanced concepts, edge cases, exceptions, or how this topic connects to other areas.
+   - Paragraph 4: Include a real-world example, application, or further study guidance to reinforce mastery.`;
       break;
     case 'Mix':
       difficultyLevel = 'varied - mix of easy, medium, and challenging';
-      questionLength = 'Mix question lengths: some short (1 line), some longer (2-3 lines). Distribute difficulty evenly.';
+      questionLength = 'Mix question lengths and styles: some short (1 line, basic recall), some medium (2 lines, application), some complex (2-3 lines, analysis/scenario). Distribute difficulty evenly across the question set.';
+      answerDepth = 'Match explanation depth to question difficulty: brief for easy questions (3-4 sentences), detailed for medium questions (2 paragraphs), comprehensive for hard questions (3+ paragraphs with concept breakdown and misconception analysis).';
       break;
   }
 
@@ -124,19 +133,11 @@ MANDATORY INSTRUCTIONS - MUST FOLLOW STRICTLY:
    - Questions must be clear, unambiguous, and grammatically correct
    - Question numbering must start from 1 and increment sequentially
 
-2. AGE-APPROPRIATENESS REQUIREMENTS:
-   - Language complexity MUST match age group ${ageGroup} years
-   - Concepts MUST be appropriate for the developmental stage
-   - Avoid age-inappropriate content or overly complex terminology
-   - Use vocabulary and sentence structures suitable for ${ageGroup} years old
-
-3. DIFFICULTY LEVEL REQUIREMENTS:
+2. DIFFICULTY LEVEL REQUIREMENTS:
    - Difficulty: ${difficultyLevel}
-   - Question Style: ${questionLength}
-   ${difficulty === 'Mix' ? '- Distribute difficulty evenly: mix easy, medium, and challenging questions' : ''}
-   ${difficulty === 'Basic' ? '- Keep questions straightforward with clear, direct answers' : ''}
-   ${difficulty === 'Advanced' ? '- Include context, scenarios, and require some reasoning' : ''}
-   ${difficulty === 'Expert' ? '- Require deeper understanding, analysis, and critical thinking' : ''}
+   - Question Length & Style: ${questionLength}
+   ${difficulty === 'Advanced' ? '- Questions MUST NOT be one-liners. Always include context or a scenario before the actual question.' : ''}
+   ${difficulty === 'Expert' ? '- Questions MUST NOT be one-liners. Each question must present a scenario, problem, or data that requires analysis.' : ''}
 
 4. LANGUAGE REQUIREMENTS:
    ${languageInstruction}
@@ -151,41 +152,21 @@ MANDATORY INSTRUCTIONS - MUST FOLLOW STRICTLY:
    - Questions should encourage critical thinking appropriate for the age group
 
 6. EXPLANATION REQUIREMENTS (CRITICAL - MANDATORY):
-   - Each explanation MUST be DETAILED and COMPREHENSIVE (minimum 5-7 sentences, preferably more)
-   - EXPLAIN THE CORRECT ANSWER IN DETAIL:
-     * Clearly state why the correct answer is right
-     * Provide the reasoning or logic behind the correct answer
-     * Explain the concept or principle being tested
-     * Give step-by-step explanation if applicable
-     * Include relevant facts, definitions, or rules that support the answer
-   - EXPLAIN EACH INCORRECT OPTION IN DETAIL:
-     * For EACH wrong option (A, B, C, D if not correct), explain WHY it is wrong
-     * Identify the misconception or error in each incorrect option
-     * Explain what makes each distractor incorrect
-     * Clarify common mistakes that might lead to choosing that option
-   - PROVIDE ADDITIONAL EDUCATIONAL CONTENT:
-     * Include related concepts or background information
-     * Provide real-world examples or applications
-     * Connect to broader topics or related subjects
-     * Offer learning tips or study strategies
-     * Suggest ways to remember or understand the concept better
-   - USE APPROPRIATE LANGUAGE:
-     * Use age-appropriate language for ${ageGroup} years old
-     * Use encouraging and positive tone throughout
-     * Make explanations clear and easy to understand
-     * Avoid overly technical jargon unless age-appropriate
-   - MAKE EXPLANATIONS EDUCATIONAL:
-     * Each explanation should teach something valuable
-     * Help students understand not just the answer, but the concept
-     * Provide context that enhances learning
-     * Make explanations memorable and engaging
+   ${answerDepth}
    - STRUCTURE REQUIREMENTS:
      * Start with confirming the correct answer
      * Explain why it's correct with detailed reasoning
      * Address each incorrect option systematically
      * End with additional learning insights or tips
-   - MINIMUM LENGTH: Each explanation must be substantial (5-7 sentences minimum, but more is better)
-   - QUALITY STANDARD: Explanations should be so detailed that a student reading them gains a complete understanding of the concept
+   - USE CLEAR, ENCOURAGING LANGUAGE:
+     * Use a positive, educational tone throughout
+     * Make explanations clear and easy to understand
+     * Avoid unnecessary jargon
+   - MAKE EXPLANATIONS EDUCATIONAL:
+     * Each explanation should teach something valuable beyond just the answer
+     * Provide context that enhances learning
+     * Help students understand the concept, not just memorize the answer
+   - QUALITY STANDARD: Explanations should be so thorough that a student reading them gains a complete understanding of the concept
 
 7. TOPIC COVERAGE REQUIREMENTS:
    - Topics to cover: ${topicsText}
@@ -232,7 +213,7 @@ MANDATORY INSTRUCTIONS - MUST FOLLOW STRICTLY:
 12. QUESTION CLARITY REQUIREMENTS:
     - Questions must be clear and unambiguous
     - Avoid double negatives or confusing phrasing
-    - Use simple, direct language appropriate for age ${ageGroup}
+    - Use clear, well-structured language
     - Ensure questions can be understood without additional context
     - Avoid trick questions or overly clever wording
     - Make the intent of each question obvious
@@ -266,8 +247,8 @@ MANDATORY INSTRUCTIONS - MUST FOLLOW STRICTLY:
       * Provide insights that enhance overall understanding
       * Include connections to related topics or broader concepts
     - LANGUAGE QUALITY:
-      * Use age-appropriate language for ${ageGroup} years old
-      * Use clear, simple sentences that are easy to follow
+      * Use clear, accessible language appropriate for the grade level
+      * Use simple sentences that are easy to follow
       * Include examples or analogies that aid understanding
       * Use positive, encouraging, and supportive tone
       * Avoid jargon unless necessary and explained
@@ -299,9 +280,9 @@ CRITICAL REMINDERS:
 - QUALITY OVER QUANTITY - Better to have fewer high-quality unique questions than repeated ones
 - Follow ALL the above requirements. Do not skip any mandatory instruction.`;
 
-  const prompt = `You are an expert educational content creator specializing in creating high-quality quiz questions for children.
+  const prompt = `You are an expert educational content creator specializing in creating high-quality quiz questions.
 
-TASK: Generate exactly ${numberOfQuestions} educational quiz questions for children aged ${ageGroup} years.
+TASK: Generate exactly ${numberOfQuestions} quiz questions.
 
 ${mandatoryInstructions}
 
@@ -310,7 +291,6 @@ TOPIC DETAILS:
 ${descriptionContext ? `- Quiz Context: ${descriptionContext.replace('Quiz Context/Description: ', '').replace('\nUse this description to understand the quiz\'s purpose and generate questions that align with this context.', '')}` : ''}
 
 CONFIGURATION DETAILS:
-- Age Group: ${ageGroup} years
 - Difficulty Level: ${difficulty} (${difficultyLevel})
 - Question Style: ${questionLength}
 - Language: ${language}
@@ -331,7 +311,7 @@ Return ONLY a valid JSON array with this EXACT structure (no markdown, no additi
       "D": "Option D text (plausible distractor)"
     },
     "correctAnswer": "A",
-    "explanation": "DETAILED and COMPREHENSIVE explanation (minimum 5-7 sentences, more is better) that MUST include: 1) Clear statement of the correct answer, 2) Detailed reasoning explaining WHY the correct answer is right (with concepts, facts, or principles), 3) Explanation of WHY EACH incorrect option (A, B, C, D if not correct) is wrong - address all 3 distractors, 4) Additional context, examples, or real-world applications, 5) Learning tips, memory aids, or study strategies, 6) Connections to related concepts or broader topics, 7) Encouraging and positive language appropriate for age ${ageGroup} years. The explanation should be so detailed that a student can learn the concept deeply from reading it alone."
+    "explanation": "DETAILED and DESCRIPTIVE explanation following the depth requirements for '${difficulty}' difficulty. Must include: 1) Clear statement of the correct answer and full reasoning, 2) Why each incorrect option is wrong (address all 3 distractors), 3) Additional educational context and real-world examples. ${difficulty === 'Advanced' || difficulty === 'Expert' ? 'Write in multiple paragraphs. Be comprehensive and analytical.' : 'Be thorough and educational.'}"
   },
   {
     "number": 2,
@@ -367,14 +347,36 @@ FINAL CHECKLIST BEFORE GENERATING:
 
 Generate the questions now, following ALL requirements strictly. Ensure maximum variety and NO REPEATED QUESTIONS.`;
 
+  const systemMessage =
+    'You are a helpful assistant that generates educational quiz questions for children. Always return valid JSON arrays.';
+
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+    if (getOllamaLogMode() !== 'off') {
+      const descText = finalDescription || description;
+      console.info(
+        `[Ollama] ${JSON.stringify({
+          event: 'quiz.generate.config',
+          numberOfQuestions,
+          difficulty,
+          topics,
+          language,
+          subtopicId: subtopicId || null,
+          gradeLevel: gradeLevel || null,
+          examStyle: examStyle || null,
+          sampleQuestionChars: sampleQuestion ? String(sampleQuestion).length : 0,
+          hasDescription: Boolean(descText),
+          descriptionChars: descText ? String(descText).length : 0,
+          systemPromptChars: systemMessage.length,
+          userPromptChars: prompt.length,
+        })}`
+      );
+    }
+
+    const { content } = await ollamaChat({
       messages: [
         {
           role: 'system',
-          content:
-            'You are a helpful assistant that generates educational quiz questions for children. Always return valid JSON arrays.',
+          content: systemMessage,
         },
         {
           role: 'user',
@@ -382,13 +384,11 @@ Generate the questions now, following ALL requirements strictly. Ensure maximum 
         },
       ],
       temperature: 0.7,
-      max_tokens: 4000,
+      num_predict: 8192,
+      logContext: 'server.generateQuizQuestions',
+      // Large prompt + high num_predict often exceeds a few minutes on CPU / cold model
+      requestTimeoutMs: 1_800_000,
     });
-
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from OpenAI API');
-    }
 
     // Extract JSON from markdown code blocks if present
     const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -438,5 +438,5 @@ Generate the questions now, following ALL requirements strictly. Ensure maximum 
   }
 }
 
-module.exports = { generateQuizQuestions };
+module.exports = { generateQuizQuestions, isLlmConfigured };
 

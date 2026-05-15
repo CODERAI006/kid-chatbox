@@ -8,16 +8,11 @@ import { useState, useEffect } from 'react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { ModuleAccessGuard } from '@/components/ModuleAccessGuard';
 import { Dashboard } from '@/components/Dashboard';
-import { StudyMode } from '@/components/StudyMode';
-import { QuizTutor } from '@/components/QuizTutor';
-import { QuizTutorErrorBoundary } from '@/components/QuizTutorErrorBoundary';
-import { QuizHistory } from '@/components/QuizHistory';
+import { StudyHub } from '@/components/StudyHub';
+import { QuizHub } from '@/components/QuizHub';
 import { QuizRankings } from '@/components/QuizRankings';
-import { StudyHistory } from '@/components/StudyHistory';
-import { StudyLibrary } from '@/components/StudyLibrary';
 import { StudyLibraryViewer } from '@/components/StudyLibraryViewer';
 import { Profile } from '@/components/Profile';
-import { ScheduledTests } from '@/components/ScheduledTests';
 import { StudentLayout } from '@/components/layout/StudentLayout';
 import { Home } from '@/components/Home';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -31,6 +26,7 @@ import { QuizManagement } from '@/components/admin/QuizManagement';
 import { QuizHistoryManagement } from '@/components/admin/QuizHistoryManagement';
 import { StudyLibraryContentManagement } from '@/components/admin/StudyLibraryContentManagement';
 import { QuizResultsAnalytics } from '@/components/admin/QuizResultsAnalytics';
+import { QuizSchedulerManagement } from '@/components/admin/QuizSchedulerManagement';
 import NewsFeed from '@/components/NewsFeed';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
@@ -260,7 +256,7 @@ export const App: React.FC = () => {
               <AuthGuard>
                 <ModuleAccessGuard module="study">
                   <StudentLayout user={user}>
-                    <StudyMode />
+                    <StudyHub />
                   </StudentLayout>
                 </ModuleAccessGuard>
               </AuthGuard>
@@ -272,9 +268,7 @@ export const App: React.FC = () => {
               <AuthGuard>
                 <ModuleAccessGuard module="quiz">
                   <StudentLayout user={user}>
-                    <QuizTutorErrorBoundary>
-                      <QuizTutor />
-                    </QuizTutorErrorBoundary>
+                    <QuizHub />
                   </StudentLayout>
                 </ModuleAccessGuard>
               </AuthGuard>
@@ -286,16 +280,6 @@ export const App: React.FC = () => {
               <AuthGuard>
                 <StudentLayout user={user}>
                   {user && <Profile user={user} />}
-                </StudentLayout>
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/quiz-history"
-            element={
-              <AuthGuard>
-                <StudentLayout user={user}>
-                  <QuizHistory />
                 </StudentLayout>
               </AuthGuard>
             }
@@ -313,28 +297,6 @@ export const App: React.FC = () => {
             }
           />
           <Route
-            path="/study-history"
-            element={
-              <AuthGuard>
-                <StudentLayout user={user}>
-                  <StudyHistory />
-                </StudentLayout>
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/study-library"
-            element={
-              <AuthGuard>
-                <ModuleAccessGuard module="study">
-                  <StudentLayout user={user}>
-                    <StudyLibrary />
-                  </StudentLayout>
-                </ModuleAccessGuard>
-              </AuthGuard>
-            }
-          />
-          <Route
             path="/study-library/:id"
             element={
               <AuthGuard>
@@ -343,16 +305,6 @@ export const App: React.FC = () => {
                     <StudyLibraryViewer />
                   </StudentLayout>
                 </ModuleAccessGuard>
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/scheduled-tests"
-            element={
-              <AuthGuard>
-                <StudentLayout user={user}>
-                  <ScheduledTests />
-                </StudentLayout>
               </AuthGuard>
             }
           />
@@ -455,6 +407,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <StudyLibraryContentManagement />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/quiz-scheduler"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <QuizSchedulerManagement />
                 </AdminLayout>
               </AdminGuard>
             }

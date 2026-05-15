@@ -25,6 +25,7 @@ import {
 } from '@/shared/design-system';
 import { motion } from 'framer-motion';
 import { UpcomingTestsMarquee } from './UpcomingTestsMarquee';
+import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -38,6 +39,7 @@ const navItems = [
   { path: '/admin/quizzes', label: 'Quizzes', icon: '📝' },
   { path: '/admin/quiz-history', label: 'Quiz History', icon: '📋' },
   { path: '/admin/study-library-content', label: 'Study Library', icon: '📖' },
+  { path: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: '⏰' },
   { path: '/admin/analytics', label: 'Analytics', icon: '📈' },
 ];
 
@@ -147,6 +149,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {children}
         </Box>
       </HStack>
+
+      <LearningChatWidget />
     </Box>
   );
 };

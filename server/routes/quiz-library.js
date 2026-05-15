@@ -10,6 +10,10 @@ const { checkModuleAccess } = require('../middleware/rbac');
 
 const router = express.Router();
 
+/** Only match real UUIDs so paths like /suggestions never bind as :id */
+const QUIZ_LIBRARY_ID_PARAM =
+  '/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
+
 /**
  * Extract tags from quiz config for automatic tagging
  * @param {Object} config - Quiz configuration
@@ -236,61 +240,9 @@ router.get('/', authenticateToken, checkModuleAccess('quiz'), async (req, res, n
 });
 
 /**
- * Get quiz by ID with full questions
- * GET /api/quiz-library/:id
- */
-router.get('/:id', authenticateToken, checkModuleAccess('quiz'), async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const result = await pool.query(
-      `SELECT * FROM quiz_library WHERE id = $1 AND is_active = true`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quiz not found',
-      });
-    }
-
-    const quiz = result.rows[0];
-    
-    // Parse questions JSON
-    quiz.questions = typeof quiz.questions === 'string' 
-      ? JSON.parse(quiz.questions) 
-      : quiz.questions;
-
-    // Increment usage count
-    await pool.query(
-      `UPDATE quiz_library 
-       SET usage_count = usage_count + 1,
-           last_used_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [id]
-    );
-
-    // Track usage
-    await pool.query(
-      `INSERT INTO quiz_library_usage (quiz_library_id, user_id)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING`,
-      [id, req.user.id]
-    );
-
-    res.json({
-      success: true,
-      quiz,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
  * Get suggested quizzes based on subject and tags
  * GET /api/quiz-library/suggestions?subject=&tags=
+ * MUST be registered before /:id or "suggestions" is parsed as a UUID id.
  */
 router.get('/suggestions', authenticateToken, checkModuleAccess('quiz'), async (req, res, next) => {
   try {
@@ -336,6 +288,59 @@ router.get('/suggestions', authenticateToken, checkModuleAccess('quiz'), async (
     res.json({
       success: true,
       suggestions: result.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get quiz by ID with full questions
+ * GET /api/quiz-library/:id
+ */
+router.get(QUIZ_LIBRARY_ID_PARAM, authenticateToken, checkModuleAccess('quiz'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT * FROM quiz_library WHERE id = $1 AND is_active = true`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quiz not found',
+      });
+    }
+
+    const quiz = result.rows[0];
+    
+    // Parse questions JSON
+    quiz.questions = typeof quiz.questions === 'string' 
+      ? JSON.parse(quiz.questions) 
+      : quiz.questions;
+
+    // Increment usage count
+    await pool.query(
+      `UPDATE quiz_library 
+       SET usage_count = usage_count + 1,
+           last_used_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [id]
+    );
+
+    // Track usage
+    await pool.query(
+      `INSERT INTO quiz_library_usage (quiz_library_id, user_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [id, req.user.id]
+    );
+
+    res.json({
+      success: true,
+      quiz,
     });
   } catch (error) {
     next(error);

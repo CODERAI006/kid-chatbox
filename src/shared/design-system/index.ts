@@ -100,5 +100,8 @@ export {
   SliderFilledTrack,
   SliderThumb,
   SliderMark,
+  Skeleton,
+  SkeletonText,
+  Collapse,
 } from '@chakra-ui/react';
 

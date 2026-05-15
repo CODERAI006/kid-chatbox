@@ -197,10 +197,8 @@ export const ScheduledTests: React.FC<ScheduledTestsProps> = ({ maxDisplay, show
     }
   };
 
-  const handleViewResults = (test: ScheduledTest): void => {
-    if (test.completedAttemptId) {
-      navigate(`/quiz-history?attemptId=${test.completedAttemptId}`);
-    }
+  const handleViewResults = (_test: ScheduledTest): void => {
+    navigate('/quiz#history');
   };
 
   if (loading) {
@@ -246,7 +244,7 @@ export const ScheduledTests: React.FC<ScheduledTestsProps> = ({ maxDisplay, show
                   size="sm"
                   variant="ghost"
                   colorScheme="blue"
-                  onClick={() => navigate('/scheduled-tests')}
+                  onClick={() => navigate('/quiz#scheduled')}
                 >
                   View All →
                 </Button>
@@ -280,7 +278,7 @@ export const ScheduledTests: React.FC<ScheduledTestsProps> = ({ maxDisplay, show
                   size="sm"
                   variant="ghost"
                   colorScheme="green"
-                  onClick={() => navigate('/scheduled-tests')}
+                  onClick={() => navigate('/quiz#scheduled')}
                 >
                   View All →
                 </Button>
@@ -314,7 +312,7 @@ export const ScheduledTests: React.FC<ScheduledTestsProps> = ({ maxDisplay, show
                   size="sm"
                   variant="ghost"
                   colorScheme="gray"
-                  onClick={() => navigate('/scheduled-tests')}
+                  onClick={() => navigate('/quiz#scheduled')}
                 >
                   View All →
                 </Button>

@@ -57,14 +57,15 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
   } = deps;
 
   const handleAIGenerate = async (data: {
-    useManualInput: boolean;
-    manualTopicName: string;
-    manualSubtopicName: string;
-    selectedTopic: string;
-    selectedSubtopic: string;
+    // Topic fields are optional — new form no longer requires them
+    useManualInput?: boolean;
+    manualTopicName?: string;
+    manualSubtopicName?: string;
+    selectedTopic?: string;
+    selectedSubtopic?: string;
     name: string;
     description: string;
-    ageGroup: string;
+    ageGroup?: string;      // optional — replaced by gradeLevel
     difficulty: string;
     numberOfQuestions: number;
     passingPercentage: number;
@@ -72,23 +73,16 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
     topics: string[];
     language: string;
     gradeLevel?: string;
+    subject?: string;
+    questionType?: string;
     sampleQuestion?: string;
     examStyle?: string;
   }) => {
-    if (!data.name || !data.ageGroup || !data.difficulty) {
+    // Only name + difficulty are truly required
+    if (!data.name?.trim() || !data.difficulty) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (data.useManualInput && !data.manualTopicName.trim()) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a topic name when using manual input',
+        description: 'Please enter a quiz name and select a difficulty level',
         status: 'error',
         duration: 3000,
       });
@@ -97,24 +91,28 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
 
     try {
       setLoading(true);
-      const subtopicId = await ensureTopicAndSubtopic({
-        useManualInput: data.useManualInput,
-        manualTopicName: data.manualTopicName,
-        manualSubtopicName: data.manualSubtopicName,
-        selectedTopic: data.selectedTopic,
-        selectedSubtopic: data.selectedSubtopic,
-        topics,
-        ageGroup: data.ageGroup,
-        difficulty: data.difficulty,
-        loadTopics,
-        toast,
-      });
 
-      await adminApi.generateQuiz({
+      // Only try to resolve subtopic if topic fields were explicitly provided
+      const subtopicId = (data.useManualInput || data.selectedSubtopic)
+        ? await ensureTopicAndSubtopic({
+            useManualInput: data.useManualInput ?? false,
+            manualTopicName: data.manualTopicName ?? '',
+            manualSubtopicName: data.manualSubtopicName ?? '',
+            selectedTopic: data.selectedTopic ?? '',
+            selectedSubtopic: data.selectedSubtopic ?? '',
+            topics,
+            ageGroup: data.ageGroup ?? data.gradeLevel ?? '',
+            difficulty: data.difficulty,
+            loadTopics,
+            toast,
+          })
+        : undefined;
+
+      const result = await adminApi.generateQuiz({
         subtopicId,
-        name: data.name,
+        name: data.name.trim(),
         description: data.description,
-        ageGroup: data.ageGroup,
+        ageGroup: data.ageGroup || data.gradeLevel || undefined,
         difficulty: data.difficulty,
         numberOfQuestions: data.numberOfQuestions,
         passingPercentage: data.passingPercentage,
@@ -122,6 +120,7 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
         topics: data.topics,
         language: data.language,
         gradeLevel: data.gradeLevel?.trim() || undefined,
+        subject: data.subject?.trim() || undefined,
         sampleQuestion: data.sampleQuestion?.trim() || undefined,
         examStyle: data.examStyle?.trim() || undefined,
       });
@@ -135,6 +134,7 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
 
       onClose?.();
       await loadQuizzes();
+      return result;
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate quiz';
       toast({
@@ -198,25 +198,26 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
   };
 
   const handleJSONUpload = async (data: {
-    useManualInput: boolean;
-    manualTopicName: string;
-    manualSubtopicName: string;
-    selectedTopic: string;
-    selectedSubtopic: string;
+    useManualInput?: boolean;
+    manualTopicName?: string;
+    manualSubtopicName?: string;
+    selectedTopic?: string;
+    selectedSubtopic?: string;
     uploadMethod: 'text' | 'file';
     uploadedFile: File | null;
     name: string;
     description: string;
-    ageGroup: string;
+    ageGroup?: string;      // optional — gradeLevel is preferred
+    gradeLevel?: string;
     difficulty: string;
     passingPercentage: number;
     timeLimit: string;
     jsonContent: string;
   }) => {
-    if (!data.name || !data.ageGroup || !data.difficulty) {
+    if (!data.name?.trim() || !data.difficulty) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields',
+        description: 'Please enter a quiz name and select a difficulty level',
         status: 'error',
         duration: 3000,
       });
@@ -243,7 +244,7 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
       return;
     }
 
-    if (data.useManualInput && !data.manualTopicName.trim()) {
+    if (data.useManualInput && !data.manualTopicName?.trim()) {
       toast({
         title: 'Validation Error',
         description: 'Please enter a topic name when using manual input',
@@ -324,24 +325,27 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
       }
 
       setLoading(true);
-      const subtopicId = await ensureTopicAndSubtopic({
-        useManualInput: data.useManualInput,
-        manualTopicName: data.manualTopicName,
-        manualSubtopicName: data.manualSubtopicName,
-        selectedTopic: data.selectedTopic,
-        selectedSubtopic: data.selectedSubtopic,
-        topics,
-        ageGroup: data.ageGroup,
-        difficulty: data.difficulty,
-        loadTopics,
-        toast,
-      });
 
-      await adminApi.uploadQuiz({
+      const subtopicId = (data.useManualInput || data.selectedSubtopic)
+        ? await ensureTopicAndSubtopic({
+            useManualInput: data.useManualInput ?? false,
+            manualTopicName: data.manualTopicName ?? '',
+            manualSubtopicName: data.manualSubtopicName ?? '',
+            selectedTopic: data.selectedTopic ?? '',
+            selectedSubtopic: data.selectedSubtopic ?? '',
+            topics,
+            ageGroup: data.ageGroup ?? data.gradeLevel ?? '',
+            difficulty: data.difficulty,
+            loadTopics,
+            toast,
+          })
+        : undefined;
+
+      const result = await adminApi.uploadQuiz({
         subtopicId,
-        name: data.name,
+        name: data.name.trim(),
         description: data.description,
-        ageGroup: data.ageGroup,
+        ageGroup: data.ageGroup || data.gradeLevel || undefined,
         difficulty: data.difficulty,
         passingPercentage: data.passingPercentage,
         timeLimit: data.timeLimit ? parseInt(data.timeLimit) : undefined,
@@ -357,6 +361,7 @@ export const createQuizHandlers = (deps: HandlersDependencies) => {
 
       onClose?.();
       await loadQuizzes();
+      return result;
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload quiz';
       toast({

@@ -1,15 +1,10 @@
 /**
- * Study mode service for generating CBSE-style lessons
+ * Study mode: lessons via backend → local Ollama (see docs/ollama-api.md).
  */
 
-import OpenAI from 'openai';
 import { QuizConfig } from '@/types/quiz';
 import { User } from '@/types';
-
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
+import { aiApi } from '@/services/api';
 
 export interface Lesson {
   title: string;
@@ -46,10 +41,6 @@ function getUserProfile(): { grade?: string; age?: number; name?: string } {
  * @param userProfile - User profile with age, grade, name for personalization
  */
 export async function generateLesson(config: QuizConfig, userProfile?: User | null): Promise<Lesson> {
-  if (!import.meta.env.VITE_OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is not configured.');
-  }
-
   const profile = userProfile || getUserProfile();
   const grade = profile.grade || `Class ${Math.floor((config.age || 8) / 2) + 1}`;
   const classLevel = grade.includes('Class') ? grade : `Class ${grade}`;
@@ -171,8 +162,7 @@ Return ONLY a valid JSON object with this exact structure:
 }`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const { content } = await aiApi.chat({
       messages: [
         {
           role: 'system',
@@ -185,13 +175,8 @@ Return ONLY a valid JSON object with this exact structure:
         },
       ],
       temperature: 0.7,
-      max_tokens: 4000,
+      num_predict: 8192,
     });
-
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from OpenAI API');
-    }
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonString = jsonMatch ? jsonMatch[0] : content;

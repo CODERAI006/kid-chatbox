@@ -13,6 +13,8 @@ import {
   Spinner,
   Alert,
   AlertIcon,
+  AlertDescription,
+  AlertTitle,
   Tabs,
   TabList,
   TabPanels,
@@ -20,8 +22,9 @@ import {
   TabPanel,
   useDisclosure,
   useToast,
+  Text,
 } from '@/shared/design-system';
-import { Quiz, QuizQuestion, ScheduledTest } from '@/services/admin';
+import { Quiz, QuizQuestion, ScheduledTest, adminApi } from '@/services/admin';
 import { QuizTable } from './quiz/QuizTable';
 import { ScheduledTestsTable } from './quiz/ScheduledTestsTable';
 import { CreateQuizModal } from './quiz/CreateQuizModal';
@@ -33,6 +36,7 @@ import { ViewScheduledTestModal } from './quiz/ViewScheduledTestModal';
 import { QuizReport } from './quiz/QuizReport';
 import { useQuizManagement } from './quiz/useQuizManagement';
 import { createQuizHandlers } from './quiz/quizHandlers';
+import { BulkExamUpload } from './quiz/BulkExamUpload';
 
 /**
  * Quiz Management component
@@ -41,14 +45,12 @@ export const QuizManagement: React.FC = () => {
   const {
     quizzes,
     topics,
-    subtopics,
     plans,
     scheduledTests,
     loading,
     error,
     loadQuizzes,
     loadTopics,
-    loadSubtopics,
     loadScheduledTests,
     loadData,
   } = useQuizManagement();
@@ -56,6 +58,7 @@ export const QuizManagement: React.FC = () => {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const [lastCreatedQuiz, setLastCreatedQuiz] = useState<{ id: string; name: string } | null>(null);
   const [viewingQuiz, setViewingQuiz] = useState<{ quiz: Quiz; questions: QuizQuestion[] } | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
@@ -120,7 +123,36 @@ export const QuizManagement: React.FC = () => {
   }, [loadData]);
 
   const handleCreateQuiz = async (type: 'ai' | 'json', data: any) => {
-    type === 'ai' ? await handlers.handleAIGenerate(data) : await handlers.handleJSONUpload(data);
+    const result = type === 'ai'
+      ? await handlers.handleAIGenerate(data)
+      : await handlers.handleJSONUpload(data);
+    if (result?.quiz) {
+      setLastCreatedQuiz({ id: result.quiz.id, name: result.quiz.name });
+    }
+  };
+
+  const handleToggleLibrary = async (quiz: Quiz) => {
+    try {
+      await adminApi.toggleQuizLibrary(quiz.id, !quiz.inLibrary);
+      await loadQuizzes();
+      toast({
+        title: quiz.inLibrary ? 'Removed from Quiz Library' : 'Published to Quiz Library',
+        description: quiz.inLibrary
+          ? `"${quiz.name}" is no longer visible in the student Quiz Library.`
+          : `"${quiz.name}" is now available for all students in the Quiz Library.`,
+        status: 'success',
+        duration: 3000,
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update library status', status: 'error', duration: 3000 });
+    }
+  };
+
+  const openScheduleForQuiz = (quizId: string, timeLimit?: number) => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    const nextWeek  = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    setScheduleFormData({ quizId, scheduledFor: '', visibleFrom: tomorrow, visibleUntil: nextWeek, durationMinutes: timeLimit?.toString() || '60', planIds: [], userIds: [], instructions: '' });
+    onScheduleOpen();
   };
 
   const handleScheduleTestSubmit = async (data: typeof scheduleFormData) => {
@@ -210,10 +242,51 @@ export const QuizManagement: React.FC = () => {
           </HStack>
         </HStack>
 
+        {/* Post-creation action banner */}
+        {lastCreatedQuiz && (
+          <Alert status="success" borderRadius="md" alignItems="flex-start" position="relative">
+            <AlertIcon mt={1} />
+            <Box flex={1}>
+              <AlertTitle fontSize="sm">Quiz "{lastCreatedQuiz.name}" created!</AlertTitle>
+              <AlertDescription fontSize="sm">
+                <Text mb={2}>What would you like to do next?</Text>
+                <HStack spacing={2} flexWrap="wrap">
+                  <Button
+                    size="sm"
+                    colorScheme="blue"
+                    leftIcon={<Text>📅</Text>}
+                    onClick={() => { openScheduleForQuiz(lastCreatedQuiz.id); setLastCreatedQuiz(null); }}
+                  >
+                    Schedule as Test
+                  </Button>
+                  <Button
+                    size="sm"
+                    colorScheme="teal"
+                    leftIcon={<Text>📚</Text>}
+                    onClick={async () => {
+                      await adminApi.toggleQuizLibrary(lastCreatedQuiz.id, true);
+                      await loadQuizzes();
+                      toast({ title: 'Published to Quiz Library', description: `"${lastCreatedQuiz.name}" is now available for students.`, status: 'success', duration: 3000 });
+                      setLastCreatedQuiz(null);
+                    }}
+                  >
+                    Add to Quiz Library
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setLastCreatedQuiz(null)}>
+                    Dismiss
+                  </Button>
+                </HStack>
+              </AlertDescription>
+            </Box>
+            <Button size="xs" variant="ghost" position="absolute" top={2} right={2} onClick={() => setLastCreatedQuiz(null)} aria-label="Dismiss">✕</Button>
+          </Alert>
+        )}
+
         <Tabs index={activeTab} onChange={setActiveTab}>
           <TabList>
             <Tab>Quizzes</Tab>
             <Tab>Scheduled Tests</Tab>
+            <Tab>📊 Bulk Excel Upload</Tab>
           </TabList>
 
           <TabPanels>
@@ -222,13 +295,9 @@ export const QuizManagement: React.FC = () => {
                 quizzes={quizzes}
                 onView={handlers.handleViewQuiz}
                 onEdit={handleEditQuizClick}
-                onSchedule={(quiz) => {
-                  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-                  const nextWeek = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-                  setScheduleFormData({ quizId: quiz.id, scheduledFor: '', visibleFrom: tomorrow, visibleUntil: nextWeek, durationMinutes: quiz.timeLimit?.toString() || '60', planIds: [], userIds: [], instructions: '' });
-                  onScheduleOpen();
-                }}
+                onSchedule={(quiz) => openScheduleForQuiz(quiz.id, quiz.timeLimit)}
                 onDelete={handlers.handleDeleteQuiz}
+                onToggleLibrary={handleToggleLibrary}
               />
             </TabPanel>
 
@@ -241,6 +310,15 @@ export const QuizManagement: React.FC = () => {
                 onViewReport={handleViewReport}
               />
             </TabPanel>
+
+            {/* Bulk Excel Upload tab */}
+            <TabPanel>
+              <BulkExamUpload
+                onUploadComplete={({ created }) => {
+                  if (created > 0) loadQuizzes();
+                }}
+              />
+            </TabPanel>
           </TabPanels>
         </Tabs>
 
@@ -248,9 +326,6 @@ export const QuizManagement: React.FC = () => {
           isOpen={isOpen}
           onClose={onClose}
           onCreate={handleCreateQuiz}
-          topics={topics}
-          subtopics={subtopics}
-          onTopicChange={loadSubtopics}
           loading={actionLoading}
         />
 

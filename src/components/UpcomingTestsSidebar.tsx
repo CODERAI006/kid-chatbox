@@ -290,7 +290,7 @@ export const UpcomingTestsSidebar: React.FC<UpcomingTestsSidebarProps> = ({ plan
               size={{ base: 'xs', md: 'sm' }}
               variant="ghost"
               colorScheme="blue"
-              onClick={() => navigate('/scheduled-tests')}
+              onClick={() => navigate('/quiz#scheduled')}
               w="100%"
             >
               View All Tests →

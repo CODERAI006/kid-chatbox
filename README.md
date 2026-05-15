@@ -147,11 +147,11 @@ npm run dev
 
 ### Database
 
-The database tables are created automatically on first server startup. See `BACKEND_SETUP.md` for detailed database setup instructions.
+The database tables are created automatically on first server startup. For schema and migration patterns, see `docs/best-practices/db/README.md` and `server/README.md`.
 
 ### API Documentation
 
-See `API_DOCUMENTATION.md` for complete API endpoint documentation.
+REST routes live under `server/` (Express). For API design patterns, see `docs/best-practices/API/README.md`.
 
 ## License
 

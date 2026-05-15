@@ -30,6 +30,7 @@ interface QuizTableProps {
   onEdit: (quiz: Quiz) => void;
   onSchedule: (quiz: Quiz) => void;
   onDelete: (quizId: string) => void;
+  onToggleLibrary: (quiz: Quiz) => void;
 }
 
 export const QuizTable: React.FC<QuizTableProps> = ({
@@ -38,6 +39,7 @@ export const QuizTable: React.FC<QuizTableProps> = ({
   onEdit,
   onSchedule,
   onDelete,
+  onToggleLibrary,
 }) => {
   if (quizzes.length === 0) {
     return (
@@ -119,44 +121,21 @@ export const QuizTable: React.FC<QuizTableProps> = ({
                   <Divider />
 
                   <HStack spacing={2} flexWrap="wrap">
+                    <Button size="sm" colorScheme="green" variant="outline" flex="1" minW="80px" onClick={() => onView(quiz)}>View</Button>
+                    <Button size="sm" colorScheme="orange" variant="outline" flex="1" minW="80px" onClick={() => onEdit(quiz)}>Edit</Button>
+                    <Button size="sm" colorScheme="blue" variant="outline" flex="1" minW="80px" onClick={() => onSchedule(quiz)}>Schedule</Button>
                     <Button
                       size="sm"
-                      colorScheme="green"
-                      variant="outline"
+                      colorScheme={quiz.inLibrary ? 'teal' : 'gray'}
+                      variant={quiz.inLibrary ? 'solid' : 'outline'}
                       flex="1"
-                      minW="80px"
-                      onClick={() => onView(quiz)}
+                      minW="90px"
+                      onClick={() => onToggleLibrary(quiz)}
+                      title={quiz.inLibrary ? 'Remove from student Quiz Library' : 'Publish to student Quiz Library'}
                     >
-                      View
+                      {quiz.inLibrary ? '📚 In Library' : '📚 Publish'}
                     </Button>
-                    <Button
-                      size="sm"
-                      colorScheme="orange"
-                      variant="outline"
-                      flex="1"
-                      minW="80px"
-                      onClick={() => onEdit(quiz)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      colorScheme="blue"
-                      variant="outline"
-                      flex="1"
-                      minW="80px"
-                      onClick={() => onSchedule(quiz)}
-                    >
-                      Schedule
-                    </Button>
-                    <IconButton
-                      aria-label="Delete quiz"
-                      icon={<Text>🗑️</Text>}
-                      size="sm"
-                      colorScheme="red"
-                      variant="ghost"
-                      onClick={() => onDelete(quiz.id)}
-                    />
+                    <IconButton aria-label="Delete quiz" icon={<Text>🗑️</Text>} size="sm" colorScheme="red" variant="ghost" onClick={() => onDelete(quiz.id)} />
                   </HStack>
                 </VStack>
               </CardBody>
@@ -208,39 +187,20 @@ export const QuizTable: React.FC<QuizTableProps> = ({
                         </Badge>
                       </Td>
                       <Td>
-                        <HStack spacing={1}>
+                        <HStack spacing={1} flexWrap="wrap">
+                          <Button size="xs" colorScheme="green" variant="outline" onClick={() => onView(quiz)}>View</Button>
+                          <Button size="xs" colorScheme="orange" variant="outline" onClick={() => onEdit(quiz)}>Edit</Button>
+                          <Button size="xs" colorScheme="blue" variant="outline" onClick={() => onSchedule(quiz)}>📅 Schedule</Button>
                           <Button
                             size="xs"
-                            colorScheme="green"
-                            variant="outline"
-                            onClick={() => onView(quiz)}
+                            colorScheme={quiz.inLibrary ? 'teal' : 'gray'}
+                            variant={quiz.inLibrary ? 'solid' : 'outline'}
+                            onClick={() => onToggleLibrary(quiz)}
+                            title={quiz.inLibrary ? 'Remove from Quiz Library' : 'Add to Quiz Library'}
                           >
-                            View
+                            {quiz.inLibrary ? '📚 Library ✓' : '📚 Publish'}
                           </Button>
-                          <Button
-                            size="xs"
-                            colorScheme="orange"
-                            variant="outline"
-                            onClick={() => onEdit(quiz)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="xs"
-                            colorScheme="blue"
-                            variant="outline"
-                            onClick={() => onSchedule(quiz)}
-                          >
-                            Schedule
-                          </Button>
-                          <IconButton
-                            aria-label="Delete quiz"
-                            icon={<Text>🗑️</Text>}
-                            size="xs"
-                            colorScheme="red"
-                            variant="ghost"
-                            onClick={() => onDelete(quiz.id)}
-                          />
+                          <IconButton aria-label="Delete quiz" icon={<Text>🗑️</Text>} size="xs" colorScheme="red" variant="ghost" onClick={() => onDelete(quiz.id)} />
                         </HStack>
                       </Td>
                     </Tr>

@@ -233,8 +233,8 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuOpen, showMenuButton
                   <MenuItem onClick={() => navigate('/study')}>AI Study Mode</MenuItem>
                   <MenuItem onClick={() => navigate('/quiz')}>AI Quiz Mode</MenuItem>
                   <MenuItem onClick={() => navigate('/quiz-rankings')}>Quiz Rankings 🏆</MenuItem>
-                  <MenuItem onClick={() => navigate('/study-history')}>Study History</MenuItem>
-                  <MenuItem onClick={() => navigate('/quiz-history')}>Quiz History</MenuItem>
+                  <MenuItem onClick={() => navigate('/study#history')}>Study History</MenuItem>
+                  <MenuItem onClick={() => navigate('/quiz#history')}>Quiz History</MenuItem>
                   <MenuItem onClick={() => navigate('/profile')}>My Profile</MenuItem>
                 </MenuList>
               </Menu>

@@ -47,9 +47,9 @@ This documentation is tailored for:
 
 ## Related Documentation
 
-- Backend Best Practices: `../server/docs/best-practices/`
-- Frontend Best Practices: `../src/docs/best-practices/`
-- Database Setup: See project root `DATABASE_SETUP.md`
+- Backend best practices: `../API/README.md`
+- Frontend best practices: `../Frontend/README.md`
+- Local setup: project root `README.md`
 
 ## Contributing
 

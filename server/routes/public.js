@@ -4,17 +4,13 @@
 
 const express = require('express');
 const axios = require('axios');
-const OpenAI = require('openai');
 const { pool } = require('../config/database');
+const { ollamaChat, isLlmConfigured } = require('../utils/ollamaClient');
 const { trackEvent, EVENT_TYPES } = require('../utils/eventTracker');
 const { VOCABULARY_WORDS_1000 } = require('../data/vocabulary-1000-words');
 const { SYNONYMS_ANTONYMS_FALLBACK } = require('../data/synonyms-antonyms-fallback');
 
 const router = express.Router();
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY,
-});
 
 // Word list for Word of the Day feature (1000 words)
 const VOCABULARY_WORDS = VOCABULARY_WORDS_1000;
@@ -31,12 +27,40 @@ const getWordOfTheDay = () => {
   return VOCABULARY_WORDS[wordIndex];
 };
 
+/** Local calendar date YYYY-MM-DD for Word-of-the-Day cache rows */
+function wordOfTheDayCacheDate() {
+  const t = new Date();
+  const y = t.getFullYear();
+  const m = String(t.getMonth() + 1).padStart(2, '0');
+  const d = String(t.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function readWordOfTheDayCache(wordKey, cacheDate) {
+  const r = await pool.query(
+    `SELECT payload FROM word_of_the_day_cache
+     WHERE word_key = $1 AND cache_date = $2::date`,
+    [wordKey, cacheDate]
+  );
+  return r.rows.length > 0 ? r.rows[0].payload : null;
+}
+
+async function writeWordOfTheDayCache(wordKey, cacheDate, payload) {
+  await pool.query(
+    `INSERT INTO word_of_the_day_cache (word_key, cache_date, payload)
+     VALUES ($1, $2::date, $3::jsonb)
+     ON CONFLICT (word_key, cache_date) DO UPDATE
+     SET payload = EXCLUDED.payload, updated_at = CURRENT_TIMESTAMP`,
+    [wordKey, cacheDate, JSON.stringify(payload)]
+  );
+}
+
 /**
- * Generate additional example sentences using OpenAI
+ * Generate additional example sentences using local Ollama
  */
 async function generateExampleSentences(word, partOfSpeech, definition) {
   try {
-    if (!openai.apiKey) {
+    if (!isLlmConfigured()) {
       return [];
     }
 
@@ -51,12 +75,12 @@ Requirements:
 
 Return ONLY a JSON array of sentences, nothing else. Format: ["sentence 1", "sentence 2", "sentence 3"]`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+    const { content: raw } = await ollamaChat({
       messages: [
         {
           role: 'system',
-          content: 'You are an educational assistant helping children learn vocabulary. Generate simple, clear example sentences.',
+          content:
+            'You are an educational assistant helping children learn vocabulary. Generate simple, clear example sentences.',
         },
         {
           role: 'user',
@@ -64,10 +88,11 @@ Return ONLY a JSON array of sentences, nothing else. Format: ["sentence 1", "sen
         },
       ],
       temperature: 0.7,
-      max_tokens: 300,
+      num_predict: 512,
+      logContext: `public.wordOfDayExamples word=${word}`,
     });
 
-    const content = response.choices[0].message.content.trim();
+    const content = raw.trim();
     const sentences = JSON.parse(content);
     return Array.isArray(sentences) ? sentences.slice(0, 3) : [];
   } catch (error) {
@@ -153,7 +178,18 @@ router.get('/home-views', async (req, res, next) => {
 router.get('/word-of-the-day', async (req, res, next) => {
   try {
     const word = req.query.word || getWordOfTheDay();
-    
+    const wordKey = String(word).toLowerCase().trim();
+    const cacheDate = wordOfTheDayCacheDate();
+
+    try {
+      const cached = await readWordOfTheDayCache(wordKey, cacheDate);
+      if (cached) {
+        return res.json(cached);
+      }
+    } catch (cacheErr) {
+      console.warn('[word-of-the-day] cache read skipped:', cacheErr.message);
+    }
+
     // Fetch word data from Free Dictionary API
     const response = await axios.get(
       `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`,
@@ -220,14 +256,22 @@ router.get('/word-of-the-day', async (req, res, next) => {
 
       const meanings = await Promise.all(meaningsPromises);
 
-      res.json({
+      const body = {
         success: true,
         word: wordData.word,
         phonetic,
         audioUrl,
         meanings,
         sourceUrl: wordData.sourceUrls ? wordData.sourceUrls[0] : null,
-      });
+      };
+
+      try {
+        await writeWordOfTheDayCache(wordKey, cacheDate, body);
+      } catch (writeErr) {
+        console.error('[word-of-the-day] cache write failed:', writeErr.message);
+      }
+
+      res.json(body);
     } else {
       res.status(404).json({
         success: false,

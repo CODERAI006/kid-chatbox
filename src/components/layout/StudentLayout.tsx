@@ -14,6 +14,7 @@ import {
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { StudentSidebar } from './StudentSidebar';
+import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
 import { User } from '@/types';
 
 interface StudentLayoutProps {
@@ -58,6 +59,8 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
       </HStack>
 
       {showFooter && <Footer />}
+
+      {user ? <LearningChatWidget /> : null}
     </Box>
   );
 };

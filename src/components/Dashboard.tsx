@@ -277,7 +277,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                           size={{ base: 'xs', md: 'sm' }}
                           variant="ghost"
                           colorScheme="blue"
-                          onClick={() => navigate('/quiz-history')}
+                          onClick={() => navigate('/quiz#history')}
                           mt={{ base: 1, md: 0 }}
                         >
                           View All History →
@@ -338,7 +338,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     </VStack>
                     <Button
                       colorScheme="blue"
-                      onClick={() => navigate('/study-history')}
+                      onClick={() => navigate('/study#history')}
                       size={{ base: 'sm', md: 'md' }}
                       w={{ base: '100%', md: 'auto' }}
                       mt={{ base: 3, md: 0 }}
@@ -369,7 +369,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       </VStack>
                       <Button
                         colorScheme="blue"
-                        onClick={() => navigate('/quiz-history')}
+                        onClick={() => navigate('/quiz#history')}
                         size={{ base: 'sm', md: 'md' }}
                         w={{ base: '100%', md: 'auto' }}
                         mt={{ base: 3, md: 0 }}

@@ -55,7 +55,7 @@ When adding new patterns or updating existing ones:
 
 ## Related Documentation
 
-- Frontend Best Practices: `../src/docs/best-practices/`
+- Frontend Best Practices: `../Frontend/README.md`
 - API Documentation: Consider adding Swagger/OpenAPI
-- Deployment Guide: See project root `DEPLOYMENT_QUICK_START.md`
+- Deployment: See project root `README.md` (Quick Setup and deployment notes)
 

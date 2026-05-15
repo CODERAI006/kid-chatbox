@@ -1,347 +1,342 @@
 /**
- * WordOfTheDay Component - Displays daily vocabulary word with definitions
+ * WordOfTheDay Component
+ * Displays 5 advanced vocabulary words per day with date navigation,
+ * synonyms, antonyms, definitions, and examples.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  Box,
-  Card,
-  CardBody,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Badge,
-  Spinner,
-  Divider,
-  Button,
-  IconButton,
+  Box, Card, CardBody, Heading, Text, VStack, HStack,
+  Badge, Spinner, Divider, Button, IconButton, Collapse,
 } from '@/shared/design-system';
 import { publicApi } from '@/services/api';
-import { MESSAGES } from '@/constants/app';
 
-interface WordData {
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface WordMeaning {
+  partOfSpeech: string;
+  definitions: Array<{ definition: string; example: string | null }>;
+  synonyms: string[];
+  antonyms: string[];
+}
+
+interface WordEntry {
   word: string;
   phonetic: string;
   audioUrl: string | null;
-  meanings: Array<{
-    partOfSpeech: string;
-    definitions: Array<{
-      definition: string;
-      example: string | null;
-    }>;
-    synonyms: string[];
-    antonyms: string[];
-    additionalExamples: string[];
-  }>;
-  sourceUrl: string | null;
+  meanings: WordMeaning[];
 }
 
-/**
- * WordOfTheDay component shows daily vocabulary word with detailed information
- */
-export const WordOfTheDay: React.FC = () => {
-  const [wordData, setWordData] = useState<WordData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [showMoreExamples, setShowMoreExamples] = useState(false);
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    loadWordOfTheDay();
-  }, []);
+const toYMD = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
-  const loadWordOfTheDay = async () => {
-    try {
-      setLoading(true);
-      setError(false);
-      const response = await publicApi.getWordOfTheDay();
-      
-      if (response.success && response.meanings.length > 0) {
-        setWordData({
-          word: response.word,
-          phonetic: response.phonetic,
-          audioUrl: response.audioUrl,
-          meanings: response.meanings,
-          sourceUrl: response.sourceUrl,
-        });
-      } else {
-        setError(true);
-      }
-    } catch (err) {
-      console.error('Error loading word of the day:', err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+const addDays = (d: Date, n: number): Date => {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() + n);
+  return copy;
+};
+
+const formatDisplayDate = (d: Date): string =>
+  d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+const isToday = (d: Date): boolean => toYMD(d) === toYMD(new Date());
+
+// ─── WordCard ─────────────────────────────────────────────────────────────────
+
+interface WordCardProps {
+  entry: WordEntry;
+  index: number;
+}
+
+const WordCard: React.FC<WordCardProps> = ({ entry, index }) => {
+  const [expanded, setExpanded] = useState(false);
 
   const playAudio = () => {
-    if (wordData?.audioUrl) {
-      const audio = new Audio(wordData.audioUrl);
-      audio.play().catch((err) => console.error('Error playing audio:', err));
-    }
+    if (entry.audioUrl) new Audio(entry.audioUrl).play().catch(() => null);
   };
 
-  if (loading) {
-    return (
-      <Card bg="purple.50" borderColor="purple.200" borderWidth={2}>
-        <CardBody p={{ base: 3, md: 4 }}>
-          <VStack spacing={3}>
-            <Heading size={{ base: 'xs', md: 'sm' }} color="purple.700">
-              {MESSAGES.WORD_OF_THE_DAY_TITLE}
-            </Heading>
-            <Spinner size="md" color="purple.500" />
-            <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.600">
-              {MESSAGES.WORD_OF_THE_DAY_LOADING}
-            </Text>
-          </VStack>
-        </CardBody>
-      </Card>
-    );
-  }
+  const firstMeaning = entry.meanings[0];
+  const allSynonyms = entry.meanings.flatMap((m) => m.synonyms).slice(0, 6);
+  const allAntonyms = entry.meanings.flatMap((m) => m.antonyms).slice(0, 6);
 
-  if (error || !wordData) {
-    return (
-      <Card bg="purple.50" borderColor="purple.200" borderWidth={2}>
-        <CardBody p={{ base: 3, md: 4 }}>
-          <VStack spacing={2}>
-            <Heading size={{ base: 'xs', md: 'sm' }} color="purple.700">
-              {MESSAGES.WORD_OF_THE_DAY_TITLE}
-            </Heading>
-            <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.600">
-              {MESSAGES.WORD_OF_THE_DAY_ERROR}
-            </Text>
-          </VStack>
-        </CardBody>
-      </Card>
-    );
-  }
+  const cardColors = [
+    { bg: 'purple.50', border: 'purple.300', badge: 'purple', num: 'purple.700' },
+    { bg: 'blue.50', border: 'blue.300', badge: 'blue', num: 'blue.700' },
+    { bg: 'teal.50', border: 'teal.300', badge: 'teal', num: 'teal.700' },
+    { bg: 'orange.50', border: 'orange.300', badge: 'orange', num: 'orange.700' },
+    { bg: 'pink.50', border: 'pink.300', badge: 'pink', num: 'pink.700' },
+  ];
+  const color = cardColors[index % cardColors.length];
 
   return (
-    <Card 
-      bg="purple.50" 
-      borderColor="purple.200" 
-      borderWidth={2}
-      boxShadow="md"
-    >
+    <Card bg={color.bg} borderColor={color.border} borderWidth={1.5} boxShadow="sm">
       <CardBody p={{ base: 3, md: 4 }}>
-        <VStack spacing={{ base: 3, md: 4 }} align="stretch">
-          {/* Title */}
-          <Heading size={{ base: 'xs', md: 'sm' }} color="purple.700">
-            {MESSAGES.WORD_OF_THE_DAY_TITLE}
-          </Heading>
-
-          {/* Word and Phonetic */}
-          <VStack spacing={1} align="start">
-            <HStack spacing={2} flexWrap="wrap" alignItems="center">
+        <VStack spacing={2} align="stretch">
+          {/* Word header */}
+          <HStack justify="space-between" align="start" flexWrap="wrap" gap={2}>
+            <HStack spacing={2} align="center" flexWrap="wrap">
+              <Box
+                bg={color.border}
+                color="white"
+                borderRadius="full"
+                w={7} h={7}
+                display="flex" alignItems="center" justifyContent="center"
+                fontSize="sm" fontWeight="bold" flexShrink={0}
+              >
+                {index + 1}
+              </Box>
               <Text
                 fontSize={{ base: 'xl', md: '2xl' }}
-                fontWeight="bold"
-                color="purple.800"
+                fontWeight="extrabold"
+                color={color.num}
                 textTransform="capitalize"
               >
-                {wordData.word}
+                {entry.word}
               </Text>
-              {wordData.phonetic && (
-                <Text
-                  fontSize={{ base: 'sm', md: 'md' }}
-                  color="purple.600"
-                  fontStyle="italic"
-                >
-                  {wordData.phonetic}
+              {entry.phonetic && (
+                <Text fontSize="sm" color="gray.500" fontStyle="italic">
+                  {entry.phonetic}
                 </Text>
               )}
-              {wordData.audioUrl && (
+              {entry.audioUrl && (
                 <IconButton
                   aria-label="Play pronunciation"
-                  icon={<Text fontSize="lg">🔊</Text>}
-                  size="xs"
-                  colorScheme="purple"
-                  variant="ghost"
+                  icon={<Text fontSize="md">🔊</Text>}
+                  size="xs" variant="ghost"
+                  colorScheme={color.badge}
                   onClick={playAudio}
-                  title="Listen to pronunciation"
                 />
               )}
             </HStack>
-          </VStack>
-
-          <Divider borderColor="purple.200" />
-
-          {/* Meanings */}
-          {wordData.meanings.slice(0, 2).map((meaning, idx) => (
-            <VStack key={idx} spacing={2} align="stretch">
-              {/* Part of Speech */}
-              <Badge
-                colorScheme="purple"
-                fontSize={{ base: '2xs', md: 'xs' }}
-                width="fit-content"
-                px={2}
-                py={0.5}
-                textTransform="capitalize"
-              >
-                {meaning.partOfSpeech}
+            {firstMeaning && (
+              <Badge colorScheme={color.badge} fontSize="xs" textTransform="capitalize" alignSelf="center">
+                {firstMeaning.partOfSpeech}
               </Badge>
+            )}
+          </HStack>
 
-              {/* Definitions */}
-              {meaning.definitions.map((def, defIdx) => (
-                <VStack
-                  key={defIdx}
-                  spacing={1.5}
-                  align="stretch"
-                  pl={{ base: 2, md: 3 }}
-                >
-                  <HStack align="start" spacing={2}>
-                    <Text
-                      fontSize={{ base: 'xs', md: 'sm' }}
-                      color="purple.600"
-                      fontWeight="semibold"
-                      flexShrink={0}
-                      pt={0.5}
-                    >
-                      •
-                    </Text>
-                    <VStack spacing={1} align="stretch" flex={1}>
-                      <Text
-                        fontSize={{ base: 'xs', md: 'sm' }}
-                        color="gray.700"
-                        lineHeight="tall"
-                      >
-                        {def.definition}
-                      </Text>
-                      {def.example && (
-                        <Box
-                          bg="white"
-                          p={2}
-                          borderRadius="md"
-                          borderLeft="3px solid"
-                          borderLeftColor="purple.400"
-                        >
-                          <Text
-                            fontSize={{ base: '2xs', md: 'xs' }}
-                            color="gray.600"
-                            fontStyle="italic"
-                          >
-                            "{def.example}"
-                          </Text>
-                        </Box>
-                      )}
-                    </VStack>
-                  </HStack>
-                </VStack>
-              ))}
+          {/* Primary definition */}
+          {firstMeaning?.definitions[0] && (
+            <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.700" lineHeight="tall" pl={9}>
+              {firstMeaning.definitions[0].definition}
+            </Text>
+          )}
 
+          {/* Primary example */}
+          {firstMeaning?.definitions[0]?.example && (
+            <Box
+              bg="white" p={2} borderRadius="md"
+              borderLeft="3px solid" borderLeftColor={color.border}
+              ml={9}
+            >
+              <Text fontSize="xs" color="gray.600" fontStyle="italic">
+                "{firstMeaning.definitions[0].example}"
+              </Text>
+            </Box>
+          )}
+
+          {/* Expand toggle */}
+          <Button
+            size="xs"
+            variant="ghost"
+            colorScheme={color.badge}
+            alignSelf="flex-start"
+            ml={9}
+            onClick={() => setExpanded(!expanded)}
+            rightIcon={<Text fontSize="xs">{expanded ? '▲' : '▼'}</Text>}
+          >
+            {expanded ? 'Less' : 'Synonyms, Antonyms & More'}
+          </Button>
+
+          <Collapse in={expanded} animateOpacity>
+            <VStack spacing={3} align="stretch" pt={1} pl={9}>
               {/* Synonyms */}
-              {meaning.synonyms.length > 0 && (
-                <HStack spacing={1} flexWrap="wrap" pl={{ base: 2, md: 3 }}>
-                  <Text
-                    fontSize={{ base: '2xs', md: 'xs' }}
-                    color="purple.600"
-                    fontWeight="semibold"
-                  >
-                    {MESSAGES.WORD_OF_THE_DAY_SYNONYMS}:
+              {allSynonyms.length > 0 && (
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" color="green.700" mb={1}>
+                    ✅ Synonyms (similar meaning)
                   </Text>
-                  {meaning.synonyms.map((synonym, synIdx) => (
-                    <Badge
-                      key={synIdx}
-                      colorScheme="purple"
-                      variant="outline"
-                      fontSize={{ base: '2xs', md: 'xs' }}
-                    >
-                      {synonym}
-                    </Badge>
-                  ))}
-                </HStack>
+                  <HStack spacing={1.5} flexWrap="wrap">
+                    {allSynonyms.map((s, i) => (
+                      <Badge key={i} colorScheme="green" variant="subtle" fontSize="xs" px={2} py={0.5}>
+                        {s}
+                      </Badge>
+                    ))}
+                  </HStack>
+                </Box>
               )}
 
               {/* Antonyms */}
-              {meaning.antonyms && meaning.antonyms.length > 0 && (
-                <HStack spacing={1} flexWrap="wrap" pl={{ base: 2, md: 3 }}>
-                  <Text
-                    fontSize={{ base: '2xs', md: 'xs' }}
-                    color="red.600"
-                    fontWeight="semibold"
-                  >
-                    {MESSAGES.WORD_OF_THE_DAY_ANTONYMS}:
+              {allAntonyms.length > 0 && (
+                <Box>
+                  <Text fontSize="xs" fontWeight="bold" color="red.700" mb={1}>
+                    ❌ Antonyms (opposite meaning)
                   </Text>
-                  {meaning.antonyms.map((antonym, antIdx) => (
-                    <Badge
-                      key={antIdx}
-                      colorScheme="red"
-                      variant="outline"
-                      fontSize={{ base: '2xs', md: 'xs' }}
-                    >
-                      {antonym}
-                    </Badge>
-                  ))}
-                </HStack>
-              )}
-            </VStack>
-          ))}
-
-          {/* Additional Example Sentences */}
-          {wordData.meanings[0]?.additionalExamples &&
-            wordData.meanings[0].additionalExamples.length > 0 && (
-              <>
-                <Divider borderColor="purple.200" />
-                <VStack spacing={2} align="stretch">
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text
-                      fontSize={{ base: 'xs', md: 'sm' }}
-                      fontWeight="bold"
-                      color="purple.700"
-                    >
-                      📝 More Example Sentences
-                    </Text>
-                    {wordData.meanings[0].additionalExamples.length > 3 && (
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        colorScheme="purple"
-                        onClick={() => setShowMoreExamples(!showMoreExamples)}
-                      >
-                        {showMoreExamples ? 'Show Less' : 'Show More'}
-                      </Button>
-                    )}
+                  <HStack spacing={1.5} flexWrap="wrap">
+                    {allAntonyms.map((a, i) => (
+                      <Badge key={i} colorScheme="red" variant="subtle" fontSize="xs" px={2} py={0.5}>
+                        {a}
+                      </Badge>
+                    ))}
                   </HStack>
-                  <VStack spacing={1.5} align="stretch">
-                    {wordData.meanings[0].additionalExamples
-                      .slice(0, showMoreExamples ? undefined : 3)
-                      .map((example, idx) => (
-                        <Box
-                          key={idx}
-                          bg="white"
-                          p={{ base: 2, md: 2.5 }}
-                          borderRadius="md"
-                          borderLeft="3px solid"
-                          borderLeftColor="purple.400"
-                          boxShadow="sm"
-                        >
-                          <HStack align="start" spacing={2}>
-                            <Text
-                              fontSize={{ base: 'xs', md: 'sm' }}
-                              color="purple.600"
-                              fontWeight="semibold"
-                              flexShrink={0}
-                            >
-                              {idx + 1}.
-                            </Text>
-                            <Text
-                              fontSize={{ base: 'xs', md: 'sm' }}
-                              color="gray.700"
-                              lineHeight="tall"
-                            >
-                              {example}
-                            </Text>
-                          </HStack>
-                        </Box>
-                      ))}
-                  </VStack>
-                </VStack>
-              </>
-            )}
+                </Box>
+              )}
+
+              {/* Extra meanings */}
+              {entry.meanings.slice(1).map((meaning, mi) => (
+                <Box key={mi}>
+                  <Badge colorScheme={color.badge} fontSize="2xs" mb={1}>
+                    {meaning.partOfSpeech}
+                  </Badge>
+                  {meaning.definitions.slice(0, 1).map((def, di) => (
+                    <VStack key={di} spacing={1} align="stretch">
+                      <Text fontSize="xs" color="gray.700">{def.definition}</Text>
+                      {def.example && (
+                        <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                          "{def.example}"
+                        </Text>
+                      )}
+                    </VStack>
+                  ))}
+                </Box>
+              ))}
+            </VStack>
+          </Collapse>
         </VStack>
       </CardBody>
     </Card>
   );
 };
 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export const WordOfTheDay: React.FC = () => {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [words, setWords] = useState<WordEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const loadWords = useCallback(async (date: Date) => {
+    setLoading(true);
+    setError(false);
+    try {
+      const dateStr = toYMD(date);
+      const cached = sessionStorage.getItem(`wotd_v2:${dateStr}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.words?.length) { setWords(parsed.words); setLoading(false); return; }
+      }
+      const response = await publicApi.getWordsOfTheDay(dateStr);
+      if (response.success && response.words.length > 0) {
+        setWords(response.words);
+        try { sessionStorage.setItem(`wotd_v2:${dateStr}`, JSON.stringify(response)); } catch { /* ignore */ }
+      } else {
+        setError(true);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadWords(selectedDate); }, [selectedDate, loadWords]);
+
+  const navigate = (n: number) => setSelectedDate((d) => addDays(d, n));
+
+  const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parts = e.target.value.split('-').map(Number);
+    if (parts.length === 3 && !parts.some(isNaN)) {
+      setSelectedDate(new Date(parts[0], parts[1] - 1, parts[2]));
+    }
+  };
+
+  return (
+    <Card bg="white" borderColor="purple.200" borderWidth={2} boxShadow="md">
+      <CardBody p={{ base: 3, md: 4 }}>
+        <VStack spacing={4} align="stretch">
+          {/* Header */}
+          <HStack justify="space-between" align="center">
+            <VStack spacing={0} align="start">
+              <Heading size="sm" color="purple.700">📚 Words of the Day</Heading>
+              <Text fontSize="xs" color="gray.500">5 advanced vocabulary words — tap each to explore</Text>
+            </VStack>
+            {!isToday(selectedDate) && (
+              <Button size="xs" colorScheme="purple" variant="outline" onClick={() => setSelectedDate(new Date())}>
+                Today
+              </Button>
+            )}
+          </HStack>
+
+          {/* Date Navigation */}
+          <HStack justify="space-between" align="center" bg="purple.50" p={2} borderRadius="lg">
+            <IconButton
+              aria-label="Previous day"
+              icon={<Text>◀</Text>}
+              size="sm" variant="ghost" colorScheme="purple"
+              onClick={() => navigate(-1)}
+            />
+            <VStack spacing={0} flex={1} align="center">
+              <Text fontSize={{ base: 'xs', md: 'sm' }} fontWeight="semibold" color="purple.800" textAlign="center">
+                {formatDisplayDate(selectedDate)}
+              </Text>
+              <input
+                type="date"
+                value={toYMD(selectedDate)}
+                onChange={handleDateInput}
+                max={toYMD(new Date())}
+                style={{
+                  fontSize: '11px', color: '#6B46C1', background: 'transparent',
+                  border: 'none', cursor: 'pointer', textAlign: 'center',
+                }}
+              />
+            </VStack>
+            <IconButton
+              aria-label="Next day"
+              icon={<Text>▶</Text>}
+              size="sm" variant="ghost" colorScheme="purple"
+              onClick={() => navigate(1)}
+              isDisabled={isToday(selectedDate)}
+            />
+          </HStack>
+
+          <Divider borderColor="purple.100" />
+
+          {/* Content */}
+          {loading && (
+            <VStack spacing={3} py={6}>
+              <Spinner size="lg" color="purple.500" />
+              <Text fontSize="sm" color="gray.500">Loading today's words…</Text>
+            </VStack>
+          )}
+
+          {error && !loading && (
+            <VStack spacing={3} py={4}>
+              <Text fontSize="2xl">📖</Text>
+              <Text fontSize="sm" color="gray.500" textAlign="center">
+                Couldn't load words. Check your connection and try again.
+              </Text>
+              <Button size="sm" colorScheme="purple" onClick={() => loadWords(selectedDate)}>
+                Retry
+              </Button>
+            </VStack>
+          )}
+
+          {!loading && !error && words.length > 0 && (
+            <VStack spacing={3} align="stretch">
+              {words.map((entry, i) => (
+                <WordCard key={entry.word} entry={entry} index={i} />
+              ))}
+            </VStack>
+          )}
+        </VStack>
+      </CardBody>
+    </Card>
+  );
+};

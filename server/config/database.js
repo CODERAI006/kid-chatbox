@@ -34,12 +34,16 @@ const initializeDatabase = async () => {
   try {
     // Dynamically require to avoid circular dependency
     const { migrateSchema } = require('../scripts/migrate-schema');
+    const { migrateAnalyticsSchema } = require('../scripts/migrate-analytics-schema');
     const { migratePlansSchema } = require('../scripts/migrate-plans-schema');
     const { migrateScheduledTests } = require('../scripts/migrate-scheduled-tests');
     const { migrateStudyLibraryContent } = require('../scripts/migrate-study-library-content');
     const { migrateQuizLibrary } = require('../scripts/migrate-quiz-library');
+    const { migrateQuizScheduler } = require('../scripts/migrate-quiz-scheduler');
     // Run comprehensive schema migration
     await migrateSchema();
+    // Analytics columns/indexes on activity_logs (depends on migrateSchema)
+    await migrateAnalyticsSchema();
     // Run plans schema migration
     await migratePlansSchema();
     // Run scheduled tests schema migration
@@ -48,6 +52,8 @@ const initializeDatabase = async () => {
     await migrateStudyLibraryContent();
     // Run quiz library migration
     await migrateQuizLibrary();
+    // Run quiz scheduler migration
+    await migrateQuizScheduler();
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing database:', error);

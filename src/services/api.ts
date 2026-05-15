@@ -2,7 +2,7 @@
  * Backend API service for authentication, quiz results, and analytics
  */
 
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import {
   LoginCredentials,
   RegisterData,
@@ -20,7 +20,39 @@ import {
 } from '@/types';
 import { QuizConfig } from '@/types/quiz';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+/**
+ * All backend routes live under `/api`. If env omits `/api`, requests hit the wrong path and return 404.
+ *
+ * In local dev, prefer the Express origin directly (same host, port 3001) instead of `/api` on the Vite
+ * port: the Vite HTTP proxy has been observed to stall or drop very large JSON responses from `/ai/chat`
+ * even after the backend finishes and logs the Ollama payload — the UI then stays on “STEP n of …” forever.
+ * Set `VITE_USE_VITE_PROXY=1` to force `/api` through the proxy, or `VITE_API_BASE_URL` to point elsewhere.
+ */
+function resolveApiBaseUrl(): string {
+  const raw = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (raw && String(raw).trim().length > 0) {
+    const trimmed = String(raw).replace(/\/+$/, '');
+    if (trimmed.endsWith('/api')) return trimmed;
+    return `${trimmed}/api`;
+  }
+  if (import.meta.env.DEV) {
+    const useProxy =
+      import.meta.env.VITE_USE_VITE_PROXY === '1' ||
+      String(import.meta.env.VITE_USE_VITE_PROXY || '').toLowerCase() === 'true';
+    if (useProxy) {
+      return '/api';
+    }
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const { protocol, hostname } = window.location;
+      const port = String(import.meta.env.VITE_API_PORT || '3001').trim();
+      return `${protocol}//${hostname}:${port}/api`;
+    }
+    return 'http://127.0.0.1:3001/api';
+  }
+  return 'http://localhost:3001/api';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -29,13 +61,34 @@ export const apiClient = axios.create({
   },
 });
 
-// Add auth token to requests
+/**
+ * Resolve API origin on every request in dev (avoids stale baseURL from module init and keeps
+ * hostname/port aligned with the page when using direct Express instead of the Vite proxy).
+ */
+function applyDevApiBaseUrl(config: InternalAxiosRequestConfig): void {
+  if (!import.meta.env.DEV) return;
+  const raw = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (raw && String(raw).trim().length > 0) return;
+  const useProxy =
+    import.meta.env.VITE_USE_VITE_PROXY === '1' ||
+    String(import.meta.env.VITE_USE_VITE_PROXY || '').toLowerCase() === 'true';
+  if (useProxy) {
+    config.baseURL = '/api';
+    return;
+  }
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const { protocol, hostname } = window.location;
+    const port = String(import.meta.env.VITE_API_PORT || '3001').trim();
+    config.baseURL = `${protocol}//${hostname}:${port}/api`;
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
+  applyDevApiBaseUrl(config);
   const token = localStorage.getItem('auth_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // Don't set Content-Type for FormData, let axios handle it
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
@@ -53,8 +106,18 @@ export const getErrorMessage = (error: unknown): string => {
     if (error.response?.data?.message) {
       return error.response.data.message;
     }
-    // Network error or no response
-    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    // Network error or no response (includes connection refused when API is down)
+    if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+      return 'The AI request timed out. Check that Ollama is running and try fewer questions or Basic difficulty.';
+    }
+    if (
+      error.code === 'ERR_NETWORK' ||
+      error.code === 'ERR_CONNECTION_REFUSED' ||
+      error.message === 'Network Error'
+    ) {
+      if (import.meta.env.DEV) {
+        return `Cannot reach the API at ${API_BASE_URL}. Start the backend (e.g. npm run dev:server) or run frontend + API together with npm run dev:all.`;
+      }
       return 'Network error. Please check your connection and try again.';
     }
     // Status code errors
@@ -69,6 +132,106 @@ export const getErrorMessage = (error: unknown): string => {
   }
   // Unknown error type
   return 'An unexpected error occurred';
+};
+
+export type AiChatMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+/**
+ * Proxied local Ollama chat (server → Ollama). Requires auth token.
+ */
+/** Per-request cap for Ollama-backed chat (quiz batches can be slow on CPU). */
+const AI_CHAT_DEFAULT_TIMEOUT_MS = 480_000;
+
+export const aiApi = {
+  chat: async (params: {
+    messages: AiChatMessage[];
+    temperature?: number;
+    num_predict?: number;
+    /** Override axios wait (ms). Default 8m so the UI does not hang forever without Ollama. */
+    timeoutMs?: number;
+    /** Cancel in-flight request when user leaves or starts a new quiz (axios ERR_CANCELED). */
+    signal?: AbortSignal;
+  }): Promise<{ content: string; model?: string }> => {
+    const { timeoutMs = AI_CHAT_DEFAULT_TIMEOUT_MS, signal, ...body } = params;
+    const response = await apiClient.post<{
+      success: boolean;
+      content?: string;
+      model?: string;
+      message?: string;
+    }>(
+      '/ai/chat',
+      { ...body, timeoutMs },
+      { timeout: timeoutMs, signal }
+    );
+    if (!response.data.success || response.data.content == null) {
+      throw new Error(response.data.message || 'AI chat failed');
+    }
+    const content = response.data.content;
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error(
+        'AI returned an empty message. If Ollama is running, try a smaller model or lower num_predict in server logs.'
+      );
+    }
+    return { content, model: response.data.model };
+  },
+};
+
+export type LearningBotUiMessage = {
+  id?: string;
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+/**
+ * Persisted learning chat (Ollama). Same API for students and admins.
+ */
+export const learningBotApi = {
+  getConversation: async (): Promise<{
+    success: boolean;
+    conversationId: string | null;
+    messages: LearningBotUiMessage[];
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      conversationId: string | null;
+      messages: LearningBotUiMessage[];
+    }>('/learning-bot/conversation');
+    return response.data;
+  },
+
+  sendMessage: async (params: {
+    conversationId: string | null;
+    text: string;
+  }): Promise<{ conversationId: string; content: string; model?: string }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      conversationId?: string;
+      content?: string;
+      model?: string;
+      message?: string;
+    }>('/learning-bot/message', params);
+    if (!response.data.success || response.data.content == null || !response.data.conversationId) {
+      throw new Error(response.data.message || 'Learning bot failed');
+    }
+    return {
+      conversationId: response.data.conversationId,
+      content: response.data.content,
+      model: response.data.model,
+    };
+  },
+
+  resetConversation: async (): Promise<void> => {
+    const response = await apiClient.post<{ success: boolean; message?: string }>(
+      '/learning-bot/conversation/reset',
+      {}
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Reset failed');
+    }
+  },
 };
 
 /**
@@ -273,6 +436,31 @@ export const quizApi = {
     };
   }> => {
     const response = await apiClient.get(`/quizzes/attempts/${attemptId}`);
+    return response.data;
+  },
+
+  /**
+   * Get quizzes available in the public Quiz Library (student-accessible)
+   */
+  getLibraryQuizzes: async (params?: {
+    difficulty?: string;
+    subject?: string;
+    gradeLevel?: string;
+  }): Promise<{
+    quizzes: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      difficulty: string;
+      grade_level?: string;
+      subject?: string;
+      number_of_questions: number;
+      passing_percentage: number;
+      time_limit?: number;
+      created_at: string;
+    }>;
+  }> => {
+    const response = await apiClient.get('/quizzes/library', { params });
     return response.data;
   },
 };
@@ -647,6 +835,36 @@ export const publicApi = {
         meanings: [],
         sourceUrl: null,
       };
+    }
+  },
+
+  /**
+   * Get 5 Words of the Day for a given date (advanced vocabulary)
+   */
+  getWordsOfTheDay: async (
+    date?: string
+  ): Promise<{
+    success: boolean;
+    date: string;
+    words: Array<{
+      word: string;
+      phonetic: string;
+      audioUrl: string | null;
+      meanings: Array<{
+        partOfSpeech: string;
+        definitions: Array<{ definition: string; example: string | null }>;
+        synonyms: string[];
+        antonyms: string[];
+      }>;
+    }>;
+  }> => {
+    try {
+      const params = date ? { date } : {};
+      const response = await apiClient.get('/public/words-of-day', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get words of the day:', error);
+      return { success: false, date: date || '', words: [] };
     }
   },
 

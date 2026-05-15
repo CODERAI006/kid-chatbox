@@ -221,6 +221,60 @@ router.put('/:id', checkPermission('manage_quizzes'), async (req, res, next) => 
 });
 
 /**
+ * Toggle quiz "in_library" flag (makes it accessible to all students on-demand)
+ * PATCH /api/quizzes/:id/library
+ */
+router.patch('/:id/library', checkPermission('manage_quizzes'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { inLibrary } = req.body;
+
+    const result = await pool.query(
+      `UPDATE quizzes SET in_library = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, name, in_library`,
+      [Boolean(inLibrary), id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
+
+    res.json({ success: true, quiz: result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get all quizzes available in the public library (student-accessible)
+ * GET /api/quizzes/library
+ */
+router.get('/library', async (req, res, next) => {
+  try {
+    const { difficulty, subject, gradeLevel } = req.query;
+
+    let query = `
+      SELECT id, name, description, difficulty, grade_level, subject,
+             number_of_questions, passing_percentage, time_limit, created_at
+      FROM quizzes
+      WHERE in_library = true AND is_active = true`;
+
+    const params = [];
+    let idx = 1;
+
+    if (difficulty) { query += ` AND difficulty = $${idx++}`; params.push(difficulty); }
+    if (subject)    { query += ` AND subject = $${idx++}`;    params.push(subject); }
+    if (gradeLevel) { query += ` AND grade_level = $${idx++}`; params.push(gradeLevel); }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, quizzes: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Delete quiz
  * DELETE /api/quizzes/:id
  */
@@ -826,10 +880,10 @@ router.post('/generate', checkPermission('manage_quizzes'), async (req, res, nex
       examStyle,
     } = req.body;
 
-    if (!name || !ageGroup || !difficulty || !numberOfQuestions) {
+    if (!name || !difficulty || !numberOfQuestions) {
       return res.status(400).json({
         success: false,
-        message: 'Name, age group, difficulty, and number of questions are required',
+        message: 'Name, difficulty, and number of questions are required',
       });
     }
 
@@ -838,7 +892,6 @@ router.post('/generate', checkPermission('manage_quizzes'), async (req, res, nex
       numberOfQuestions,
       difficulty,
       topics: topics || [],
-      ageGroup,
       language: language || 'English',
       subtopicId,
       description: description || undefined,
@@ -850,16 +903,18 @@ router.post('/generate', checkPermission('manage_quizzes'), async (req, res, nex
     // Create quiz
     const quizResult = await pool.query(
       `INSERT INTO quizzes (
-        subtopic_id, name, description, age_group, difficulty,
+        subtopic_id, name, description, age_group, grade_level, subject, difficulty,
         number_of_questions, passing_percentage, time_limit, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         subtopicId || null,
         name,
         description || null,
-        ageGroup,
+        ageGroup || null,
+        gradeLevel || null,
+        req.body.subject || null,
         difficulty,
         numberOfQuestions,
         passingPercentage || 60,
@@ -916,17 +971,19 @@ router.post('/upload', checkPermission('manage_quizzes'), async (req, res, next)
       subtopicId,
       name,
       description,
-      ageGroup,
+      ageGroup,       // legacy — still accepted
+      gradeLevel,     // preferred replacement for ageGroup
+      subject,
       difficulty,
       passingPercentage,
       timeLimit,
       questions: uploadedQuestions,
     } = req.body;
 
-    if (!name || !ageGroup || !difficulty || !uploadedQuestions) {
+    if (!name || !difficulty || !uploadedQuestions) {
       return res.status(400).json({
         success: false,
-        message: 'Name, age group, difficulty, and questions are required',
+        message: 'Name, difficulty, and questions are required',
       });
     }
 
@@ -1003,16 +1060,18 @@ router.post('/upload', checkPermission('manage_quizzes'), async (req, res, next)
     // Create quiz
     const quizResult = await pool.query(
       `INSERT INTO quizzes (
-        subtopic_id, name, description, age_group, difficulty,
+        subtopic_id, name, description, age_group, grade_level, subject, difficulty,
         number_of_questions, passing_percentage, time_limit, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         subtopicId || null,
         name,
         description || null,
-        ageGroup,
+        ageGroup || gradeLevel || null,
+        gradeLevel || null,
+        subject || null,
         difficulty,
         uploadedQuestions.length,
         passingPercentage || 60,

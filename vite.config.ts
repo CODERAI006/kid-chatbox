@@ -34,6 +34,15 @@ export default defineConfig({
     fs: {
       strict: false,
     },
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        /** Quiz / Ollama can exceed the default ~120s proxy idle timeout; otherwise the UI never receives the response. */
+        timeout: 600_000,
+        proxyTimeout: 600_000,
+      },
+    },
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),

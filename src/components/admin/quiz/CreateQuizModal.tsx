@@ -3,7 +3,7 @@
  * Handles both AI generation and JSON/CSV upload
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -17,15 +17,9 @@ import {
   HStack,
   FormControl,
   FormLabel,
-  FormHelperText,
   Input,
-  Textarea,
   Select,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
+  Textarea,
   Tabs,
   TabList,
   TabPanels,
@@ -36,42 +30,20 @@ import {
   Stack,
   Divider,
   Text,
+  Tooltip,
   useToast,
 } from '@/shared/design-system';
-import { Topic, Subtopic } from '@/services/admin';
 import { countLines, MAX_LINES } from './csvParsing';
 import { downloadJSONTemplate, downloadCSVTemplate } from './fileTemplates';
-import { TopicSubtopicSelector } from './TopicSubtopicSelector';
+import { AIQuizConfigForm, AIQuizConfigData } from './AIQuizConfigForm';
 
-interface AIGenerateData {
-  useManualInput: boolean;
-  manualTopicName: string;
-  manualSubtopicName: string;
-  selectedTopic: string;
-  selectedSubtopic: string;
-  name: string;
-  description: string;
-  ageGroup: string;
-  difficulty: string;
-  numberOfQuestions: number;
-  passingPercentage: number;
-  timeLimit: string;
+interface AIGenerateData extends AIQuizConfigData {
   topics: string[];
-  language: string;
-  gradeLevel?: string;
-  sampleQuestion?: string;
-  examStyle?: string;
 }
 
 interface JSONUploadData {
-  useManualInput: boolean;
-  manualTopicName: string;
-  manualSubtopicName: string;
-  selectedTopic: string;
-  selectedSubtopic: string;
   name: string;
   description: string;
-  ageGroup: string;
   difficulty: string;
   passingPercentage: number;
   timeLimit: string;
@@ -84,9 +56,6 @@ interface CreateQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (type: 'ai' | 'json', data: AIGenerateData | JSONUploadData) => Promise<void>;
-  topics: Topic[];
-  subtopics: Subtopic[];
-  onTopicChange: (topicId: string) => void;
   loading: boolean;
 }
 
@@ -94,80 +63,59 @@ export const CreateQuizModal: React.FC<CreateQuizModalProps> = ({
   isOpen,
   onClose,
   onCreate,
-  topics,
-  subtopics,
-  onTopicChange,
   loading,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [useManualInput, setUseManualInput] = useState(false);
-  const [manualTopicName, setManualTopicName] = useState('');
-  const [manualSubtopicName, setManualSubtopicName] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [selectedSubtopic, setSelectedSubtopic] = useState('');
   const [uploadMethod, setUploadMethod] = useState<'text' | 'file'>('file');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [aiFormTouched, setAiFormTouched] = useState(false);
   const toast = useToast();
 
-  const [aiFormData, setAiFormData] = useState({
+  const [aiFormData, setAiFormData] = useState<AIQuizConfigData>({
     name: '',
     description: '',
-    ageGroup: '',
     difficulty: '',
     numberOfQuestions: 15,
     passingPercentage: 60,
     timeLimit: '',
-    topics: [] as string[],
     language: 'English',
     gradeLevel: '',
     sampleQuestion: '',
     examStyle: '',
+    subject: '',
+    questionType: '',
   });
 
   const [jsonFormData, setJsonFormData] = useState({
     name: '',
     description: '',
-    ageGroup: '',
     difficulty: '',
     passingPercentage: 60,
     timeLimit: '',
     jsonContent: '',
   });
 
-  useEffect(() => {
-    if (selectedTopic) {
-      onTopicChange(selectedTopic);
-    } else {
-      setSelectedSubtopic('');
-    }
-  }, [selectedTopic, onTopicChange]);
-
   const handleClose = () => {
-    setUseManualInput(false);
-    setManualTopicName('');
-    setManualSubtopicName('');
-    setSelectedTopic('');
-    setSelectedSubtopic('');
     setUploadMethod('file');
     setUploadedFile(null);
+    setAiFormTouched(false);
     setAiFormData({
       name: '',
       description: '',
-      ageGroup: '',
       difficulty: '',
       numberOfQuestions: 15,
       passingPercentage: 60,
       timeLimit: '',
-      topics: [],
       language: 'English',
       gradeLevel: '',
       sampleQuestion: '',
       examStyle: '',
+      subject: '',
+      questionType: '',
     });
     setJsonFormData({
       name: '',
       description: '',
-      ageGroup: '',
       difficulty: '',
       passingPercentage: 60,
       timeLimit: '',
@@ -176,40 +124,19 @@ export const CreateQuizModal: React.FC<CreateQuizModalProps> = ({
     onClose();
   };
 
+  const isAIFormValid = Boolean(aiFormData.name.trim() && aiFormData.difficulty);
+
   const handleAIGenerate = async () => {
-    if (!aiFormData.name || !aiFormData.ageGroup || !aiFormData.difficulty) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill in all required fields',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (useManualInput && !manualTopicName.trim()) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a topic name when using manual input',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
+    if (!isAIFormValid) return;          // button is disabled; guard just in case
     await onCreate('ai', {
-      useManualInput,
-      manualTopicName,
-      manualSubtopicName,
-      selectedTopic,
-      selectedSubtopic,
+      topics: [],
       ...aiFormData,
     });
     handleClose();
   };
 
   const handleJSONUpload = async () => {
-    if (!jsonFormData.name || !jsonFormData.ageGroup || !jsonFormData.difficulty) {
+    if (!jsonFormData.name || !jsonFormData.difficulty) {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields',
@@ -219,7 +146,7 @@ export const CreateQuizModal: React.FC<CreateQuizModalProps> = ({
       return;
     }
 
-    if (uploadMethod === 'text' && !jsonFormData.jsonContent.trim()) {
+    if (uploadMethod === 'text' && !jsonFormData.jsonContent?.trim()) {
       toast({
         title: 'Validation Error',
         description: 'Please provide JSON content or upload a file',
@@ -239,22 +166,7 @@ export const CreateQuizModal: React.FC<CreateQuizModalProps> = ({
       return;
     }
 
-    if (useManualInput && !manualTopicName.trim()) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a topic name when using manual input',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
     await onCreate('json', {
-      useManualInput,
-      manualTopicName,
-      manualSubtopicName,
-      selectedTopic,
-      selectedSubtopic,
       uploadMethod,
       uploadedFile,
       ...jsonFormData,
@@ -324,194 +236,16 @@ export const CreateQuizModal: React.FC<CreateQuizModalProps> = ({
             <TabPanels>
               {/* AI Generation Tab */}
               <TabPanel>
-                <VStack spacing={4} align="stretch">
-                  <TopicSubtopicSelector
-                    useManualInput={useManualInput}
-                    setUseManualInput={setUseManualInput}
-                    manualTopicName={manualTopicName}
-                    setManualTopicName={setManualTopicName}
-                    manualSubtopicName={manualSubtopicName}
-                    setManualSubtopicName={setManualSubtopicName}
-                    selectedTopic={selectedTopic}
-                    setSelectedTopic={setSelectedTopic}
-                    selectedSubtopic={selectedSubtopic}
-                    setSelectedSubtopic={setSelectedSubtopic}
-                    topics={topics}
-                    subtopics={subtopics}
-                  />
-
-                  <FormControl isRequired>
-                    <FormLabel>Quiz Name</FormLabel>
-                    <Input
-                      value={aiFormData.name}
-                      onChange={(e) => setAiFormData({ ...aiFormData, name: e.target.value })}
-                      placeholder="Enter quiz name"
-                    />
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Description</FormLabel>
-                    <Textarea
-                      value={aiFormData.description}
-                      onChange={(e) => setAiFormData({ ...aiFormData, description: e.target.value })}
-                      placeholder="Enter quiz description"
-                    />
-                  </FormControl>
-
-                  <HStack>
-                    <FormControl isRequired>
-                      <FormLabel>Age Group</FormLabel>
-                      <Select
-                        value={aiFormData.ageGroup}
-                        onChange={(e) => setAiFormData({ ...aiFormData, ageGroup: e.target.value })}
-                        placeholder="Select age group"
-                      >
-                        <option value="4-6">4-6 years</option>
-                        <option value="6-8">6-8 years</option>
-                        <option value="9-11">9-11 years</option>
-                        <option value="12-14">12-14 years</option>
-                        <option value="15-17">15-17 years</option>
-                        <option value="18-20">18-20 years</option>
-                        <option value="20+">20+ years</option>
-                      </Select>
-                    </FormControl>
-
-                    <FormControl isRequired>
-                      <FormLabel>Difficulty</FormLabel>
-                      <Select
-                        value={aiFormData.difficulty}
-                        onChange={(e) => setAiFormData({ ...aiFormData, difficulty: e.target.value })}
-                        placeholder="Select difficulty"
-                      >
-                        <option value="Basic">Basic</option>
-                        <option value="Advanced">Advanced</option>
-                        <option value="Expert">Expert</option>
-                        <option value="Mix">Mix</option>
-                      </Select>
-                    </FormControl>
-                  </HStack>
-
-                  <HStack>
-                    <FormControl isRequired>
-                      <FormLabel>Number of Questions</FormLabel>
-                      <NumberInput
-                        value={aiFormData.numberOfQuestions}
-                        onChange={(_, value) =>
-                          setAiFormData({ ...aiFormData, numberOfQuestions: value || 15 })
-                        }
-                        min={1}
-                        max={50}
-                      >
-                        <NumberInputField />
-                        <NumberInputStepper>
-                          <NumberIncrementStepper />
-                          <NumberDecrementStepper />
-                        </NumberInputStepper>
-                      </NumberInput>
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Passing Percentage</FormLabel>
-                      <NumberInput
-                        value={aiFormData.passingPercentage}
-                        onChange={(_, value) =>
-                          setAiFormData({ ...aiFormData, passingPercentage: value || 60 })
-                        }
-                        min={0}
-                        max={100}
-                      >
-                        <NumberInputField />
-                        <NumberInputStepper>
-                          <NumberIncrementStepper />
-                          <NumberDecrementStepper />
-                        </NumberInputStepper>
-                      </NumberInput>
-                    </FormControl>
-                  </HStack>
-
-                  <HStack>
-                    <FormControl>
-                      <FormLabel>Time Limit (minutes)</FormLabel>
-                      <Input
-                        type="number"
-                        value={aiFormData.timeLimit}
-                        onChange={(e) => setAiFormData({ ...aiFormData, timeLimit: e.target.value })}
-                        placeholder="Optional"
-                      />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Language</FormLabel>
-                      <Select
-                        value={aiFormData.language}
-                        onChange={(e) => setAiFormData({ ...aiFormData, language: e.target.value })}
-                      >
-                        <option value="English">English</option>
-                        <option value="Hindi">Hindi</option>
-                        <option value="Hinglish">Hinglish</option>
-                      </Select>
-                    </FormControl>
-                  </HStack>
-
-                  <HStack>
-                    <FormControl>
-                      <FormLabel>Grade/Class Level</FormLabel>
-                      <Input
-                        value={aiFormData.gradeLevel}
-                        onChange={(e) => setAiFormData({ ...aiFormData, gradeLevel: e.target.value })}
-                        placeholder="e.g., Class 5, Grade 3"
-                      />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Exam Style</FormLabel>
-                      <Select
-                        value={aiFormData.examStyle}
-                        onChange={(e) => setAiFormData({ ...aiFormData, examStyle: e.target.value })}
-                        placeholder="Select exam style (optional)"
-                      >
-                        <option value="">None</option>
-                        <option value="CBSE">CBSE</option>
-                        <option value="NCERT">NCERT</option>
-                        <option value="Olympiad">Olympiad</option>
-                        <option value="Competitive">Competitive</option>
-                      </Select>
-                    </FormControl>
-                  </HStack>
-
-                  <FormControl>
-                    <FormLabel>Sample Question Pattern (Optional)</FormLabel>
-                    <Textarea
-                      value={aiFormData.sampleQuestion}
-                      onChange={(e) => setAiFormData({ ...aiFormData, sampleQuestion: e.target.value })}
-                      placeholder="Enter a sample question or pattern to guide AI generation style..."
-                      rows={3}
-                    />
-                    <FormHelperText>
-                      Provide a sample question to help AI understand the desired question style, format, and complexity
-                    </FormHelperText>
-                  </FormControl>
-                </VStack>
+                <AIQuizConfigForm
+                  value={aiFormData}
+                  onChange={(updates) => setAiFormData(prev => ({ ...prev, ...updates }))}
+                  showErrors={aiFormTouched}
+                />
               </TabPanel>
 
               {/* JSON/CSV Upload Tab */}
               <TabPanel>
                 <VStack spacing={4} align="stretch">
-                  <TopicSubtopicSelector
-                    useManualInput={useManualInput}
-                    setUseManualInput={setUseManualInput}
-                    manualTopicName={manualTopicName}
-                    setManualTopicName={setManualTopicName}
-                    manualSubtopicName={manualSubtopicName}
-                    setManualSubtopicName={setManualSubtopicName}
-                    selectedTopic={selectedTopic}
-                    setSelectedTopic={setSelectedTopic}
-                    selectedSubtopic={selectedSubtopic}
-                    setSelectedSubtopic={setSelectedSubtopic}
-                    topics={topics}
-                    subtopics={subtopics}
-                  />
-
                   <FormControl isRequired>
                     <FormLabel>Quiz Name</FormLabel>
                     <Input
@@ -530,38 +264,19 @@ export const CreateQuizModal: React.FC<CreateQuizModalProps> = ({
                     />
                   </FormControl>
 
-                  <HStack>
-                    <FormControl isRequired>
-                      <FormLabel>Age Group</FormLabel>
-                      <Select
-                        value={jsonFormData.ageGroup}
-                        onChange={(e) => setJsonFormData({ ...jsonFormData, ageGroup: e.target.value })}
-                        placeholder="Select age group"
-                      >
-                        <option value="4-6">4-6 years</option>
-                        <option value="6-8">6-8 years</option>
-                        <option value="9-11">9-11 years</option>
-                        <option value="12-14">12-14 years</option>
-                        <option value="15-17">15-17 years</option>
-                        <option value="18-20">18-20 years</option>
-                        <option value="20+">20+ years</option>
-                      </Select>
-                    </FormControl>
-
-                    <FormControl isRequired>
-                      <FormLabel>Difficulty</FormLabel>
-                      <Select
-                        value={jsonFormData.difficulty}
-                        onChange={(e) => setJsonFormData({ ...jsonFormData, difficulty: e.target.value })}
-                        placeholder="Select difficulty"
-                      >
-                        <option value="Basic">Basic</option>
-                        <option value="Advanced">Advanced</option>
-                        <option value="Expert">Expert</option>
-                        <option value="Mix">Mix</option>
-                      </Select>
-                    </FormControl>
-                  </HStack>
+                  <FormControl isRequired>
+                    <FormLabel>Difficulty</FormLabel>
+                    <Select
+                      value={jsonFormData.difficulty}
+                      onChange={(e) => setJsonFormData({ ...jsonFormData, difficulty: e.target.value })}
+                      placeholder="Select difficulty"
+                    >
+                      <option value="Basic">Basic</option>
+                      <option value="Advanced">Advanced</option>
+                      <option value="Expert">Expert</option>
+                      <option value="Mix">Mix</option>
+                    </Select>
+                  </FormControl>
 
                   <FormControl>
                     <FormLabel>Upload Method</FormLabel>
@@ -656,13 +371,38 @@ export const CreateQuizModal: React.FC<CreateQuizModalProps> = ({
           <Button variant="ghost" mr={3} onClick={handleClose}>
             Cancel
           </Button>
-          <Button
-            colorScheme="blue"
-            onClick={activeTab === 0 ? handleAIGenerate : handleJSONUpload}
-            isLoading={loading}
-          >
-            {activeTab === 0 ? 'Generate with AI' : 'Upload Quiz (JSON/CSV)'}
-          </Button>
+          {activeTab === 0 ? (
+            <Tooltip
+              isDisabled={isAIFormValid}
+              label={
+                !aiFormData.name.trim()
+                  ? 'Enter a quiz name first'
+                  : 'Select a difficulty level'
+              }
+              hasArrow
+              placement="top"
+            >
+              {/* span needed so Tooltip fires on a disabled Button */}
+              <span onClick={() => !isAIFormValid && setAiFormTouched(true)}>
+                <Button
+                  colorScheme="blue"
+                  onClick={handleAIGenerate}
+                  isLoading={loading}
+                  isDisabled={!isAIFormValid}
+                >
+                  Generate with AI
+                </Button>
+              </span>
+            </Tooltip>
+          ) : (
+            <Button
+              colorScheme="blue"
+              onClick={handleJSONUpload}
+              isLoading={loading}
+            >
+              Upload Quiz (JSON/CSV)
+            </Button>
+          )}
         </ModalFooter>
       </ModalContent>
     </Modal>

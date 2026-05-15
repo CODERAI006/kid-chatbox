@@ -42,6 +42,21 @@ const migrateSchema = async () => {
       )
     `);
 
+    // 3b. Core users table (auth + profile). Must exist before ALTER / FKs below.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT,
+        name VARCHAR(255) NOT NULL,
+        age INTEGER,
+        grade VARCHAR(100),
+        preferred_language VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // 4. Enhance users table with approval workflow
     await client.query(`
       ALTER TABLE users 
@@ -159,9 +174,15 @@ const migrateSchema = async () => {
     await client.query(`
       ALTER TABLE quizzes
       ALTER COLUMN subtopic_id DROP NOT NULL
-    `).catch(() => {
-      // Column might already be nullable or table doesn't exist yet, ignore error
-    });
+    `).catch(() => {});
+
+    // Add extra quiz metadata columns (idempotent)
+    await client.query(`
+      ALTER TABLE quizzes
+      ADD COLUMN IF NOT EXISTS grade_level VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS subject VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS in_library BOOLEAN DEFAULT false
+    `).catch(() => {});
 
     // 11. Quiz questions table
     await client.query(`
@@ -211,6 +232,72 @@ const migrateSchema = async () => {
         is_correct BOOLEAN NOT NULL,
         time_spent INTEGER,
         answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 13b. AI / tutor quiz results (used by server/routes/quiz.js, analytics.js — not quiz_attempts)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS quiz_results (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        subject VARCHAR(255) NOT NULL,
+        subtopic TEXT NOT NULL,
+        age INTEGER NOT NULL,
+        language VARCHAR(50) NOT NULL,
+        correct_count INTEGER NOT NULL DEFAULT 0,
+        wrong_count INTEGER NOT NULL DEFAULT 0,
+        explanation_of_mistakes TEXT,
+        time_taken INTEGER NOT NULL DEFAULT 0,
+        score_percentage DECIMAL(5,2) NOT NULL
+      )
+    `);
+
+    // 13c. Per-question rows for AI quiz results
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS quiz_answers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        quiz_result_id UUID NOT NULL REFERENCES quiz_results(id) ON DELETE CASCADE,
+        question_number INTEGER NOT NULL,
+        question TEXT NOT NULL,
+        child_answer TEXT,
+        correct_answer TEXT NOT NULL,
+        explanation TEXT,
+        is_correct BOOLEAN NOT NULL,
+        options JSONB
+      )
+    `);
+
+    // 13d. Learning bot (floating chat) — persisted threads per user
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS learning_bot_conversations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        archived BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS learning_bot_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        conversation_id UUID NOT NULL REFERENCES learning_bot_conversations(id) ON DELETE CASCADE,
+        role VARCHAR(20) NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT learning_bot_messages_role_chk CHECK (role IN ('user', 'assistant'))
+      )
+    `);
+
+    // 13e. Word of the Day — full API payload cache (skips Dictionary + Ollama on repeat hits)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS word_of_the_day_cache (
+        word_key VARCHAR(120) NOT NULL,
+        cache_date DATE NOT NULL,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (word_key, cache_date)
       )
     `);
 
@@ -293,6 +380,14 @@ const migrateSchema = async () => {
       CREATE INDEX IF NOT EXISTS idx_quiz_questions_quiz_id ON quiz_questions(quiz_id);
       CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts(user_id);
       CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz_id ON quiz_attempts(quiz_id);
+      CREATE INDEX IF NOT EXISTS idx_quiz_results_user_id ON quiz_results(user_id);
+      CREATE INDEX IF NOT EXISTS idx_quiz_results_timestamp ON quiz_results(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_quiz_results_subject_subtopic ON quiz_results(subject, subtopic);
+      CREATE INDEX IF NOT EXISTS idx_quiz_answers_quiz_result_id ON quiz_answers(quiz_result_id);
+      CREATE INDEX IF NOT EXISTS idx_learning_bot_conv_user_active ON learning_bot_conversations(user_id) WHERE archived = false;
+      CREATE INDEX IF NOT EXISTS idx_learning_bot_conv_updated ON learning_bot_conversations(user_id, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_learning_bot_msg_conv_created ON learning_bot_messages(conversation_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_word_of_the_day_cache_date ON word_of_the_day_cache(cache_date);
       CREATE INDEX IF NOT EXISTS idx_study_sessions_user_id ON study_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_study_sessions_subject ON study_sessions(subject);
       CREATE INDEX IF NOT EXISTS idx_study_sessions_topic ON study_sessions(topic);

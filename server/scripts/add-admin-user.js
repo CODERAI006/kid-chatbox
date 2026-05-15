@@ -53,15 +53,26 @@ const addAdminRole = async (email) => {
       [userId, adminRoleId]
     );
 
-    // Also approve the user if they're pending
+    // Approve user so admin portal and policies treat them as active
     await client.query(
       `UPDATE users 
        SET status = 'approved', 
-           approved_at = CURRENT_TIMESTAMP,
+           approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'pending'`,
+       WHERE id = $1`,
       [userId]
     );
+
+    const modules = ['study', 'quiz'];
+    for (const module of modules) {
+      await client.query(
+        `INSERT INTO user_module_access (user_id, module_name, has_access, granted_by)
+         VALUES ($1, $2, true, $1)
+         ON CONFLICT (user_id, module_name) 
+         DO UPDATE SET has_access = true`,
+        [userId, module]
+      );
+    }
 
     await client.query('COMMIT');
     console.log(`✅ Successfully added admin role to ${email}`);
@@ -75,8 +86,7 @@ const addAdminRole = async (email) => {
   }
 };
 
-// Get email from command line argument or use default
-const email = process.argv[2] || 'shanaya@gmail.com';
+const email = process.argv[2];
 
 if (!email) {
   console.error('❌ Please provide an email address');

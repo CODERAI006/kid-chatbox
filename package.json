@@ -19,9 +19,11 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "db:create": "node create-database.js",
     "db:setup": "node server/scripts/setup-db.js",
+    "db:init": "node server/scripts/init-all-tables.js",
     "db:migrate": "node server/scripts/migrate-schema.js",
     "db:migrate-plans": "node server/scripts/migrate-plans-schema.js",
     "db:migrate-scheduled-tests": "node server/scripts/migrate-scheduled-tests.js",
+    "db:migrate-quiz-scheduler": "node server/scripts/migrate-quiz-scheduler.js",
     "db:test": "node test-db-connection.js"
   },
   "dependencies": {
@@ -47,9 +49,9 @@
     "jspdf": "^2.5.1",
     "matter-js": "^0.20.0",
     "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.11",
     "ogl": "^1.0.11",
-    "openai": "^4.20.1",
     "pg": "^8.16.3",
     "postprocessing": "^6.38.1",
     "react": "^18.2.0",

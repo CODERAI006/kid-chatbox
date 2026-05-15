@@ -37,13 +37,9 @@ interface StudentSidebarProps {
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-  { path: '/scheduled-tests', label: 'Scheduled Tests', icon: '📅' },
-  { path: '/quiz', label: 'AI Quiz Mode', icon: '📝' },
+  { path: '/quiz', label: 'Quiz Hub', icon: '🎯' },
   { path: '/quiz-rankings', label: 'Quiz Rankings', icon: '🏆' },
-  { path: '/study', label: 'AI Study Mode', icon: '📚' },
-  { path: '/study-library', label: 'Study Library', icon: '📚' },
-  { path: '/study-history', label: 'Study History', icon: '📖' },
-  { path: '/quiz-history', label: 'Quiz History', icon: '📊' },
+  { path: '/study', label: 'Study Hub', icon: '📚' },
   { path: '/news', label: 'Education News', icon: '📰' },
   { path: '/profile', label: 'My Profile', icon: '👤' },
 ];
@@ -94,19 +90,14 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
   const hasQuizAccess =
     isAdmin || userWithAccess?.moduleAccess?.quiz === true || false;
 
-  // Check if current path matches study-library routes
-  const isStudyLibraryActive = location.pathname.startsWith('/study-library');
-  const isScheduledTestsActive = location.pathname === '/scheduled-tests';
-
   const renderNavItem = (item: (typeof navItems)[0]) => {
     const isActive =
       location.pathname === item.path ||
-      (item.path === '/study-library' && isStudyLibraryActive) ||
-      (item.path === '/scheduled-tests' && isScheduledTestsActive);
+      (item.path === '/study' && location.pathname.startsWith('/study')) ||
+      (item.path === '/quiz' && location.pathname.startsWith('/quiz'));
     const isDisabled =
       (item.path === '/study' && !hasStudyAccess) ||
-      (item.path === '/quiz' && !hasQuizAccess) ||
-      (item.path === '/study-library' && !hasStudyAccess);
+      (item.path === '/quiz' && !hasQuizAccess);
 
     return (
       <Button

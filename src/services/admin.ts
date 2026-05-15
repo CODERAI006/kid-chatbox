@@ -87,6 +87,9 @@ export interface Quiz {
   passingPercentage: number;
   timeLimit?: number;
   isActive: boolean;
+  inLibrary?: boolean;
+  gradeLevel?: string;
+  subject?: string;
 }
 
 export interface QuizQuestion {
@@ -508,7 +511,7 @@ export const adminApi = {
     subtopicId?: string;
     name: string;
     description?: string;
-    ageGroup: string;
+    ageGroup?: string;      // optional — gradeLevel is preferred
     difficulty: string;
     numberOfQuestions: number;
     passingPercentage?: number;
@@ -516,6 +519,7 @@ export const adminApi = {
     topics?: string[];
     language?: string;
     gradeLevel?: string;
+    subject?: string;
     sampleQuestion?: string;
     examStyle?: string;
   }): Promise<{ quiz: Quiz; questions: QuizQuestion[]; message: string }> => {
@@ -530,7 +534,9 @@ export const adminApi = {
     subtopicId?: string;
     name: string;
     description?: string;
-    ageGroup: string;
+    ageGroup?: string;      // optional — gradeLevel is preferred
+    gradeLevel?: string;
+    subject?: string;
     difficulty: string;
     passingPercentage?: number;
     timeLimit?: number;
@@ -559,6 +565,14 @@ export const adminApi = {
     subtopicId?: string;
   }): Promise<{ quizzes: Quiz[] }> => {
     const response = await apiClient.get('/quizzes', { params });
+    return response.data;
+  },
+
+  /**
+   * Toggle whether a quiz is visible in the student Quiz Library
+   */
+  toggleQuizLibrary: async (quizId: string, inLibrary: boolean): Promise<{ quiz: Quiz }> => {
+    const response = await apiClient.patch(`/quizzes/${quizId}/library`, { inLibrary });
     return response.data;
   },
 
