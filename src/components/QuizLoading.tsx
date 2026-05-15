@@ -179,6 +179,17 @@ export const QuizLoading: React.FC<QuizLoadingProps> = ({
               </Text>
             </HStack>
 
+            <Text fontSize="xs" color="gray.600" textAlign="center" px={2} maxW="28rem" lineHeight="short">
+              On a VPS with Ollama, question generation can take several minutes. Keep this tab open.
+              {elapsed >= 45 && (
+                <Text as="span" display="block" mt={2} color="orange.700" fontWeight="medium">
+                  If you get “Gateway timeout” (504), your web server closed the connection early — the
+                  quiz may still be building on the server; raise nginx timeouts for /api or try fewer
+                  questions.
+                </Text>
+              )}
+            </Text>
+
             {/* Batch progress pill */}
             {batchProgress && batchProgress.total > 1 && (
               <Box

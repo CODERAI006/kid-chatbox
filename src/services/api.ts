@@ -121,8 +121,23 @@ export const getErrorMessage = (error: unknown): string => {
       return 'Network error. Please check your connection and try again.';
     }
     // Status code errors
-    if (error.response?.status) {
-      return `Request failed with status ${error.response.status}`;
+    const status = error.response?.status;
+    if (status === 504 || status === 502) {
+      return (
+        'Gateway timed out before the AI response reached your browser. The server may still finish ' +
+        'in the background (check PM2 logs). Fix: increase reverse-proxy timeouts for /api ' +
+        '(e.g. nginx proxy_read_timeout 600s; proxy_connect_timeout 600s; proxy_send_timeout 600s), ' +
+        'or try fewer questions / a smaller Ollama model. Then try again.'
+      );
+    }
+    if (status === 503) {
+      return (
+        error.response?.data?.message ||
+        'Service temporarily unavailable. The AI or database may be starting up — try again in a moment.'
+      );
+    }
+    if (status) {
+      return `Request failed with status ${status}`;
     }
     return error.message || 'An unexpected error occurred';
   }
