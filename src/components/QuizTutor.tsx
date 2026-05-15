@@ -3,7 +3,6 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { flushSync } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
@@ -23,6 +22,7 @@ import {
   ModalFooter,
   ModalCloseButton,
   useDisclosure,
+  useToast,
 } from '@/shared/design-system';
 import { AllQuestionsView } from './AllQuestionsView';
 import { QuizInteractiveSession } from './QuizInteractiveSession';
@@ -30,20 +30,14 @@ import { Timer } from './Timer';
 import { ResultsView } from './ResultsView';
 import { ConfigurationForm } from './ConfigurationForm';
 import { QuizLoading } from './QuizLoading';
-import { QuizLibrary } from './QuizLibrary';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  generateQuizQuestions,
-  isQuizGenerationAbort,
-  isOllamaUnreachable,
-} from '@/services/openai';
+import { isQuizGenerationAbort } from '@/services/openai';
 import {
   quizApi,
   authApi,
   scheduledTestsApi,
   profileApi,
   planApi,
-  quizLibraryApi,
   getErrorMessage,
 } from '@/services/api';
 import { QuizConfig, AnswerResult, Question } from '@/types/quiz';
@@ -63,6 +57,7 @@ export const QuizTutor: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { setTimer } = useQuizTimer();
+  const toast = useToast();
   const [phase, setPhase] = useState<QuizPhase>('config');
   const [config, setConfig] = useState<QuizConfig | null>(() => {
     try {
@@ -82,8 +77,6 @@ export const QuizTutor: React.FC = () => {
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [resultSaved, setResultSaved] = useState(false);
   const [scheduledTestId, setScheduledTestId] = useState<string | null>(null);
-  const [selectedSubject, setSelectedSubject] = useState<string | undefined>(undefined);
-  const [isLibraryQuiz, setIsLibraryQuiz] = useState<boolean>(false);
   const [quizLayoutMode, setQuizLayoutMode] = useState<QuizLayoutMode>('steps');
   const [currentQuestionStep, setCurrentQuestionStep] = useState(0);
   const [genBatchProgress, setGenBatchProgress] = useState<{ current: number; total: number } | null>(
@@ -154,7 +147,7 @@ export const QuizTutor: React.FC = () => {
 
     // Check plan limits before starting quiz (only for AI-generated quizzes, not scheduled tests or library quizzes)
     // Library quizzes bypass plan limits
-    if (!scheduledTestId && !isLibraryQuiz) {
+    if (!scheduledTestId) {
       try {
         const { user } = authApi.getCurrentUser();
         if (user && (user as { id: string }).id) {
@@ -207,64 +200,61 @@ export const QuizTutor: React.FC = () => {
     setError(null);
 
     try {
-      const generatedQuestions = await generateQuizQuestions(fullConfig, {
-        signal: genController.signal,
-        onProgress: ({ batchIndex, totalBatches }) => {
-          if (generationRunId === quizGenerationRunIdRef.current) {
-            setGenBatchProgress({ current: batchIndex, total: totalBatches });
-          }
-        },
-      });
-      console.info('[QuizTutor] AI questions generated', {
-        runId: generationRunId,
-        questionCount: generatedQuestions.length,
-        subject: fullConfig.subject,
-        subtopics: fullConfig.subtopics,
-      });
-      const totalTime = fullConfig.timeLimit
-        ? fullConfig.timeLimit * 60
-        : fullConfig.questionCount * QUIZ_CONSTANTS.TIME_PER_QUESTION_SECONDS;
-
-      flushSync(() => {
-        setIsAiGenerating(false);
-        setGenBatchProgress(null);
-        setQuestions(generatedQuestions);
-        setCurrentQuestionStep(0);
-        setQuizLayoutMode('steps');
-        setPhase('quiz');
-        setAnswers(new Map());
-        totalTimeRef.current = totalTime;
-        beepPlayedRef.current = false;
-        setTimeRemaining(totalTime);
-        setTimer(totalTime, totalTime, true);
-        setAllAnswerResults([]);
-        setImprovementTips([]);
-        setQuizStartTime(Date.now());
-        setResultSaved(false);
-      });
-      console.info('[QuizTutor] Quiz state committed to UI', {
-        runId: generationRunId,
-        phase: 'quiz',
-        committedQuestions: generatedQuestions.length,
-      });
-
-      void quizLibraryApi
-        .saveToLibrary({
+      const { jobId } = await quizApi.enqueueAiQuizGeneration(
+        {
           subject: fullConfig.subject,
           subtopics: fullConfig.subtopics,
           difficulty: fullConfig.difficulty,
-          age_group: fullConfig.age,
+          numberOfQuestions: fullConfig.questionCount,
           language: fullConfig.language,
-          question_count: fullConfig.questionCount,
-          time_limit: fullConfig.timeLimit,
-          grade_level: fullConfig.gradeLevel,
-          exam_style: fullConfig.examStyle,
-          questions: generatedQuestions,
-          config: fullConfig,
-        })
-        .catch((libraryError) => {
-          console.warn('Failed to save quiz to library:', libraryError);
-        });
+          age: userProfile.age,
+          gradeLevel: fullConfig.gradeLevel,
+          timeLimit: fullConfig.timeLimit,
+          instructions: fullConfig.instructions,
+          sampleQuestion: fullConfig.sampleQuestion,
+          examStyle: fullConfig.examStyle,
+        },
+        { signal: genController.signal }
+      );
+
+      if (!jobId) {
+        throw new Error('Server did not return a job id. Try again.');
+      }
+
+      const intervalMs = 3000;
+      const maxPolls = 900;
+
+      for (let p = 0; p < maxPolls; p++) {
+        if (genController.signal.aborted) {
+          throw new DOMException('Quiz generation was cancelled.', 'AbortError');
+        }
+        await new Promise((r) => setTimeout(r, intervalMs));
+
+        const j = await quizApi.getAiQuizGenerationJob(jobId, { signal: genController.signal });
+        const st = j.job.status;
+
+        if (st === 'completed') {
+          if (generationRunId !== quizGenerationRunIdRef.current) return;
+          setIsAiGenerating(false);
+          setGenBatchProgress(null);
+          toast({
+            title: 'Quiz ready',
+            description: 'Your quiz was saved to the Quiz Library. Tap Start when you open it.',
+            status: 'success',
+            duration: 7000,
+            isClosable: true,
+          });
+          navigate('/quiz#library', { replace: true, state: { libraryRefresh: Date.now() } });
+          return;
+        }
+        if (st === 'failed') {
+          throw new Error(j.job.error_message || 'Quiz generation failed on the server.');
+        }
+      }
+
+      throw new Error(
+        'Quiz generation is taking longer than expected. Check the Quiz Library tab in a few minutes, or try again with fewer questions.'
+      );
     } catch (err) {
       if (isQuizGenerationAbort(err)) {
         if (generationRunId === quizGenerationRunIdRef.current) {
@@ -274,21 +264,18 @@ export const QuizTutor: React.FC = () => {
         }
         return;
       }
-      console.error('[QuizTutor] generateQuizQuestions failed:', err);
+      console.error('[QuizTutor] AI quiz job failed:', err);
       if (generationRunId !== quizGenerationRunIdRef.current) {
         return;
       }
       setIsAiGenerating(false);
       setGenBatchProgress(null);
-      const msg = isOllamaUnreachable(err)
-        ? '⚠️ Ollama is not running. Please start it with: ollama serve — then try again.'
-        : getErrorMessage(err);
-      setError(msg);
+      setError(getErrorMessage(err));
       setPhase('config');
     } finally {
       quizGenerationLockRef.current = false;
     }
-  }, [scheduledTestId, isLibraryQuiz, setTimer]);
+  }, [scheduledTestId, navigate, toast]);
 
   const handleCancelQuizGeneration = useCallback(() => {
     quizGenAbortRef.current?.abort();
@@ -400,7 +387,7 @@ export const QuizTutor: React.FC = () => {
           explanation_of_mistakes: explanations,
           time_taken: timeTaken,
           score_percentage: scorePercentage,
-          isLibraryQuiz: isLibraryQuiz,
+          isLibraryQuiz: false,
         });
         setResultSaved(true);
       }
@@ -416,7 +403,7 @@ export const QuizTutor: React.FC = () => {
     setTimeout(() => {
       isSubmittingRef.current = false;
     }, 1000);
-  }, [phase, questions, answers, config, quizStartTime, scheduledTestId, isLibraryQuiz]);
+  }, [phase, questions, answers, config, quizStartTime, scheduledTestId]);
 
   /**
    * Handle confirmation to submit quiz and navigate
@@ -856,38 +843,6 @@ export const QuizTutor: React.FC = () => {
     location.key,
   ]);
 
-  /**
-   * Handle quiz selection from library
-   */
-  const handleLibraryQuizSelect = useCallback((data: { questions: Question[]; config: unknown }) => {
-    const libraryConfig = data.config as QuizConfig;
-    if (!data.questions?.length) {
-      setError('This library quiz has no questions. Try another entry or generate a new quiz.');
-      setPhase('config');
-      return;
-    }
-    setIsLibraryQuiz(true);
-    setConfig(libraryConfig);
-    setQuestions(data.questions);
-    setCurrentQuestionStep(0);
-    setQuizLayoutMode('steps');
-    setPhase('quiz');
-    setAnswers(new Map());
-    
-    // Calculate timer
-    const totalTime = libraryConfig.timeLimit
-      ? libraryConfig.timeLimit * 60
-      : libraryConfig.questionCount * QUIZ_CONSTANTS.TIME_PER_QUESTION_SECONDS;
-    totalTimeRef.current = totalTime;
-    beepPlayedRef.current = false;
-    setTimeRemaining(totalTime);
-    setTimer(totalTime, totalTime, true);
-    setAllAnswerResults([]);
-    setImprovementTips([]);
-    setQuizStartTime(Date.now());
-    setResultSaved(false);
-  }, [setTimer]);
-
   const score = allAnswerResults.filter((r) => r.isCorrect).length;
   const answeredCount = answers.size;
 
@@ -926,59 +881,41 @@ export const QuizTutor: React.FC = () => {
 
     return (
       <>
-        <Box display="flex" gap={6} padding={{ base: 4, md: 6 }} maxWidth="1400px" marginX="auto">
-          {/* Main Form - Left Side */}
-          <Box flex={1} maxWidth="800px">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 }}
-              >
-                <ConfigurationForm
-                  onConfigComplete={(cfg) => {
-                    setSelectedSubject(cfg.subject);
-                    handleConfigComplete(cfg);
-                  }}
-                  isGenerating={isAiGenerating}
-                  generatingBatch={isAiGenerating ? genBatchProgress : null}
-                  onCancelGeneration={handleCancelQuizGeneration}
-                />
-              </motion.div>
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Alert status="error" marginTop={4} maxWidth="600px" marginX="auto" borderRadius="xl">
-                      <AlertIcon />
-                      <AlertTitle>Error</AlertTitle>
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </Box>
-
-          {/* Quiz Library - Right Side (Desktop Only) */}
-          <Box
-            display={{ base: 'none', lg: 'block' }}
-            width="350px"
-            flexShrink={0}
+        <Box padding={{ base: 4, md: 6 }} maxWidth="800px" marginX="auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            <QuizLibrary
-              selectedSubject={selectedSubject}
-              onQuizSelect={handleLibraryQuizSelect}
-            />
-          </Box>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <ConfigurationForm
+                onConfigComplete={handleConfigComplete}
+                isGenerating={isAiGenerating}
+                generatingBatch={isAiGenerating ? genBatchProgress : null}
+                onCancelGeneration={handleCancelQuizGeneration}
+              />
+            </motion.div>
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Alert status="error" marginTop={4} maxWidth="600px" marginX="auto" borderRadius="xl">
+                    <AlertIcon />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </Box>
         {/* Confirmation Modal for Navigation */}
         <Modal isOpen={isConfirmOpen} onClose={handleCancelLeave} isCentered>

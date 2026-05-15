@@ -478,6 +478,41 @@ export const quizApi = {
     const response = await apiClient.get('/quizzes/library', { params });
     return response.data;
   },
+
+  /**
+   * Queue server-side AI quiz generation (Ollama). Returns 202 quickly — poll getAiQuizGenerationJob.
+   */
+  enqueueAiQuizGeneration: async (
+    body: Record<string, unknown>,
+    opts?: { signal?: AbortSignal }
+  ): Promise<{ success: boolean; jobId: string; message?: string }> => {
+    const response = await apiClient.post('/quizzes/ai-generate-job', body, {
+      timeout: 90_000,
+      signal: opts?.signal,
+    });
+    return response.data;
+  },
+
+  getAiQuizGenerationJob: async (
+    jobId: string,
+    opts?: { signal?: AbortSignal }
+  ): Promise<{
+    success: boolean;
+    job: {
+      id: string;
+      status: string;
+      error_message?: string | null;
+      quiz_id?: string | null;
+      created_at: string;
+      updated_at: string;
+    };
+  }> => {
+    const response = await apiClient.get(`/quizzes/ai-generate-job/${jobId}`, {
+      timeout: 45_000,
+      signal: opts?.signal,
+    });
+    return response.data;
+  },
 };
 
 /**

@@ -30,6 +30,10 @@ fi
 echo -e "${YELLOW}📦 Installing dependencies...${NC}"
 npm install
 
+# Database migrations (idempotent; same set as server initializeDatabase)
+echo -e "${YELLOW}🗄️  Running database migrations...${NC}"
+npm run db:migrate-all
+
 # Build frontend
 echo -e "${YELLOW}🔨 Building frontend...${NC}"
 NODE_ENV=production npm run build

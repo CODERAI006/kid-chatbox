@@ -13,11 +13,52 @@ const {
 } = require('../middleware/plan-limits');
 const { generateQuizQuestions } = require('../utils/openai');
 const { trackQuizStart, trackQuizComplete, trackQuestionAnswer, trackQuizCreated } = require('../utils/eventTracker');
+const { runQuizAiGenerationJob } = require('../services/quizAiGenerationJob');
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
+
+/** Standard 8-4-4-4-12 hex UUID string — avoids PostgreSQL 22P02 for non-UUID path segments. */
+function isUuidParam(value) {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+  );
+}
+
+/** Shared handler for GET /library (also used if GET /:id incorrectly matches "library"). */
+async function sendPublicQuizLibrary(req, res) {
+  const { difficulty, subject, gradeLevel } = req.query;
+
+  let query = `
+      SELECT id, name, description, difficulty, grade_level, subject,
+             number_of_questions, passing_percentage, time_limit, created_at
+      FROM quizzes
+      WHERE in_library = true AND is_active = true`;
+
+  const params = [];
+  let idx = 1;
+
+  if (difficulty) {
+    query += ` AND difficulty = $${idx++}`;
+    params.push(difficulty);
+  }
+  if (subject) {
+    query += ` AND subject = $${idx++}`;
+    params.push(subject);
+  }
+  if (gradeLevel) {
+    query += ` AND grade_level = $${idx++}`;
+    params.push(gradeLevel);
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  const result = await pool.query(query, params);
+  res.json({ success: true, quizzes: result.rows });
+}
 
 /**
  * Create a new quiz
@@ -78,12 +119,29 @@ router.post('/', checkPermission('manage_quizzes'), async (req, res, next) => {
 });
 
 /**
+ * Get all quizzes available in the public library (student-accessible)
+ * GET /api/quizzes/library
+ * Registered before GET /subtopic/:id and GET /:id so literal path wins.
+ */
+router.get('/library', async (req, res, next) => {
+  try {
+    await sendPublicQuizLibrary(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Get quizzes for a subtopic
  * GET /api/quizzes/subtopic/:subtopicId
+ * Reject non-UUID ids (e.g. mistaken /subtopic/library) before Postgres 22P02.
  */
 router.get('/subtopic/:subtopicId', async (req, res, next) => {
   try {
     const { subtopicId } = req.params;
+    if (!isUuidParam(subtopicId)) {
+      return res.status(404).json({ success: false, message: 'Subtopic not found' });
+    }
     const { ageGroup } = req.query;
 
     let query = 'SELECT * FROM quizzes WHERE subtopic_id = $1 AND is_active = true';
@@ -108,31 +166,25 @@ router.get('/subtopic/:subtopicId', async (req, res, next) => {
 });
 
 /**
- * Get all quizzes available in the public library (student-accessible)
- * GET /api/quizzes/library
- * Must be registered before GET /:id — otherwise "library" is treated as a quiz id.
+ * Poll async AI quiz generation job (server-side Ollama).
+ * GET /api/quizzes/ai-generate-job/:jobId
+ * Must be registered before GET /:id.
  */
-router.get('/library', async (req, res, next) => {
+router.get('/ai-generate-job/:jobId', checkModuleAccess('quiz'), async (req, res, next) => {
   try {
-    const { difficulty, subject, gradeLevel } = req.query;
-
-    let query = `
-      SELECT id, name, description, difficulty, grade_level, subject,
-             number_of_questions, passing_percentage, time_limit, created_at
-      FROM quizzes
-      WHERE in_library = true AND is_active = true`;
-
-    const params = [];
-    let idx = 1;
-
-    if (difficulty) { query += ` AND difficulty = $${idx++}`; params.push(difficulty); }
-    if (subject)    { query += ` AND subject = $${idx++}`;    params.push(subject); }
-    if (gradeLevel) { query += ` AND grade_level = $${idx++}`; params.push(gradeLevel); }
-
-    query += ' ORDER BY created_at DESC';
-
-    const result = await pool.query(query, params);
-    res.json({ success: true, quizzes: result.rows });
+    const { jobId } = req.params;
+    if (!isUuidParam(jobId)) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    const r = await pool.query(
+      `SELECT id, status, error_message, quiz_id, created_at, updated_at
+       FROM quiz_ai_generation_jobs WHERE id = $1 AND user_id = $2`,
+      [jobId, req.user.id]
+    );
+    if (r.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    res.json({ success: true, job: r.rows[0] });
   } catch (error) {
     next(error);
   }
@@ -145,6 +197,17 @@ router.get('/library', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // If GET /:id is registered before GET /library, "library" hits here — delegate to library list.
+    if (id === 'library') {
+      return await sendPublicQuizLibrary(req, res);
+    }
+    if (!isUuidParam(id)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quiz not found',
+      });
+    }
 
     const quizResult = await pool.query('SELECT * FROM quizzes WHERE id = $1', [id]);
 
@@ -179,6 +242,9 @@ router.get('/:id', async (req, res, next) => {
 router.put('/:id', checkPermission('manage_quizzes'), async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!isUuidParam(id)) {
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
     const {
       name,
       description,
@@ -258,6 +324,9 @@ router.put('/:id', checkPermission('manage_quizzes'), async (req, res, next) => 
 router.patch('/:id/library', checkPermission('manage_quizzes'), async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!isUuidParam(id)) {
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
     const { inLibrary } = req.body;
 
     const result = await pool.query(
@@ -276,12 +345,96 @@ router.patch('/:id/library', checkPermission('manage_quizzes'), async (req, res,
 });
 
 /**
+ * Start async AI quiz generation (returns immediately; Ollama runs in-process after response).
+ * POST /api/quizzes/ai-generate-job
+ * Must be registered before POST /:quizId/questions.
+ */
+router.post(
+  '/ai-generate-job',
+  checkModuleAccess('quiz'),
+  checkQuizLimit,
+  async (req, res, next) => {
+    try {
+      const {
+        subject,
+        subtopics,
+        difficulty,
+        numberOfQuestions,
+        language,
+        age,
+        ageGroup,
+        gradeLevel,
+        timeLimit,
+        instructions,
+        sampleQuestion,
+        examStyle,
+        passingPercentage,
+        subtopicId,
+        name,
+      } = req.body;
+
+      if (!subject || typeof subject !== 'string' || !subject.trim()) {
+        return res.status(400).json({ success: false, message: 'subject is required' });
+      }
+      if (!difficulty) {
+        return res.status(400).json({ success: false, message: 'difficulty is required' });
+      }
+
+      const n = Math.min(50, Math.max(1, Number(numberOfQuestions) || 10));
+      const payload = {
+        subject: subject.trim(),
+        subtopics: Array.isArray(subtopics) ? subtopics : [],
+        difficulty,
+        numberOfQuestions: n,
+        language: typeof language === 'string' && language.trim() ? language.trim() : 'English',
+        age: age != null && Number.isFinite(Number(age)) ? Number(age) : undefined,
+        ageGroup: ageGroup != null ? String(ageGroup) : undefined,
+        gradeLevel: gradeLevel != null ? String(gradeLevel) : undefined,
+        timeLimit: timeLimit != null ? Number(timeLimit) : undefined,
+        instructions: instructions != null ? String(instructions) : undefined,
+        sampleQuestion: sampleQuestion != null ? String(sampleQuestion) : undefined,
+        examStyle: examStyle != null ? String(examStyle) : undefined,
+        passingPercentage,
+        subtopicId: subtopicId || undefined,
+        name: name != null ? String(name) : undefined,
+      };
+
+      const ins = await pool.query(
+        `INSERT INTO quiz_ai_generation_jobs (user_id, status, request_payload)
+         VALUES ($1, 'pending', $2::jsonb)
+         RETURNING id`,
+        [req.user.id, JSON.stringify(payload)]
+      );
+      const jobId = ins.rows[0].id;
+
+      setImmediate(() => {
+        runQuizAiGenerationJob(jobId).catch((err) => {
+          console.error('[quiz-ai-job] runQuizAiGenerationJob unhandled', err);
+        });
+      });
+
+      return res.status(202).json({
+        success: true,
+        jobId,
+        message:
+          'Quiz generation started on the server. Check the Quiz Library tab in a minute — your new quiz will appear there when ready.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * Delete quiz
  * DELETE /api/quizzes/:id
  */
 router.delete('/:id', checkPermission('manage_quizzes'), async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!isUuidParam(id)) {
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
 
     await pool.query('DELETE FROM quizzes WHERE id = $1', [id]);
 
@@ -301,6 +454,9 @@ router.delete('/:id', checkPermission('manage_quizzes'), async (req, res, next) 
 router.post('/:quizId/questions', checkPermission('manage_quizzes'), async (req, res, next) => {
   try {
     const { quizId } = req.params;
+    if (!isUuidParam(quizId)) {
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
     const {
       questionType,
       questionText,
@@ -366,6 +522,9 @@ router.post('/:quizId/questions', checkPermission('manage_quizzes'), async (req,
 router.put('/questions/:id', checkPermission('manage_quizzes'), async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!isUuidParam(id)) {
+      return res.status(404).json({ success: false, message: 'Question not found' });
+    }
     const {
       questionType,
       questionText,
@@ -450,6 +609,9 @@ router.put('/questions/:id', checkPermission('manage_quizzes'), async (req, res,
 router.delete('/questions/:id', checkPermission('manage_quizzes'), async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!isUuidParam(id)) {
+      return res.status(404).json({ success: false, message: 'Question not found' });
+    }
 
     await pool.query('DELETE FROM quiz_questions WHERE id = $1', [id]);
 
@@ -474,6 +636,9 @@ router.post(
   async (req, res, next) => {
   try {
     const { quizId } = req.params;
+    if (!isUuidParam(quizId)) {
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
 
     // Get quiz details
     const quizResult = await pool.query('SELECT * FROM quizzes WHERE id = $1', [quizId]);
@@ -530,6 +695,12 @@ router.post(
 router.post('/attempts/:attemptId/submit', checkModuleAccess('quiz'), async (req, res, next) => {
   try {
     const { attemptId } = req.params;
+    if (!isUuidParam(attemptId)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quiz attempt not found',
+      });
+    }
     const { answers, timeTaken } = req.body; // answers: [{ questionId, answer }]
 
     if (!Array.isArray(answers)) {
@@ -739,6 +910,12 @@ router.post('/attempts/:attemptId/submit', checkModuleAccess('quiz'), async (req
 router.get('/attempts/:attemptId', checkModuleAccess('quiz'), async (req, res, next) => {
   try {
     const { attemptId } = req.params;
+    if (!isUuidParam(attemptId)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quiz attempt not found',
+      });
+    }
 
     const attemptResult = await pool.query(
       'SELECT * FROM quiz_attempts WHERE id = $1 AND user_id = $2',
@@ -816,6 +993,12 @@ router.get('/attempts/:attemptId', checkModuleAccess('quiz'), async (req, res, n
 router.get('/attempts/:attemptId/result', async (req, res, next) => {
   try {
     const { attemptId } = req.params;
+    if (!isUuidParam(attemptId)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quiz attempt not found',
+      });
+    }
 
     const attemptResult = await pool.query(
       'SELECT * FROM quiz_attempts WHERE id = $1 AND user_id = $2',

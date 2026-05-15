@@ -3,7 +3,7 @@
  * Includes visibility control for AI Quiz Mode (show/hide with optional date range)
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -39,6 +39,14 @@ const TAB_KEYS = ['ai-quiz', 'scheduled', 'library', 'history'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const STORAGE_KEY = 'quiz_hub_ai_visibility';
+
+/** Tab keys in visual order; AI tab is omitted when hidden from non-admins. */
+function buildQuizHubTabKeys(showAiTab: boolean): TabKey[] {
+  const keys: TabKey[] = [];
+  if (showAiTab) keys.push('ai-quiz');
+  keys.push('scheduled', 'library', 'history');
+  return keys;
+}
 
 interface AIVisibilitySettings {
   enabled: boolean;
@@ -78,18 +86,9 @@ const isAIQuizVisible = (settings: AIVisibilitySettings): boolean => {
   return true;
 };
 
-const tabFromHash = (hash: string): number => {
-  const key = hash.replace('#', '') as TabKey;
-  const idx = TAB_KEYS.indexOf(key);
-  return idx >= 0 ? idx : 0;
-};
-
 export const QuizHub: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tabIndex, setTabIndex] = useState(() => tabFromHash(location.hash));
-  const [historyCount, setHistoryCount] = useState<number | null>(null);
-  const [liveCount, setLiveCount] = useState<number | null>(null);
 
   // AI quiz visibility controls
   const [visibility, setVisibility] = useState<AIVisibilitySettings>(loadVisibility);
@@ -101,9 +100,30 @@ export const QuizHub: React.FC = () => {
   const isAdmin = (user as Record<string, unknown>)?.role === 'admin' ||
     (user as Record<string, unknown>)?.is_admin === true;
 
+  const tabKeysVisible = useMemo(
+    () => buildQuizHubTabKeys(isAdmin || aiVisible),
+    [isAdmin, aiVisible]
+  );
+
+  const [tabIndex, setTabIndex] = useState(() => {
+    const vis = loadVisibility();
+    const { user: u } = authApi.getCurrentUser();
+    const admin =
+      (u as Record<string, unknown> | undefined)?.role === 'admin' ||
+      (u as Record<string, unknown> | undefined)?.is_admin === true;
+    const keys = buildQuizHubTabKeys(Boolean(admin) || isAIQuizVisible(vis));
+    const raw = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
+    const idx = keys.indexOf(raw as TabKey);
+    return idx >= 0 ? idx : 0;
+  });
+  const [historyCount, setHistoryCount] = useState<number | null>(null);
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+
   useEffect(() => {
-    setTabIndex(tabFromHash(location.hash));
-  }, [location.hash]);
+    const raw = (location.hash || '').replace(/^#/, '') as TabKey;
+    const idx = tabKeysVisible.indexOf(raw);
+    setTabIndex(idx >= 0 ? idx : 0);
+  }, [location.hash, tabKeysVisible]);
 
   // Load badge counts for tabs
   useEffect(() => {
@@ -139,7 +159,8 @@ export const QuizHub: React.FC = () => {
 
   const handleTabChange = (index: number) => {
     setTabIndex(index);
-    navigate(`/quiz#${TAB_KEYS[index]}`, { replace: true });
+    const key = tabKeysVisible[index];
+    if (key) navigate(`/quiz#${key}`, { replace: true });
   };
 
   const updateVisibility = (patch: Partial<AIVisibilitySettings>) => {
@@ -152,8 +173,8 @@ export const QuizHub: React.FC = () => {
     <Box minH="100vh" bg="gray.50">
       {/* Page header */}
       <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6} py={4}>
-        <HStack spacing={3} align="center" justify="space-between">
-          <HStack spacing={3}>
+        <HStack spacing={3} align="flex-start" justify="space-between" flexWrap="wrap" rowGap={3} w="100%">
+          <HStack spacing={3} flex={1} minW={0}>
             <Text fontSize="2xl">🎯</Text>
             <Box>
               <Heading size="md" color="blue.700">
@@ -165,20 +186,22 @@ export const QuizHub: React.FC = () => {
             </Box>
           </HStack>
 
-          {/* Admin: AI mode visibility control */}
-          {isAdmin && (
-            <Tooltip label="Control when AI Quiz Mode is visible to students">
-              <Button
-                size="sm"
-                variant="outline"
-                colorScheme="purple"
-                leftIcon={<Text>⚙️</Text>}
-                onClick={() => setShowSettings((s) => !s)}
-              >
-                AI Mode Visibility
-              </Button>
-            </Tooltip>
-          )}
+          <HStack spacing={2} flexShrink={0} flexWrap="wrap">
+            {/* Admin: AI mode visibility control */}
+            {isAdmin && (
+              <Tooltip label="Control when AI Quiz Mode is visible to students">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  colorScheme="purple"
+                  leftIcon={<Text>⚙️</Text>}
+                  onClick={() => setShowSettings((s) => !s)}
+                >
+                  AI Mode Visibility
+                </Button>
+              </Tooltip>
+            )}
+          </HStack>
         </HStack>
 
         {/* Visibility settings panel (admin only) */}

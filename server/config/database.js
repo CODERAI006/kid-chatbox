@@ -40,6 +40,7 @@ const initializeDatabase = async () => {
     const { migrateStudyLibraryContent } = require('../scripts/migrate-study-library-content');
     const { migrateQuizLibrary } = require('../scripts/migrate-quiz-library');
     const { migrateQuizScheduler } = require('../scripts/migrate-quiz-scheduler');
+    const { migrateQuizAiJobs } = require('../scripts/migrate-quiz-ai-jobs');
     // Run comprehensive schema migration
     await migrateSchema();
     // Analytics columns/indexes on activity_logs (depends on migrateSchema)
@@ -54,6 +55,7 @@ const initializeDatabase = async () => {
     await migrateQuizLibrary();
     // Run quiz scheduler migration
     await migrateQuizScheduler();
+    await migrateQuizAiJobs();
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing database:', error);

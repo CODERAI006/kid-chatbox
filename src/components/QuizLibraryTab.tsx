@@ -3,7 +3,7 @@
  * Quizzes are marked "in_library" by admins and are available on-demand here.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   VStack,
@@ -47,6 +47,7 @@ const DIFF_COLOR: Record<string, string> = {
 
 export const QuizLibraryTab: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
 
   const [quizzes, setQuizzes] = useState<LibraryQuiz[]>([]);
@@ -70,7 +71,9 @@ export const QuizLibraryTab: React.FC = () => {
     }
   }, [toast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [location.key, load]);
 
   // Client-side filtering
   useEffect(() => {

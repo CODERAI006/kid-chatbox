@@ -46,13 +46,10 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
       )}
 
       <HStack align="start" spacing={0}>
-        {/* Sidebar - Desktop */}
         {!isMobile && <StudentSidebar user={user || null} />}
 
-        {/* Sidebar - Mobile Drawer */}
         {isMobile && <StudentSidebar user={user || null} isOpen={isOpen} onClose={onClose} />}
 
-        {/* Main Content */}
         <Box flex={1} minH="calc(100vh - 73px)" py={{ base: 2, md: 4, lg: 6 }} px={{ base: 0, md: 0 }} width="100%" overflowX="hidden">
           {children}
         </Box>
@@ -60,7 +57,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
 
       {showFooter && <Footer />}
 
-      {user ? <LearningChatWidget /> : null}
+      <LearningChatWidget />
     </Box>
   );
 };

@@ -3,7 +3,7 @@
  * Layout wrapper for admin pages with navigation
  */
 
-import { ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -46,7 +46,7 @@ const navItems = [
 /**
  * Admin Layout component
  */
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -109,17 +109,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 Admin Portal
               </Heading>
             </HStack>
-            <Button size={{ base: 'xs', md: 'sm' }} variant="ghost" onClick={() => navigate('/')}>
-              <Text display={{ base: 'none', sm: 'block' }}>Back to App</Text>
-              <Text display={{ base: 'block', sm: 'none' }}>Back</Text>
-            </Button>
+            <HStack spacing={2}>
+              <Button size={{ base: 'xs', md: 'sm' }} variant="ghost" onClick={() => navigate('/')}>
+                <Text display={{ base: 'none', sm: 'block' }}>Back to App</Text>
+                <Text display={{ base: 'block', sm: 'none' }}>Back</Text>
+              </Button>
+            </HStack>
           </HStack>
         </Box>
         <UpcomingTestsMarquee />
       </Box>
 
       <HStack align="start" spacing={0}>
-        {/* Desktop Sidebar */}
         {!isMobile && (
           <Box
             w="250px"
@@ -133,7 +134,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </Box>
         )}
 
-        {/* Mobile Drawer */}
         {isMobile && (
           <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
             <DrawerOverlay />
@@ -154,4 +154,3 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     </Box>
   );
 };
-
