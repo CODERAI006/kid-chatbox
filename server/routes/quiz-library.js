@@ -11,8 +11,14 @@ const { checkModuleAccess } = require('../middleware/rbac');
 const router = express.Router();
 
 /** Only match real UUIDs so paths like /suggestions never bind as :id */
+const UUID_RE =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const QUIZ_LIBRARY_ID_PARAM =
   '/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})';
+
+function isValidQuizLibraryId(value) {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
 
 /**
  * Extract tags from quiz config for automatic tagging
@@ -301,6 +307,13 @@ router.get('/suggestions', authenticateToken, checkModuleAccess('quiz'), async (
 router.get(QUIZ_LIBRARY_ID_PARAM, authenticateToken, checkModuleAccess('quiz'), async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    if (!isValidQuizLibraryId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid quiz library id. Use GET /api/quiz-library/suggestions for suggestions.',
+      });
+    }
 
     const result = await pool.query(
       `SELECT * FROM quiz_library WHERE id = $1 AND is_active = true`,

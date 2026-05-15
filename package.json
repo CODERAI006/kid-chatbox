@@ -24,6 +24,7 @@
     "db:migrate-plans": "node server/scripts/migrate-plans-schema.js",
     "db:migrate-scheduled-tests": "node server/scripts/migrate-scheduled-tests.js",
     "db:migrate-quiz-scheduler": "node server/scripts/migrate-quiz-scheduler.js",
+    "db:migrate-quiz-library": "node server/scripts/migrate-quiz-library.js",
     "db:test": "node test-db-connection.js"
   },
   "dependencies": {
