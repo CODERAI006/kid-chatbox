@@ -2,7 +2,7 @@
  * StudyHub - Unified page merging AI Study Mode, Study Library, and Study History
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,42 +15,65 @@ import {
   Text,
   HStack,
   Badge,
+  Alert,
+  AlertIcon,
+  AlertDescription,
 } from '@/shared/design-system';
 import { StudyMode } from './StudyMode';
 import { StudyLibrary } from './StudyLibrary';
 import { StudyHistory } from './StudyHistory';
 import { authApi } from '@/services/api';
+import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 
 const TAB_KEYS = ['ai-study', 'library', 'history'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
-const tabFromHash = (hash: string): number => {
-  const key = hash.replace('#', '') as TabKey;
-  const idx = TAB_KEYS.indexOf(key);
-  return idx >= 0 ? idx : 0;
-};
+function buildStudyTabKeys(showAiStudy: boolean): TabKey[] {
+  const keys: TabKey[] = [];
+  if (showAiStudy) keys.push('ai-study');
+  keys.push('library', 'history');
+  return keys;
+}
 
 export const StudyHub: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tabIndex, setTabIndex] = useState(() => tabFromHash(location.hash));
+  const { user } = authApi.getCurrentUser();
+  const isAdmin =
+    (user as Record<string, unknown> | undefined)?.role === 'admin' ||
+    (user as Record<string, unknown> | undefined)?.is_admin === true;
+  const { showAiStudy: planAllowsAiStudy } = usePlanAiFlags();
+  const showAiStudyTab = isAdmin || planAllowsAiStudy;
+
+  const tabKeysVisible = useMemo(
+    () => buildStudyTabKeys(showAiStudyTab),
+    [showAiStudyTab]
+  );
+
+  const [tabIndex, setTabIndex] = useState(() => {
+    const raw = (location.hash || '').replace('#', '') as TabKey;
+    const idx = buildStudyTabKeys(true).indexOf(raw);
+    return idx >= 0 ? idx : 0;
+  });
   const [historyCount, setHistoryCount] = useState<number | null>(null);
 
   useEffect(() => {
-    setTabIndex(tabFromHash(location.hash));
-  }, [location.hash]);
+    const raw = (location.hash || '').replace('#', '') as TabKey;
+    const idx = tabKeysVisible.indexOf(raw);
+    setTabIndex(idx >= 0 ? idx : 0);
+  }, [location.hash, tabKeysVisible]);
 
   useEffect(() => {
     const loadCount = async () => {
       try {
-        const { user } = authApi.getCurrentUser();
-        if (user && (user as { id: string }).id) {
+        const { user: currentUser } = authApi.getCurrentUser();
+        if (currentUser && (currentUser as { id: string }).id) {
           const { studyApi } = await import('@/services/api');
-          const res = await studyApi.getStudyHistory((user as { id: string }).id);
+          const res = await studyApi.getStudyHistory((currentUser as { id: string }).id);
           if (res.success && res.sessions) setHistoryCount(res.sessions.length);
         }
       } catch {
-        // silently ignore
+        /* ignore */
       }
     };
     loadCount();
@@ -58,19 +81,17 @@ export const StudyHub: React.FC = () => {
 
   const handleTabChange = (index: number) => {
     setTabIndex(index);
-    navigate(`/study#${TAB_KEYS[index]}`, { replace: true });
+    const key = tabKeysVisible[index];
+    if (key) navigate(`/study#${key}`, { replace: true });
   };
 
   return (
     <Box minH="100vh" bg="gray.50">
-      {/* Page header */}
       <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6} py={4}>
         <HStack spacing={3} align="center">
           <Text fontSize="2xl">📚</Text>
           <Box>
-            <Heading size="md" color="blue.700">
-              Study Hub
-            </Heading>
+            <Heading size="md" color="blue.700">Study Hub</Heading>
             <Text fontSize="sm" color="gray.500">
               Generate lessons, browse materials, and review your history — all in one place
             </Text>
@@ -78,57 +99,45 @@ export const StudyHub: React.FC = () => {
         </HStack>
       </Box>
 
-      {/* Tabs */}
-      <Tabs
-        index={tabIndex}
-        onChange={handleTabChange}
-        isLazy
-        colorScheme="blue"
-        variant="enclosed"
-      >
+      <Tabs index={tabIndex} onChange={handleTabChange} isLazy colorScheme="blue" variant="enclosed">
         <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6}>
           <TabList border="none">
-            <Tab
-              fontWeight="semibold"
-              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
-            >
-              🤖 AI Study Mode
-            </Tab>
-            <Tab
-              fontWeight="semibold"
-              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
-            >
+            {showAiStudyTab && (
+              <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
+                🤖 AI Study Mode
+                {isAdmin && !planAllowsAiStudy && (
+                  <Badge ml={2} colorScheme="orange" fontSize="xs">Plan hidden</Badge>
+                )}
+              </Tab>
+            )}
+            <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
               📖 Study Library
             </Tab>
-            <Tab
-              fontWeight="semibold"
-              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
-            >
+            <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
               🕑 Study History
               {historyCount !== null && historyCount > 0 && (
-                <Badge ml={2} colorScheme="blue" borderRadius="full">
-                  {historyCount}
-                </Badge>
+                <Badge ml={2} colorScheme="blue" borderRadius="full">{historyCount}</Badge>
               )}
             </Tab>
           </TabList>
         </Box>
 
         <TabPanels>
-          {/* AI Study Mode */}
-          <TabPanel p={0}>
-            <StudyMode />
-          </TabPanel>
-
-          {/* Study Library */}
-          <TabPanel p={0}>
-            <StudyLibrary />
-          </TabPanel>
-
-          {/* Study History */}
-          <TabPanel p={0}>
-            <StudyHistory />
-          </TabPanel>
+          {showAiStudyTab && (
+            <TabPanel p={0}>
+              {isAdmin && !planAllowsAiStudy && (
+                <Alert status="info" borderRadius={0}>
+                  <AlertIcon />
+                  <AlertDescription fontSize="sm">
+                    Your admin account always sees this tab. Students on plans with &quot;Hide AI Study Mode&quot; will not.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <StudyMode />
+            </TabPanel>
+          )}
+          <TabPanel p={0}><StudyLibrary /></TabPanel>
+          <TabPanel p={0}><StudyHistory /></TabPanel>
         </TabPanels>
       </Tabs>
     </Box>

@@ -39,6 +39,8 @@ import {
   NumberDecrementStepper,
   Select,
   useToast,
+  Switch,
+  FormHelperText,
 } from '@/shared/design-system';
 import { apiClient } from '@/services/api';
 
@@ -50,6 +52,8 @@ interface Plan {
   daily_topic_limit: number;
   monthly_cost: number;
   status: 'active' | 'inactive';
+  hide_ai_study?: boolean;
+  hide_ai_quiz?: boolean;
   created_at: string;
   updated_at: string;
   user_count?: number;
@@ -62,6 +66,8 @@ interface PlanFormData {
   dailyTopicLimit: number;
   monthlyCost: number;
   status: 'active' | 'inactive';
+  hideAiStudy: boolean;
+  hideAiQuiz: boolean;
 }
 
 /**
@@ -81,6 +87,8 @@ export const PlanManagement: React.FC = () => {
     dailyTopicLimit: 1,
     monthlyCost: 0,
     status: 'active',
+    hideAiStudy: false,
+    hideAiQuiz: false,
   });
   const [formLoading, setFormLoading] = useState(false);
   const [assignUserId, setAssignUserId] = useState('');
@@ -118,6 +126,8 @@ export const PlanManagement: React.FC = () => {
       dailyTopicLimit: 1,
       monthlyCost: 0,
       status: 'active',
+      hideAiStudy: false,
+      hideAiQuiz: false,
     });
     onOpen();
   };
@@ -131,6 +141,8 @@ export const PlanManagement: React.FC = () => {
       dailyTopicLimit: plan.daily_topic_limit,
       monthlyCost: typeof plan.monthly_cost === 'number' ? plan.monthly_cost : Number(plan.monthly_cost || 0),
       status: plan.status,
+      hideAiStudy: Boolean(plan.hide_ai_study),
+      hideAiQuiz: Boolean(plan.hide_ai_quiz),
     });
     onOpen();
   };
@@ -304,7 +316,19 @@ export const PlanManagement: React.FC = () => {
             <Tbody>
               {plans.map((plan) => (
                 <Tr key={plan.id}>
-                  <Td fontWeight="bold">{plan.name}</Td>
+                  <Td fontWeight="bold">
+                    {plan.name}
+                    {(plan.hide_ai_study || plan.hide_ai_quiz) && (
+                      <HStack spacing={1} mt={1} flexWrap="wrap">
+                        {plan.hide_ai_study && (
+                          <Badge colorScheme="orange" fontSize="xs">No AI Study</Badge>
+                        )}
+                        {plan.hide_ai_quiz && (
+                          <Badge colorScheme="orange" fontSize="xs">No AI Quiz</Badge>
+                        )}
+                      </HStack>
+                    )}
+                  </Td>
                   <Td>{plan.description || '-'}</Td>
                   <Td>{plan.daily_quiz_limit}</Td>
                   <Td>{plan.daily_topic_limit}</Td>
@@ -436,6 +460,34 @@ export const PlanManagement: React.FC = () => {
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </Select>
+                </FormControl>
+
+                <FormControl display="flex" alignItems="center">
+                  <Switch
+                    id="hide-ai-study"
+                    isChecked={formData.hideAiStudy}
+                    onChange={(e) => setFormData({ ...formData, hideAiStudy: e.target.checked })}
+                  />
+                  <Box ml={3}>
+                    <FormLabel htmlFor="hide-ai-study" mb={0}>Hide AI Study Mode</FormLabel>
+                    <FormHelperText mt={0}>
+                      Users on this plan keep Study Library and history; AI lesson generation is hidden.
+                    </FormHelperText>
+                  </Box>
+                </FormControl>
+
+                <FormControl display="flex" alignItems="center">
+                  <Switch
+                    id="hide-ai-quiz"
+                    isChecked={formData.hideAiQuiz}
+                    onChange={(e) => setFormData({ ...formData, hideAiQuiz: e.target.checked })}
+                  />
+                  <Box ml={3}>
+                    <FormLabel htmlFor="hide-ai-quiz" mb={0}>Hide AI Quiz Mode</FormLabel>
+                    <FormHelperText mt={0}>
+                      Users on this plan keep scheduled tests and quiz library; AI-generated quizzes are hidden.
+                    </FormHelperText>
+                  </Box>
                 </FormControl>
               </VStack>
             </ModalBody>

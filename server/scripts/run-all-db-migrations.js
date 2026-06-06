@@ -13,6 +13,7 @@ const { migrateScheduledTests } = require('./migrate-scheduled-tests');
 const { migrateStudyLibraryContent } = require('./migrate-study-library-content');
 const { migrateQuizLibrary } = require('./migrate-quiz-library');
 const { migrateQuizScheduler } = require('./migrate-quiz-scheduler');
+const { migrateQuizSchedulerV2 } = require('./migrate-quiz-scheduler-v2');
 const { migrateQuizAiJobs } = require('./migrate-quiz-ai-jobs');
 
 async function runAllDbMigrations() {
@@ -23,6 +24,7 @@ async function runAllDbMigrations() {
   await migrateStudyLibraryContent();
   await migrateQuizLibrary();
   await migrateQuizScheduler();
+  await migrateQuizSchedulerV2();
   await migrateQuizAiJobs();
 }
 

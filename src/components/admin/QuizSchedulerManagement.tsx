@@ -10,25 +10,25 @@ import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody,
   ModalFooter, ModalCloseButton, useDisclosure, FormControl,
   FormLabel, Input, Select, NumberInput, NumberInputField,
-  CheckboxGroup, Checkbox, Stack, Tooltip, IconButton,
+  Tooltip, IconButton,
 } from '@/shared/design-system';
+import { SchedulerTopicFields } from './SchedulerTopicFields';
 
 const API = '/api/quiz-scheduler';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Mixed'];
-const DEFAULT_TOPICS = [
-  'Mathematics', 'Science', 'English', 'History', 'Geography',
-  'General Knowledge', 'Current Affairs', 'Computer Science',
-];
-
 interface SchedulerJob {
   id: string;
   job_name: string;
   frequency_type: 'daily' | 'weekly';
   run_time: string;
   day_of_week: number | null;
-  topics: string[];
+  topics?: string[];
+  topic_ids?: string[];
+  subtopic_ids?: string[];
+  sets_per_run?: number;
+  timezone?: string;
   question_count: number;
   difficulty: string;
   visibility_start_offset_mins: number;
@@ -41,9 +41,13 @@ interface SchedulerJob {
 const emptyJob: Omit<SchedulerJob, 'id' | 'last_run_at' | 'created_at'> = {
   job_name: '',
   frequency_type: 'daily',
-  run_time: '08:00',
+  run_time: '22:00',
   day_of_week: 1,
   topics: [],
+  topic_ids: [],
+  subtopic_ids: [],
+  sets_per_run: 5,
+  timezone: 'Asia/Kolkata',
   question_count: 10,
   difficulty: 'Mixed',
   visibility_start_offset_mins: 0,
@@ -154,7 +158,12 @@ export const QuizSchedulerManagement: React.FC = () => {
       const r = await fetch(`${API}/jobs/${id}/run-now`, { method: 'POST', headers: authHeader() });
       const d = await safeJson(r);
       if (!d.success) throw new Error(d.message);
-      toast({ title: 'Quiz generated successfully!', status: 'success', duration: 4000 });
+      const sets = d.data?.setsCompleted ?? d.data?.sets_completed;
+      toast({
+        title: sets != null ? `Generated ${sets} quiz set(s)` : 'Batch generated',
+        status: 'success',
+        duration: 4000,
+      });
       fetchJobs();
     } catch (e: unknown) {
       toast({ title: (e as Error).message || 'Run failed', status: 'error' });
@@ -176,14 +185,14 @@ export const QuizSchedulerManagement: React.FC = () => {
         <Table size="sm">
           <Thead>
             <Tr>
-              <Th>Job Name</Th><Th>Frequency</Th><Th>Run Time (UTC)</Th>
-              <Th>Topics</Th><Th>Qs</Th><Th>Difficulty</Th>
+              <Th>Job Name</Th><Th>Frequency</Th><Th>Run (IST)</Th>
+              <Th>Sets</Th><Th>Qs</Th><Th>Difficulty</Th>
               <Th>Status</Th><Th>Last Run</Th><Th>Actions</Th>
             </Tr>
           </Thead>
           <Tbody>
             {jobs.length === 0 && (
-              <Tr><Td colSpan={9} textAlign="center" py={8} color="gray.500">No jobs yet – create one!</Td></Tr>
+              <Tr><Td colSpan={8} textAlign="center" py={8} color="gray.500">No jobs yet – create one!</Td></Tr>
             )}
             {jobs.map((j) => (
               <Tr key={j.id}>
@@ -193,12 +202,8 @@ export const QuizSchedulerManagement: React.FC = () => {
                     ? `Weekly (${DAYS[j.day_of_week ?? 1]})`
                     : 'Daily'}
                 </Td>
-                <Td>{j.run_time} UTC</Td>
-                <Td maxW="160px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
-                  <Tooltip label={j.topics.join(', ')}>
-                    <Text isTruncated>{j.topics.join(', ')}</Text>
-                  </Tooltip>
-                </Td>
+                <Td>{j.run_time} IST</Td>
+                <Td isNumeric>{j.sets_per_run ?? 5}</Td>
                 <Td isNumeric>{j.question_count}</Td>
                 <Td>{j.difficulty}</Td>
                 <Td>
@@ -246,8 +251,8 @@ export const QuizSchedulerManagement: React.FC = () => {
                   </Select>
                 </FormControl>
                 <FormControl isRequired>
-                  <FormLabel>Run Time (UTC)</FormLabel>
-                  <Input type="time" value={editJob.run_time || '08:00'} onChange={(e) => setEditJob({ ...editJob, run_time: e.target.value })} />
+                  <FormLabel>Run Time (IST)</FormLabel>
+                  <Input type="time" value={editJob.run_time || '22:00'} onChange={(e) => setEditJob({ ...editJob, run_time: e.target.value })} />
                 </FormControl>
               </HStack>
               {editJob.frequency_type === 'weekly' && (
@@ -258,15 +263,20 @@ export const QuizSchedulerManagement: React.FC = () => {
                   </Select>
                 </FormControl>
               )}
-              <FormControl isRequired>
-                <FormLabel>Topics</FormLabel>
-                <CheckboxGroup value={editJob.topics || []} onChange={(v) => setEditJob({ ...editJob, topics: v as string[] })}>
-                  <Stack direction="row" flexWrap="wrap" spacing={3}>
-                    {DEFAULT_TOPICS.map((t) => <Checkbox key={t} value={t}>{t}</Checkbox>)}
-                  </Stack>
-                </CheckboxGroup>
-              </FormControl>
+              <SchedulerTopicFields
+                topicIds={editJob.topic_ids || []}
+                subtopicIds={editJob.subtopic_ids || []}
+                onChange={(topic_ids, subtopic_ids) =>
+                  setEditJob({ ...editJob, topic_ids, subtopic_ids, topics: [] })
+                }
+              />
               <HStack>
+                <FormControl isRequired>
+                  <FormLabel>Sets per night</FormLabel>
+                  <NumberInput min={1} max={10} value={editJob.sets_per_run ?? 5} onChange={(_, v) => setEditJob({ ...editJob, sets_per_run: v })}>
+                    <NumberInputField />
+                  </NumberInput>
+                </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Questions per Quiz</FormLabel>
                   <NumberInput min={3} max={30} value={editJob.question_count || 10} onChange={(_, v) => setEditJob({ ...editJob, question_count: v })}>

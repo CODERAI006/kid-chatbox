@@ -10,6 +10,7 @@ const {
   checkTopicLimit,
   incrementTopicUsage,
 } = require('../middleware/plan-limits');
+const { checkPlanAiStudy } = require('../middleware/plan-ai-features');
 const { trackStudySessionStart, trackStudySessionComplete } = require('../utils/eventTracker');
 
 const router = express.Router();
@@ -21,6 +22,7 @@ router.post(
   '/sessions',
   authenticateToken,
   checkModuleAccess('study'),
+  checkPlanAiStudy,
   checkTopicLimit,
   incrementTopicUsage,
   async (req, res, next) => {

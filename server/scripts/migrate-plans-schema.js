@@ -74,6 +74,11 @@ const migratePlansSchema = async () => {
       ON CONFLICT (name) DO NOTHING
     `);
 
+    await client.query(`
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS hide_ai_study BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS hide_ai_quiz BOOLEAN NOT NULL DEFAULT false;
+    `);
+
     await client.query('COMMIT');
     console.log('✅ Plans schema migrated successfully');
   } catch (error) {

@@ -7,6 +7,8 @@ const express = require('express');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { checkModuleAccess } = require('../middleware/rbac');
+const { extractTags } = require('../utils/quizTags');
+const { copyLibraryToQuiz } = require('../utils/libraryToQuiz');
 
 const router = express.Router();
 
@@ -19,78 +21,6 @@ const QUIZ_LIBRARY_ID_PARAM =
 function isValidQuizLibraryId(value) {
   return typeof value === 'string' && UUID_RE.test(value);
 }
-
-/**
- * Extract tags from quiz config for automatic tagging
- * @param {Object} config - Quiz configuration
- * @returns {string[]} Array of tags
- */
-const extractTags = (config) => {
-  const tags = [];
-
-  // Subject tag
-  if (config.subject) {
-    tags.push(`subject:${config.subject.toLowerCase()}`);
-  }
-
-  // Difficulty tag
-  if (config.difficulty) {
-    tags.push(`difficulty:${config.difficulty.toLowerCase()}`);
-  }
-
-  // Subtopics tags
-  if (config.subtopics && Array.isArray(config.subtopics)) {
-    config.subtopics.forEach((subtopic) => {
-      tags.push(`topic:${subtopic.toLowerCase()}`);
-    });
-  }
-
-  // Grade level tag
-  if (config.gradeLevel) {
-    tags.push(`grade:${config.gradeLevel.toLowerCase()}`);
-  }
-
-  // Exam style tag
-  if (config.examStyle) {
-    tags.push(`exam:${config.examStyle.toLowerCase()}`);
-  }
-
-  // Age group tag
-  if (config.age) {
-    tags.push(`age:${config.age}`);
-  }
-
-  // Language tag
-  if (config.language) {
-    tags.push(`language:${config.language.toLowerCase()}`);
-  }
-
-  // Extract tags from instructions (grammar elements, scenario types, etc.)
-  if (config.instructions) {
-    const instructions = config.instructions.toLowerCase();
-    
-    // Grammar elements
-    const grammarElements = ['noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition', 'conjunction', 'tense', 'punctuation', 'grammar'];
-    grammarElements.forEach((element) => {
-      if (instructions.includes(element)) {
-        tags.push(`grammar:${element}`);
-      }
-    });
-
-    // Scenario types
-    if (instructions.includes('scenario') || instructions.includes('real-world') || instructions.includes('practical')) {
-      tags.push('scenario:real-world');
-    }
-    if (instructions.includes('story') || instructions.includes('narrative')) {
-      tags.push('scenario:story-based');
-    }
-    if (instructions.includes('problem-solving') || instructions.includes('problem solving')) {
-      tags.push('scenario:problem-solving');
-    }
-  }
-
-  return tags;
-};
 
 /**
  * Save quiz to library
@@ -359,6 +289,32 @@ router.get(QUIZ_LIBRARY_ID_PARAM, authenticateToken, checkModuleAccess('quiz'), 
     next(error);
   }
 });
+
+/**
+ * Start tracked quiz — copy library → quizzes if needed, return quizId
+ * POST /api/quiz-library/:id/start-tracked
+ */
+router.post(
+  `${QUIZ_LIBRARY_ID_PARAM}/start-tracked`,
+  authenticateToken,
+  checkModuleAccess('quiz'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      if (!isValidQuizLibraryId(id)) {
+        return res.status(400).json({ success: false, message: 'Invalid quiz library id' });
+      }
+
+      const quizId = await copyLibraryToQuiz(id, req.user.id);
+      res.json({ success: true, quizId });
+    } catch (error) {
+      if (error.message === 'Quiz library item not found') {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      next(error);
+    }
+  }
+);
 
 module.exports = router;
 

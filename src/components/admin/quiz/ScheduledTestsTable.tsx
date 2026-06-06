@@ -27,6 +27,7 @@ interface ScheduledTestsTableProps {
   onEdit: (testId: string) => void;
   onDelete: (testId: string) => void;
   onViewReport: (testId: string) => void;
+  onScheduleNew?: () => void;
 }
 
 export const ScheduledTestsTable: React.FC<ScheduledTestsTableProps> = ({
@@ -35,14 +36,20 @@ export const ScheduledTestsTable: React.FC<ScheduledTestsTableProps> = ({
   onEdit,
   onDelete,
   onViewReport,
+  onScheduleNew,
 }) => {
   if (scheduledTests.length === 0) {
     return (
       <Card>
         <CardBody>
-          <Text textAlign="center" py={8} color="gray.500">
-            No scheduled tests found.
-          </Text>
+          <VStack py={8} spacing={3}>
+            <Text textAlign="center" color="gray.500">No scheduled tests yet.</Text>
+            {onScheduleNew && (
+              <Button size="sm" colorScheme="blue" onClick={onScheduleNew}>
+                Schedule your first test
+              </Button>
+            )}
+          </VStack>
         </CardBody>
       </Card>
     );

@@ -104,6 +104,108 @@ router.post('/', checkPermission('manage_quizzes'), async (req, res, next) => {
 });
 
 /**
+ * Bulk schedule multiple quizzes with shared settings
+ * POST /api/scheduled-tests/batch
+ */
+router.post('/batch', checkPermission('manage_quizzes'), async (req, res, next) => {
+  try {
+    const {
+      quizIds,
+      scheduledFor,
+      visibleFrom,
+      visibleUntil,
+      durationMinutes,
+      planIds,
+      userIds,
+      instructions,
+    } = req.body;
+
+    if (!Array.isArray(quizIds) || quizIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'quizIds array is required' });
+    }
+    if (quizIds.length > 50) {
+      return res.status(400).json({ success: false, message: 'Maximum 50 quizzes per batch' });
+    }
+    if (!scheduledFor || !visibleFrom) {
+      return res.status(400).json({
+        success: false,
+        message: 'scheduledFor and visibleFrom are required',
+      });
+    }
+    if ((!planIds || planIds.length === 0) && (!userIds || userIds.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Select at least one plan or user',
+      });
+    }
+
+    if (planIds && planIds.length > 0) {
+      const planResult = await pool.query(
+        `SELECT id FROM plans WHERE id = ANY($1::uuid[]) AND status = 'active'`,
+        [planIds]
+      );
+      if (planResult.rows.length !== planIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more plans not found or inactive',
+        });
+      }
+    }
+
+    const results = [];
+    const errors = [];
+
+    for (const quizId of quizIds) {
+      try {
+        const quizResult = await pool.query('SELECT id, name FROM quizzes WHERE id = $1', [quizId]);
+        if (quizResult.rows.length === 0) {
+          errors.push({ name: quizId, reason: 'Quiz not found' });
+          continue;
+        }
+
+        const insert = await pool.query(
+          `INSERT INTO scheduled_tests (
+            quiz_id, scheduled_by, scheduled_for, visible_from, visible_until,
+            duration_minutes, plan_ids, user_ids, instructions, status
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'scheduled')
+          RETURNING id, quiz_id`,
+          [
+            quizId,
+            req.user.id,
+            scheduledFor,
+            visibleFrom,
+            visibleUntil || null,
+            durationMinutes || null,
+            planIds || [],
+            userIds || [],
+            instructions || null,
+          ]
+        );
+
+        results.push({
+          id: insert.rows[0].id,
+          quizId,
+          name: quizResult.rows[0].name,
+        });
+      } catch (err) {
+        errors.push({ name: quizId, reason: err.message });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      created: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Get all scheduled tests
  * GET /api/scheduled-tests
  */

@@ -92,6 +92,8 @@ router.post('/', checkPermission('manage_users'), async (req, res, next) => {
       dailyTopicLimit,
       monthlyCost,
       status = 'active',
+      hideAiStudy = false,
+      hideAiQuiz = false,
     } = req.body;
 
     // Validate input
@@ -122,9 +124,11 @@ router.post('/', checkPermission('manage_users'), async (req, res, next) => {
         daily_quiz_limit, 
         daily_topic_limit, 
         monthly_cost, 
-        status
+        status,
+        hide_ai_study,
+        hide_ai_quiz
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         name,
@@ -133,6 +137,8 @@ router.post('/', checkPermission('manage_users'), async (req, res, next) => {
         parseInt(dailyTopicLimit, 10),
         parseFloat(monthlyCost || 0),
         status,
+        Boolean(hideAiStudy),
+        Boolean(hideAiQuiz),
       ]
     );
 
@@ -160,6 +166,8 @@ router.put('/:id', checkPermission('manage_users'), async (req, res, next) => {
       dailyTopicLimit,
       monthlyCost,
       status,
+      hideAiStudy,
+      hideAiQuiz,
     } = req.body;
 
     // Check if plan exists
@@ -214,6 +222,18 @@ router.put('/:id', checkPermission('manage_users'), async (req, res, next) => {
       paramCount++;
       updates.push(`status = $${paramCount}`);
       values.push(status);
+    }
+
+    if (hideAiStudy !== undefined) {
+      paramCount++;
+      updates.push(`hide_ai_study = $${paramCount}`);
+      values.push(Boolean(hideAiStudy));
+    }
+
+    if (hideAiQuiz !== undefined) {
+      paramCount++;
+      updates.push(`hide_ai_quiz = $${paramCount}`);
+      values.push(Boolean(hideAiQuiz));
     }
 
     if (updates.length === 0) {

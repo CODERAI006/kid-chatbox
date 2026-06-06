@@ -26,9 +26,10 @@ if [ -d .git ]; then
     git pull origin main || echo "Git pull failed, continuing..."
 fi
 
-# Install dependencies (including devDependencies needed for build)
+# Install dependencies (including devDependencies needed for tsc + vite build)
+# If NODE_ENV=production during install, devDependencies are skipped and build fails with "tsc: not found".
 echo -e "${YELLOW}📦 Installing dependencies...${NC}"
-npm install
+NODE_ENV=development npm install
 
 # Database migrations (idempotent; same set as server initializeDatabase)
 echo -e "${YELLOW}🗄️  Running database migrations...${NC}"

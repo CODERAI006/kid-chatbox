@@ -81,18 +81,26 @@ router.post(
       await client.query('BEGIN');
 
       // Insert quiz — include grade_level and subject if provided
+      const resolvedAgeGroup = ageGroup || gradeLevel;
+      if (!resolvedAgeGroup) {
+        return res.status(400).json({
+          success: false,
+          message: 'Class / grade level is required (set the Class column in Excel row 2)',
+        });
+      }
+
       const quizResult = await client.query(
         `INSERT INTO quizzes (
           subtopic_id, name, description, age_group, grade_level, subject, difficulty,
-          number_of_questions, passing_percentage, time_limit, created_by, is_active
+          number_of_questions, passing_percentage, time_limit, created_by, is_active, in_library
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true, true)
         RETURNING *`,
         [
           resolvedSubtopicId,
           name.trim(),
           description || null,
-          ageGroup || gradeLevel || null,   // accept either field for age_group
+          resolvedAgeGroup,
           gradeLevel || null,
           subject || null,
           difficulty,

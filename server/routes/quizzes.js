@@ -11,6 +11,7 @@ const {
   checkQuizLimit,
   incrementQuizUsage,
 } = require('../middleware/plan-limits');
+const { checkPlanAiQuiz } = require('../middleware/plan-ai-features');
 const { generateQuizQuestions } = require('../utils/openai');
 const { trackQuizStart, trackQuizComplete, trackQuestionAnswer, trackQuizCreated } = require('../utils/eventTracker');
 const { runQuizAiGenerationJob } = require('../services/quizAiGenerationJob');
@@ -352,6 +353,7 @@ router.patch('/:id/library', checkPermission('manage_quizzes'), async (req, res,
 router.post(
   '/ai-generate-job',
   checkModuleAccess('quiz'),
+  checkPlanAiQuiz,
   checkQuizLimit,
   async (req, res, next) => {
     try {

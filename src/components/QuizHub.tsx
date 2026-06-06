@@ -33,7 +33,9 @@ import { QuizTutorErrorBoundary } from './QuizTutorErrorBoundary';
 import { ScheduledTests } from './ScheduledTests';
 import { QuizHistory } from './QuizHistory';
 import { QuizLibraryTab } from './QuizLibraryTab';
+import { TodaysQuizzes } from './TodaysQuizzes';
 import { authApi, quizApi, scheduledTestsApi } from '@/services/api';
+import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 
 const TAB_KEYS = ['ai-quiz', 'scheduled', 'library', 'history'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -90,19 +92,22 @@ export const QuizHub: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // AI quiz visibility controls
-  const [visibility, setVisibility] = useState<AIVisibilitySettings>(loadVisibility);
-  const [showSettings, setShowSettings] = useState(false);
-  const aiVisible = isAIQuizVisible(visibility);
-
   // Check if current user is admin
   const { user } = authApi.getCurrentUser();
   const isAdmin = (user as Record<string, unknown>)?.role === 'admin' ||
     (user as Record<string, unknown>)?.is_admin === true;
 
+  const { showAiQuiz: planAllowsAiQuiz } = usePlanAiFlags();
+
+  // AI quiz visibility controls
+  const [visibility, setVisibility] = useState<AIVisibilitySettings>(loadVisibility);
+  const [showSettings, setShowSettings] = useState(false);
+  const aiGloballyVisible = isAIQuizVisible(visibility);
+  const aiVisibleForUser = isAdmin || (aiGloballyVisible && planAllowsAiQuiz);
+
   const tabKeysVisible = useMemo(
-    () => buildQuizHubTabKeys(isAdmin || aiVisible),
-    [isAdmin, aiVisible]
+    () => buildQuizHubTabKeys(aiVisibleForUser),
+    [aiVisibleForUser]
   );
 
   const [tabIndex, setTabIndex] = useState(() => {
@@ -279,8 +284,8 @@ export const QuizHub: React.FC = () => {
 
                 <Text fontSize="xs" color="gray.500">
                   Current status:{' '}
-                  <Badge colorScheme={aiVisible ? 'green' : 'orange'} fontSize="xs">
-                    {aiVisible ? 'Visible to students' : 'Hidden from students'}
+                  <Badge colorScheme={aiGloballyVisible ? 'green' : 'orange'} fontSize="xs">
+                    {aiGloballyVisible ? 'Visible to students' : 'Hidden from students'}
                   </Badge>
                   {visibility.useSchedule && visibility.showFrom && (
                     <> · from {new Date(visibility.showFrom).toLocaleString()}</>
@@ -295,6 +300,10 @@ export const QuizHub: React.FC = () => {
         )}
       </Box>
 
+      <Box px={6} pt={4}>
+        <TodaysQuizzes />
+      </Box>
+
       {/* Tabs */}
       <Tabs
         index={tabIndex}
@@ -306,10 +315,10 @@ export const QuizHub: React.FC = () => {
         <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6}>
           <TabList border="none">
             {/* AI Quiz tab — always visible to admin, conditionally to students */}
-            {(isAdmin || aiVisible) && (
+            {(isAdmin || aiVisibleForUser) && (
               <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
                 🤖 AI Quiz Mode
-                {isAdmin && !aiVisible && (
+                {isAdmin && !aiGloballyVisible && (
                   <Badge ml={2} colorScheme="orange" fontSize="xs">Hidden</Badge>
                 )}
               </Tab>
@@ -338,9 +347,9 @@ export const QuizHub: React.FC = () => {
 
         <TabPanels>
           {/* AI Quiz Mode — shown to admin always; to students only when visible */}
-          {(isAdmin || aiVisible) && (
+          {(isAdmin || aiVisibleForUser) && (
             <TabPanel p={0}>
-              {isAdmin && !aiVisible && (
+              {isAdmin && !aiGloballyVisible && (
                 <Alert status="warning" borderRadius={0}>
                   <AlertIcon />
                   <AlertDescription fontSize="sm">

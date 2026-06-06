@@ -3,7 +3,8 @@
  * Handles all admin-related API calls
  */
 
-import { apiClient } from './api';
+import axios from 'axios';
+import { apiClient, getErrorMessage } from './api';
 
 export interface User {
   id: string;
@@ -556,6 +557,28 @@ export const adminApi = {
     return response.data;
   },
 
+  /** Create one exam from bulk Excel upload (called once per parsed sheet). */
+  bulkUploadExam: async (data: {
+    name: string;
+    description?: string;
+    gradeLevel?: string | null;
+    subject?: string | null;
+    difficulty: string;
+    passingPercentage?: number;
+    timeLimit?: string | number | null;
+    questions: Array<{
+      question: string;
+      options: { A: string; B: string; C: string; D: string };
+      correctAnswer: string;
+      explanation?: string;
+      hint?: string;
+      points?: number;
+    }>;
+  }): Promise<{ success: boolean; quiz: { id: string; name: string; questionCount: number } }> => {
+    const response = await apiClient.post('/bulk-exam-upload/single', data);
+    return response.data;
+  },
+
   /**
    * Get all quizzes
    */
@@ -915,6 +938,79 @@ export const scheduledTestsApi = {
   }): Promise<{ scheduledTest: ScheduledTest }> => {
     const response = await apiClient.post('/scheduled-tests', data);
     return response.data;
+  },
+
+  createBulkScheduledTests: async (data: {
+    quizIds: string[];
+    scheduledFor: string;
+    visibleFrom: string;
+    visibleUntil?: string;
+    durationMinutes?: number;
+    planIds?: string[];
+    userIds?: string[];
+    instructions?: string;
+  }): Promise<{
+    created: number;
+    failed: number;
+    results: Array<{ id: string; quizId: string; name: string }>;
+    errors: Array<{ name: string; reason: string }>;
+  }> => {
+    const scheduleOne = async (quizId: string) => {
+      const response = await apiClient.post('/scheduled-tests', {
+        quizId,
+        scheduledFor: data.scheduledFor,
+        visibleFrom: data.visibleFrom,
+        visibleUntil: data.visibleUntil,
+        durationMinutes: data.durationMinutes,
+        planIds: data.planIds,
+        userIds: data.userIds,
+        instructions: data.instructions,
+      });
+      const row = response.data.scheduledTest;
+      return {
+        id: row.id as string,
+        quizId,
+        name: (row.name as string) || quizId,
+      };
+    };
+
+    try {
+      const response = await apiClient.post('/scheduled-tests/batch', data);
+      return response.data;
+    } catch (err) {
+      const batchUrl = String(
+        axios.isAxiosError(err) ? err.config?.url || '' : ''
+      );
+      const errMsg = String(
+        axios.isAxiosError(err) ? err.response?.data?.message || '' : ''
+      );
+      const isMissingBatch =
+        axios.isAxiosError(err) &&
+        err.response?.status === 404 &&
+        (batchUrl.includes('scheduled-tests/batch') ||
+          errMsg.includes('scheduled-tests/batch'));
+      if (!isMissingBatch) throw err;
+
+      if (import.meta.env.DEV) {
+        console.warn(
+          '[scheduledTests] Batch endpoint unavailable — scheduling quizzes one at a time. Restart the API server to enable POST /scheduled-tests/batch.'
+        );
+      }
+
+      const results: Array<{ id: string; quizId: string; name: string }> = [];
+      const errors: Array<{ name: string; reason: string }> = [];
+      for (const quizId of data.quizIds) {
+        try {
+          results.push(await scheduleOne(quizId));
+        } catch (oneErr) {
+          errors.push({ name: quizId, reason: getErrorMessage(oneErr) });
+        }
+      }
+      if (results.length === 0 && errors.length > 0) {
+        throw new Error(errors.map((e) => `${e.name}: ${e.reason}`).join('; '));
+      }
+      return { created: results.length, failed: errors.length, results, errors };
+    }
   },
 
   /**

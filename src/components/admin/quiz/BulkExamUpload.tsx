@@ -12,6 +12,8 @@ import {
   AccordionButton, AccordionPanel, AccordionIcon, useToast, Spinner, Progress,
   Divider, Tooltip,
 } from '@/shared/design-system';
+import { adminApi } from '@/services/admin';
+import { getErrorMessage } from '@/services/api';
 import {
   parseWorkbook, downloadBulkTemplate,
   MAX_EXAMS, MAX_QUESTIONS_PER_EXAM,
@@ -19,7 +21,7 @@ import {
 } from './bulkExamUtils';
 
 interface BulkExamUploadProps {
-  onUploadComplete?: (results: { created: number; failed: number }) => void;
+  onUploadComplete?: (results: { created: number; failed: number; quizIds: string[] }) => void;
 }
 
 const DIFF_COLOR: Record<string, string> = {
@@ -34,6 +36,7 @@ export const BulkExamUpload: React.FC<BulkExamUploadProps> = ({ onUploadComplete
   const [uploading, setUploading]   = useState(false);
   const [progress, setProgress]     = useState(0);
   const [done, setDone]             = useState<{ created: number; failed: number } | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   /* ── File parsing ──────────────────────────────────────────────────────── */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,6 +62,7 @@ export const BulkExamUpload: React.FC<BulkExamUploadProps> = ({ onUploadComplete
 
         setParsedExams(exams);
         setDone(null);
+        setUploadErrors([]);
         toast({ title: `${exams.length} exam(s) parsed`, description: 'Review below then click Upload All.', status: 'success', duration: 3000 });
       } catch (err) {
         toast({ title: 'Parse error', description: String((err as Error).message), status: 'error', duration: 4000 });
@@ -88,20 +92,15 @@ export const BulkExamUpload: React.FC<BulkExamUploadProps> = ({ onUploadComplete
 
     setUploading(true);
     setProgress(0);
+    setUploadErrors([]);
     let created = 0, failed = 0;
-
-    const token   = localStorage.getItem('token');
-    const baseUrl = import.meta.env.VITE_API_BASE_URL
-      ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/+$/, '')
-      : `${window.location.protocol}//${window.location.hostname}:${import.meta.env.VITE_API_PORT || '3001'}/api`;
-    const url = baseUrl.endsWith('/api')
-      ? `${baseUrl}/bulk-exam-upload/single`
-      : `${baseUrl}/api/bulk-exam-upload/single`;
+    const errors: string[] = [];
+    const quizIds: string[] = [];
 
     for (let i = 0; i < ready.length; i++) {
       const exam = ready[i];
       try {
-        const payload = {
+        const res = await adminApi.bulkUploadExam({
           name:              exam.name,
           description:       exam.description,
           gradeLevel:        exam.gradeLevel || null,
@@ -117,26 +116,23 @@ export const BulkExamUpload: React.FC<BulkExamUploadProps> = ({ onUploadComplete
             hint:          q.hint,
             points:        q.points,
           })),
-        };
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(payload),
         });
-
-        if (res.ok) { created++; }
-        else { const b = await res.json().catch(() => ({})); console.error(`Failed: "${exam.name}"`, b); failed++; }
+        if (res.quiz?.id) quizIds.push(res.quiz.id);
+        created++;
       } catch (err) {
-        console.error(`Error uploading "${exam.name}":`, err);
+        const msg = getErrorMessage(err);
+        errors.push(`"${exam.name}": ${msg}`);
+        console.error(`Failed to upload "${exam.name}":`, err);
         failed++;
       }
       setProgress(Math.round(((i + 1) / ready.length) * 100));
     }
 
+    setUploadErrors(errors);
+
     setUploading(false);
     setDone({ created, failed });
-    onUploadComplete?.({ created, failed });
+    onUploadComplete?.({ created, failed, quizIds });
     toast({
       title: 'Upload complete',
       description: `✅ ${created} exam(s) created${failed > 0 ? ` · ❌ ${failed} failed` : ''}`,
@@ -217,6 +213,13 @@ export const BulkExamUpload: React.FC<BulkExamUploadProps> = ({ onUploadComplete
               <strong>Upload complete:</strong> {done.created} exam{done.created !== 1 ? 's' : ''} created
               {done.failed > 0 && `, ${done.failed} failed`}.
               {done.failed === 0 && ' All exams are now available in the quiz library.'}
+              {uploadErrors.length > 0 && (
+                <VStack align="start" spacing={1} mt={2}>
+                  {uploadErrors.map((err, i) => (
+                    <Text key={i} fontSize="xs">{err}</Text>
+                  ))}
+                </VStack>
+              )}
             </AlertDescription>
           </Alert>
         )}

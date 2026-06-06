@@ -37,6 +37,8 @@ import { QuizReport } from './quiz/QuizReport';
 import { useQuizManagement } from './quiz/useQuizManagement';
 import { createQuizHandlers } from './quiz/quizHandlers';
 import { BulkExamUpload } from './quiz/BulkExamUpload';
+import { BulkScheduleTests } from './quiz/BulkScheduleTests';
+import { defaultScheduleForQuiz, defaultScheduleForm } from './quiz/scheduleTestUtils';
 
 /**
  * Quiz Management component
@@ -77,16 +79,10 @@ export const QuizManagement: React.FC = () => {
     isActive: true,
   });
   const [editQuizJsonContent, setEditQuizJsonContent] = useState('');
-  const [scheduleFormData, setScheduleFormData] = useState({
-    quizId: '',
-    scheduledFor: '',
-    visibleFrom: '',
-    visibleUntil: '',
-    durationMinutes: '',
-    planIds: [] as string[],
-    userIds: [] as string[],
-    instructions: '',
-  });
+  const [scheduleFormData, setScheduleFormData] = useState(defaultScheduleForm());
+  const [bulkScheduleQuizIds, setBulkScheduleQuizIds] = useState<string[]>([]);
+
+  const planIds = plans.map((p) => p.id);
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isScheduleOpen, onOpen: onScheduleOpen, onClose: onScheduleClose } = useDisclosure();
@@ -149,16 +145,19 @@ export const QuizManagement: React.FC = () => {
   };
 
   const openScheduleForQuiz = (quizId: string, timeLimit?: number) => {
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-    const nextWeek  = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-    setScheduleFormData({ quizId, scheduledFor: '', visibleFrom: tomorrow, visibleUntil: nextWeek, durationMinutes: timeLimit?.toString() || '60', planIds: [], userIds: [], instructions: '' });
+    setScheduleFormData(defaultScheduleForQuiz(quizId, timeLimit, planIds));
+    onScheduleOpen();
+  };
+
+  const openNewSchedule = () => {
+    setScheduleFormData(defaultScheduleForm(planIds));
     onScheduleOpen();
   };
 
   const handleScheduleTestSubmit = async (data: typeof scheduleFormData) => {
     await handlers.handleScheduleTest(data, editingScheduledTestId);
     setEditingScheduledTestId(null);
-    setScheduleFormData({ quizId: '', scheduledFor: '', visibleFrom: '', visibleUntil: '', durationMinutes: '', planIds: [], userIds: [], instructions: '' });
+    setScheduleFormData(defaultScheduleForm(planIds));
   };
 
   const handleEditScheduledTestClick = async (testId: string) => {
@@ -192,7 +191,7 @@ export const QuizManagement: React.FC = () => {
   };
 
   const resetScheduleForm = () => {
-    setScheduleFormData({ quizId: '', scheduledFor: '', visibleFrom: '', visibleUntil: '', durationMinutes: '', planIds: [], userIds: [], instructions: '' });
+    setScheduleFormData(defaultScheduleForm(planIds));
   };
 
   if (loading && quizzes.length === 0) {
@@ -220,7 +219,7 @@ export const QuizManagement: React.FC = () => {
             Quiz Management
           </Heading>
           <HStack spacing={2} flexWrap="wrap">
-            <Button colorScheme="green" variant="outline" size="sm" flex="1" minW="120px" onClick={() => { resetScheduleForm(); onScheduleOpen(); }}>
+            <Button colorScheme="green" variant="outline" size="sm" flex="1" minW="120px" onClick={() => { resetScheduleForm(); openNewSchedule(); }}>
               Schedule Quiz
             </Button>
             <Button colorScheme="blue" size="sm" flex="1" minW="120px" onClick={onOpen}>
@@ -233,7 +232,7 @@ export const QuizManagement: React.FC = () => {
             Quiz Management
           </Heading>
           <HStack spacing={3}>
-            <Button colorScheme="green" variant="outline" onClick={() => { resetScheduleForm(); onScheduleOpen(); }}>
+            <Button colorScheme="green" variant="outline" onClick={() => { resetScheduleForm(); openNewSchedule(); }}>
               Schedule Quiz
             </Button>
             <Button colorScheme="blue" onClick={onOpen}>
@@ -286,7 +285,7 @@ export const QuizManagement: React.FC = () => {
           <TabList>
             <Tab>Quizzes</Tab>
             <Tab>Scheduled Tests</Tab>
-            <Tab>📊 Bulk Excel Upload</Tab>
+            <Tab>📊 Bulk Upload</Tab>
           </TabList>
 
           <TabPanels>
@@ -302,20 +301,44 @@ export const QuizManagement: React.FC = () => {
             </TabPanel>
 
             <TabPanel>
-              <ScheduledTestsTable
-                scheduledTests={scheduledTests}
-                onView={handlers.handleViewScheduledTest}
-                onEdit={handleEditScheduledTestClick}
-                onDelete={handlers.handleDeleteScheduledTest}
-                onViewReport={handleViewReport}
-              />
+              <VStack spacing={6} align="stretch">
+                <BulkScheduleTests
+                  quizzes={quizzes}
+                  plans={plans}
+                  preselectedQuizIds={bulkScheduleQuizIds}
+                  onComplete={() => {
+                    setBulkScheduleQuizIds([]);
+                    loadScheduledTests();
+                  }}
+                />
+                <ScheduledTestsTable
+                  scheduledTests={scheduledTests}
+                  onView={handlers.handleViewScheduledTest}
+                  onEdit={handleEditScheduledTestClick}
+                  onDelete={handlers.handleDeleteScheduledTest}
+                  onViewReport={handleViewReport}
+                  onScheduleNew={openNewSchedule}
+                />
+              </VStack>
             </TabPanel>
 
             {/* Bulk Excel Upload tab */}
             <TabPanel>
               <BulkExamUpload
-                onUploadComplete={({ created }) => {
-                  if (created > 0) loadQuizzes();
+                onUploadComplete={({ created, quizIds }) => {
+                  if (created > 0) {
+                    loadQuizzes();
+                    if (quizIds.length > 0) {
+                      setBulkScheduleQuizIds(quizIds);
+                      setActiveTab(1);
+                      toast({
+                        title: `${created} exam(s) uploaded`,
+                        description: 'They are pre-selected in Bulk Schedule below — pick plans and click Schedule.',
+                        status: 'success',
+                        duration: 6000,
+                      });
+                    }
+                  }
                 }}
               />
             </TabPanel>
@@ -363,7 +386,6 @@ export const QuizManagement: React.FC = () => {
           onClose={() => { onScheduleClose(); setEditingScheduledTestId(null); resetScheduleForm(); }}
           onSubmit={handleScheduleTestSubmit}
           quizzes={quizzes}
-          scheduledTests={scheduledTests}
           plans={plans}
           formData={scheduleFormData}
           setFormData={setScheduleFormData}

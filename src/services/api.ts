@@ -801,6 +801,8 @@ export const planApi = {
       daily_topic_limit: number;
       monthly_cost: number;
       status: string;
+      hide_ai_study?: boolean;
+      hide_ai_quiz?: boolean;
     };
     usage: {
       quizCount: number;

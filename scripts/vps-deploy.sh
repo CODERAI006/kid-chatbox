@@ -33,8 +33,9 @@ if [[ -d .git && "${SKIP_GIT:-}" != "1" ]]; then
   git pull origin "$BRANCH"
 fi
 
-echo "==> npm install"
-npm install
+echo "==> npm install (including devDependencies for tsc/vite — avoid NODE_ENV=production here)"
+# If NODE_ENV=production, npm omits devDependencies and `npm run build` will fail (no tsc).
+NODE_ENV=development npm install
 
 echo "==> database migrations (idempotent)"
 npm run db:migrate-all
