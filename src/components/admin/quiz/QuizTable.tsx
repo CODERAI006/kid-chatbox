@@ -28,6 +28,7 @@ interface QuizTableProps {
   quizzes: Quiz[];
   onView: (quiz: Quiz) => void;
   onEdit: (quiz: Quiz) => void;
+  onRename: (quiz: Quiz) => void;
   onSchedule: (quiz: Quiz) => void;
   onDelete: (quizId: string) => void;
   onToggleLibrary: (quiz: Quiz) => void;
@@ -37,6 +38,7 @@ export const QuizTable: React.FC<QuizTableProps> = ({
   quizzes,
   onView,
   onEdit,
+  onRename,
   onSchedule,
   onDelete,
   onToggleLibrary,
@@ -122,6 +124,7 @@ export const QuizTable: React.FC<QuizTableProps> = ({
 
                   <HStack spacing={2} flexWrap="wrap">
                     <Button size="sm" colorScheme="green" variant="outline" flex="1" minW="80px" onClick={() => onView(quiz)}>View</Button>
+                    <Button size="sm" colorScheme="purple" variant="outline" flex="1" minW="80px" onClick={() => onRename(quiz)}>Rename</Button>
                     <Button size="sm" colorScheme="orange" variant="outline" flex="1" minW="80px" onClick={() => onEdit(quiz)}>Edit</Button>
                     <Button size="sm" colorScheme="blue" variant="outline" flex="1" minW="80px" onClick={() => onSchedule(quiz)}>Schedule</Button>
                     <Button
@@ -189,6 +192,7 @@ export const QuizTable: React.FC<QuizTableProps> = ({
                       <Td>
                         <HStack spacing={1} flexWrap="wrap">
                           <Button size="xs" colorScheme="green" variant="outline" onClick={() => onView(quiz)}>View</Button>
+                          <Button size="xs" colorScheme="purple" variant="outline" onClick={() => onRename(quiz)}>Rename</Button>
                           <Button size="xs" colorScheme="orange" variant="outline" onClick={() => onEdit(quiz)}>Edit</Button>
                           <Button size="xs" colorScheme="blue" variant="outline" onClick={() => onSchedule(quiz)}>📅 Schedule</Button>
                           <Button

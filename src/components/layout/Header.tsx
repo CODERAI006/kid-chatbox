@@ -25,6 +25,7 @@ import { User } from '@/types';
 import { useFontSize } from '@/contexts/FontSizeContext';
 import { useQuizTimer } from '@/contexts/QuizTimerContext';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
+import { getUserId } from '@/utils/userAccess';
 
 interface HeaderProps {
   user?: User | null;
@@ -44,10 +45,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuOpen, showMenuButton
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const fontControlBg = useColorModeValue('gray.100', 'gray.700');
   const [showStickyTimer, setShowStickyTimer] = useState(false);
-  const { showAiStudy, showAiQuiz } = usePlanAiFlags();
-  const isAdmin =
-    (user as Record<string, unknown> | undefined)?.role === 'admin' ||
-    (user as Record<string, unknown> | undefined)?.is_admin === true;
+  const { showAiStudy, showAiQuiz } = usePlanAiFlags(getUserId(user as Record<string, unknown> | null));
   
   // Try to get quiz timer context (may not be available)
   let quizTimer: ReturnType<typeof useQuizTimer> | null = null;
@@ -235,11 +233,13 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuOpen, showMenuButton
                 </MenuButton>
                 <MenuList>
                   <MenuItem onClick={handleGoHome}>Dashboard</MenuItem>
-                  {(isAdmin || showAiStudy) && (
-                    <MenuItem onClick={() => navigate('/study')}>AI Study Mode</MenuItem>
+                  <MenuItem onClick={() => navigate('/study')}>Study Hub</MenuItem>
+                  <MenuItem onClick={() => navigate('/quiz')}>Quiz Hub</MenuItem>
+                  {showAiStudy && (
+                    <MenuItem onClick={() => navigate('/study#ai-study')}>AI Study Mode</MenuItem>
                   )}
-                  {(isAdmin || showAiQuiz) && (
-                    <MenuItem onClick={() => navigate('/quiz')}>AI Quiz Mode</MenuItem>
+                  {showAiQuiz && (
+                    <MenuItem onClick={() => navigate('/quiz#ai-quiz')}>AI Quiz Mode</MenuItem>
                   )}
                   <MenuItem onClick={() => navigate('/quiz-rankings')}>Quiz Rankings 🏆</MenuItem>
                   <MenuItem onClick={() => navigate('/study#history')}>Study History</MenuItem>

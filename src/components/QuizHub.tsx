@@ -36,6 +36,7 @@ import { QuizLibraryTab } from './QuizLibraryTab';
 import { TodaysQuizzes } from './TodaysQuizzes';
 import { authApi, quizApi, scheduledTestsApi } from '@/services/api';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
+import { getUserId, isAppAdmin } from '@/utils/userAccess';
 
 const TAB_KEYS = ['ai-quiz', 'scheduled', 'library', 'history'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -94,10 +95,10 @@ export const QuizHub: React.FC = () => {
 
   // Check if current user is admin
   const { user } = authApi.getCurrentUser();
-  const isAdmin = (user as Record<string, unknown>)?.role === 'admin' ||
-    (user as Record<string, unknown>)?.is_admin === true;
+  const userRecord = user as Record<string, unknown> | null;
+  const isAdmin = isAppAdmin(userRecord);
 
-  const { showAiQuiz: planAllowsAiQuiz } = usePlanAiFlags();
+  const { showAiQuiz: planAllowsAiQuiz } = usePlanAiFlags(getUserId(userRecord));
 
   // AI quiz visibility controls
   const [visibility, setVisibility] = useState<AIVisibilitySettings>(loadVisibility);
@@ -113,9 +114,7 @@ export const QuizHub: React.FC = () => {
   const [tabIndex, setTabIndex] = useState(() => {
     const vis = loadVisibility();
     const { user: u } = authApi.getCurrentUser();
-    const admin =
-      (u as Record<string, unknown> | undefined)?.role === 'admin' ||
-      (u as Record<string, unknown> | undefined)?.is_admin === true;
+    const admin = isAppAdmin(u as Record<string, unknown> | null);
     const keys = buildQuizHubTabKeys(Boolean(admin) || isAIQuizVisible(vis));
     const raw = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
     const idx = keys.indexOf(raw as TabKey);

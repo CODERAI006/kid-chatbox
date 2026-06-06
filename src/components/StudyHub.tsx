@@ -24,6 +24,7 @@ import { StudyLibrary } from './StudyLibrary';
 import { StudyHistory } from './StudyHistory';
 import { authApi } from '@/services/api';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
+import { getUserId, isAppAdmin } from '@/utils/userAccess';
 
 const TAB_KEYS = ['ai-study', 'library', 'history'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -39,11 +40,10 @@ export const StudyHub: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = authApi.getCurrentUser();
-  const isAdmin =
-    (user as Record<string, unknown> | undefined)?.role === 'admin' ||
-    (user as Record<string, unknown> | undefined)?.is_admin === true;
-  const { showAiStudy: planAllowsAiStudy } = usePlanAiFlags();
-  const showAiStudyTab = isAdmin || planAllowsAiStudy;
+  const userRecord = user as Record<string, unknown> | null;
+  const isAdmin = isAppAdmin(userRecord);
+  const { showAiStudy: planAllowsAiStudy } = usePlanAiFlags(getUserId(userRecord));
+  const showAiStudyTab = planAllowsAiStudy || isAdmin;
 
   const tabKeysVisible = useMemo(
     () => buildStudyTabKeys(showAiStudyTab),

@@ -24,6 +24,8 @@ import { UpcomingTestsSidebar } from './UpcomingTestsSidebar';
 import { StudentUpcomingTestsMarquee } from '@/components/layout/StudentUpcomingTestsMarquee';
 import { PullToRefresh } from './PullToRefresh';
 import { WordOfTheDay } from './WordOfTheDay';
+import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
+import { isAppAdmin } from '@/utils/userAccess';
 
 interface DashboardProps {
   user: User;
@@ -57,6 +59,12 @@ interface PlanInfo {
 
 export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const navigate = useNavigate();
+  const { showAiStudy, showAiQuiz, loading: aiFlagsLoading } = usePlanAiFlags(user.id);
+  const isAdmin = isAppAdmin(user as unknown as Record<string, unknown>);
+  const canShowAiStudy = showAiStudy || isAdmin;
+  const canShowAiQuiz = showAiQuiz || isAdmin;
+  const actionCardCount = (canShowAiStudy ? 1 : 0) + (canShowAiQuiz ? 1 : 0);
+  const showActionCards = !aiFlagsLoading && actionCardCount > 0;
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
@@ -162,102 +170,116 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           {/* Left Content Area - Action Cards and Recent Scores */}
           <Box flex={{ base: 'none', lg: 1 }} width={{ base: '100%', lg: 'auto' }} minW={{ base: '100%', lg: 0 }}>
             <VStack spacing={{ base: 4, md: 5 }} align="stretch">
-              {/* Main Action Tiles */}
-              <SimpleGrid columns={{ base: 2, sm: 2 }} spacing={{ base: 2, sm: 3, md: 4, lg: 5 }} gap={{ base: 2, sm: 3, md: 4, lg: 5 }}>
-                <Card
-                  cursor={planInfo && planInfo.limits.remainingTopics === 0 ? 'not-allowed' : 'pointer'}
-                  _hover={
-                    planInfo && planInfo.limits.remainingTopics === 0
-                      ? {}
-                      : { transform: { base: 'none', md: 'scale(1.02)' }, shadow: 'lg' }
-                  }
-                  onClick={() => {
-                    if (planInfo && planInfo.limits.remainingTopics === 0) {
-                      return;
-                    }
-                    navigate('/study');
-                  }}
-                  height={{ base: 'auto', sm: '160px', md: '180px', lg: '200px' }}
-                  minH={{ base: '100px', sm: '160px', md: '180px', lg: '200px' }}
-                  maxH={{ base: 'none', sm: '160px', md: '180px', lg: '200px' }}
-                  opacity={planInfo && planInfo.limits.remainingTopics === 0 ? 0.6 : 1}
-                  position="relative"
-                  width="100%"
+              {/* AI mode action tiles — visible only when plan allows AI Study / AI Quiz */}
+              {showActionCards && (
+                <SimpleGrid
+                  columns={{ base: actionCardCount > 1 ? 2 : 1, sm: actionCardCount > 1 ? 2 : 1 }}
+                  spacing={{ base: 2, sm: 3, md: 4, lg: 5 }}
+                  gap={{ base: 2, sm: 3, md: 4, lg: 5 }}
                 >
-                  {planInfo && planInfo.limits.remainingTopics === 0 && (
-                    <Badge
-                      position="absolute"
-                      top={{ base: 0.5, sm: 1, md: 2 }}
-                      right={{ base: 0.5, sm: 1, md: 2 }}
-                      colorScheme="red"
-                      fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
-                      zIndex={1}
-                      px={{ base: 1, sm: 1.5, md: 2 }}
-                      py={{ base: 0.5, sm: 0.5, md: 1 }}
+                  {canShowAiStudy && (
+                    <Card
+                      cursor={planInfo && planInfo.limits.remainingTopics === 0 ? 'not-allowed' : 'pointer'}
+                      _hover={
+                        planInfo && planInfo.limits.remainingTopics === 0
+                          ? {}
+                          : { transform: { base: 'none', md: 'scale(1.02)' }, shadow: 'lg' }
+                      }
+                      onClick={() => {
+                        if (planInfo && planInfo.limits.remainingTopics === 0) {
+                          return;
+                        }
+                        navigate('/study#ai-study');
+                      }}
+                      height={{ base: 'auto', sm: '160px', md: '180px', lg: '200px' }}
+                      minH={{ base: '100px', sm: '160px', md: '180px', lg: '200px' }}
+                      maxH={{ base: 'none', sm: '160px', md: '180px', lg: '200px' }}
+                      opacity={planInfo && planInfo.limits.remainingTopics === 0 ? 0.6 : 1}
+                      position="relative"
+                      width="100%"
                     >
-                      Limit
-                    </Badge>
+                      {planInfo && planInfo.limits.remainingTopics === 0 && (
+                        <Badge
+                          position="absolute"
+                          top={{ base: 0.5, sm: 1, md: 2 }}
+                          right={{ base: 0.5, sm: 1, md: 2 }}
+                          colorScheme="red"
+                          fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+                          zIndex={1}
+                          px={{ base: 1, sm: 1.5, md: 2 }}
+                          py={{ base: 0.5, sm: 0.5, md: 1 }}
+                        >
+                          Limit
+                        </Badge>
+                      )}
+                      <CardBody display="flex" alignItems="center" justifyContent="center" p={{ base: 2, sm: 3, md: 4, lg: 5 }}>
+                        <VStack spacing={{ base: 1, sm: 2, md: 3, lg: 4 }}>
+                          <Text fontSize={{ base: 'xl', sm: '2xl', md: '3xl', lg: '4xl' }}>📚</Text>
+                          <Heading size={{ base: '2xs', sm: 'xs', md: 'sm', lg: 'md' }} textAlign="center" noOfLines={2}>
+                            {MESSAGES.STUDY_MODE_TITLE}
+                          </Heading>
+                          <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="gray.600" textAlign="center" px={{ base: 1, sm: 2, md: 0 }} noOfLines={2}>
+                            {planInfo && planInfo.limits.remainingTopics === 0
+                              ? 'Daily topic limit reached. Try again tomorrow!'
+                              : 'Learn new topics with fun lessons!'}
+                          </Text>
+                        </VStack>
+                      </CardBody>
+                    </Card>
                   )}
-                  <CardBody display="flex" alignItems="center" justifyContent="center" p={{ base: 2, sm: 3, md: 4, lg: 5 }}>
-                    <VStack spacing={{ base: 1, sm: 2, md: 3, lg: 4 }}>
-                      <Text fontSize={{ base: 'xl', sm: '2xl', md: '3xl', lg: '4xl' }}>📚</Text>
-                      <Heading size={{ base: '2xs', sm: 'xs', md: 'sm', lg: 'md' }} textAlign="center" noOfLines={2}>{MESSAGES.STUDY_MODE_TITLE}</Heading>
-                      <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="gray.600" textAlign="center" px={{ base: 1, sm: 2, md: 0 }} noOfLines={2}>
-                        {planInfo && planInfo.limits.remainingTopics === 0
-                          ? 'Daily topic limit reached. Try again tomorrow!'
-                          : 'Learn new topics with fun lessons!'}
-                      </Text>
-                    </VStack>
-                  </CardBody>
-                </Card>
 
-                <Card
-                  cursor={planInfo && planInfo.limits.remainingQuizzes === 0 ? 'not-allowed' : 'pointer'}
-                  _hover={
-                    planInfo && planInfo.limits.remainingQuizzes === 0
-                      ? {}
-                      : { transform: { base: 'none', md: 'scale(1.02)' }, shadow: 'lg' }
-                  }
-                  onClick={() => {
-                    if (planInfo && planInfo.limits.remainingQuizzes === 0) {
-                      return;
-                    }
-                    navigate('/quiz');
-                  }}
-                  height={{ base: 'auto', sm: '160px', md: '180px', lg: '200px' }}
-                  minH={{ base: '100px', sm: '160px', md: '180px', lg: '200px' }}
-                  maxH={{ base: 'none', sm: '160px', md: '180px', lg: '200px' }}
-                  opacity={planInfo && planInfo.limits.remainingQuizzes === 0 ? 0.6 : 1}
-                  position="relative"
-                  width="100%"
-                >
-                  {planInfo && planInfo.limits.remainingQuizzes === 0 && (
-                    <Badge
-                      position="absolute"
-                      top={{ base: 0.5, sm: 1, md: 2 }}
-                      right={{ base: 0.5, sm: 1, md: 2 }}
-                      colorScheme="red"
-                      fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
-                      zIndex={1}
-                      px={{ base: 1, sm: 1.5, md: 2 }}
-                      py={{ base: 0.5, sm: 0.5, md: 1 }}
+                  {canShowAiQuiz && (
+                    <Card
+                      cursor={planInfo && planInfo.limits.remainingQuizzes === 0 ? 'not-allowed' : 'pointer'}
+                      _hover={
+                        planInfo && planInfo.limits.remainingQuizzes === 0
+                          ? {}
+                          : { transform: { base: 'none', md: 'scale(1.02)' }, shadow: 'lg' }
+                      }
+                      onClick={() => {
+                        if (planInfo && planInfo.limits.remainingQuizzes === 0) {
+                          return;
+                        }
+                        navigate('/quiz#ai-quiz');
+                      }}
+                      height={{ base: 'auto', sm: '160px', md: '180px', lg: '200px' }}
+                      minH={{ base: '100px', sm: '160px', md: '180px', lg: '200px' }}
+                      maxH={{ base: 'none', sm: '160px', md: '180px', lg: '200px' }}
+                      opacity={planInfo && planInfo.limits.remainingQuizzes === 0 ? 0.6 : 1}
+                      position="relative"
+                      width="100%"
                     >
-                      Limit
-                    </Badge>
+                      {planInfo && planInfo.limits.remainingQuizzes === 0 && (
+                        <Badge
+                          position="absolute"
+                          top={{ base: 0.5, sm: 1, md: 2 }}
+                          right={{ base: 0.5, sm: 1, md: 2 }}
+                          colorScheme="red"
+                          fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+                          zIndex={1}
+                          px={{ base: 1, sm: 1.5, md: 2 }}
+                          py={{ base: 0.5, sm: 0.5, md: 1 }}
+                        >
+                          Limit
+                        </Badge>
+                      )}
+                      <CardBody display="flex" alignItems="center" justifyContent="center" p={{ base: 2, sm: 3, md: 4, lg: 5 }}>
+                        <VStack spacing={{ base: 1, sm: 2, md: 3, lg: 4 }}>
+                          <Text fontSize={{ base: 'xl', sm: '2xl', md: '3xl', lg: '4xl' }}>🎯</Text>
+                          <Heading size={{ base: '2xs', sm: 'xs', md: 'sm', lg: 'md' }} textAlign="center" noOfLines={2}>
+                            {MESSAGES.QUIZ_MODE_TITLE}
+                          </Heading>
+                          <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="gray.600" textAlign="center" px={{ base: 1, sm: 2, md: 0 }} noOfLines={2}>
+                            {planInfo && planInfo.limits.remainingQuizzes === 0
+                              ? 'Daily quiz limit reached. Try again tomorrow!'
+                              : 'Test your knowledge with quizzes!'}
+                          </Text>
+                        </VStack>
+                      </CardBody>
+                    </Card>
                   )}
-                  <CardBody display="flex" alignItems="center" justifyContent="center" p={{ base: 2, sm: 3, md: 4, lg: 5 }}>
-                    <VStack spacing={{ base: 1, sm: 2, md: 3, lg: 4 }}>
-                      <Text fontSize={{ base: 'xl', sm: '2xl', md: '3xl', lg: '4xl' }}>🎯</Text>
-                      <Heading size={{ base: '2xs', sm: 'xs', md: 'sm', lg: 'md' }} textAlign="center" noOfLines={2}>{MESSAGES.QUIZ_MODE_TITLE}</Heading>
-                      <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="gray.600" textAlign="center" px={{ base: 1, sm: 2, md: 0 }} noOfLines={2}>
-                        {planInfo && planInfo.limits.remainingQuizzes === 0
-                          ? 'Daily quiz limit reached. Try again tomorrow!'
-                          : 'Test your knowledge with quizzes!'}
-                      </Text>
-                    </VStack>
-                  </CardBody>
-                </Card>
-              </SimpleGrid>
+                </SimpleGrid>
+              )}
 
               {/* Recent Scores */}
               {analytics && analytics.last_three_scores.length > 0 && (

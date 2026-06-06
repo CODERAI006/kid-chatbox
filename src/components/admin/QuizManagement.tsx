@@ -39,6 +39,7 @@ import { createQuizHandlers } from './quiz/quizHandlers';
 import { BulkExamUpload } from './quiz/BulkExamUpload';
 import { BulkScheduleTests } from './quiz/BulkScheduleTests';
 import { defaultScheduleForQuiz, defaultScheduleForm } from './quiz/scheduleTestUtils';
+import { RenameQuizModal } from './quiz/RenameQuizModal';
 
 /**
  * Quiz Management component
@@ -81,6 +82,8 @@ export const QuizManagement: React.FC = () => {
   const [editQuizJsonContent, setEditQuizJsonContent] = useState('');
   const [scheduleFormData, setScheduleFormData] = useState(defaultScheduleForm());
   const [bulkScheduleQuizIds, setBulkScheduleQuizIds] = useState<string[]>([]);
+  const [renamingQuiz, setRenamingQuiz] = useState<Quiz | null>(null);
+  const [renameLoading, setRenameLoading] = useState(false);
 
   const planIds = plans.map((p) => p.id);
 
@@ -91,6 +94,7 @@ export const QuizManagement: React.FC = () => {
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const { isOpen: isEditQuizOpen, onOpen: onEditQuizOpen, onClose: onEditQuizClose } = useDisclosure();
   const { isOpen: isReportOpen, onOpen: onReportOpen, onClose: onReportClose } = useDisclosure();
+  const { isOpen: isRenameOpen, onOpen: onRenameOpen, onClose: onRenameClose } = useDisclosure();
 
   const handlers = createQuizHandlers({
     toast,
@@ -124,6 +128,37 @@ export const QuizManagement: React.FC = () => {
       : await handlers.handleJSONUpload(data);
     if (result?.quiz) {
       setLastCreatedQuiz({ id: result.quiz.id, name: result.quiz.name });
+    }
+  };
+
+  const handleRenameQuizClick = (quiz: Quiz) => {
+    setRenamingQuiz(quiz);
+    onRenameOpen();
+  };
+
+  const handleRenameQuizSave = async (name: string) => {
+    if (!renamingQuiz) return;
+    try {
+      setRenameLoading(true);
+      await adminApi.updateQuiz(renamingQuiz.id, { name });
+      await loadQuizzes();
+      toast({
+        title: 'Quiz renamed',
+        description: `Title updated to "${name}".`,
+        status: 'success',
+        duration: 3000,
+      });
+      setRenamingQuiz(null);
+      onRenameClose();
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to rename quiz',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setRenameLoading(false);
     }
   };
 
@@ -294,6 +329,7 @@ export const QuizManagement: React.FC = () => {
                 quizzes={quizzes}
                 onView={handlers.handleViewQuiz}
                 onEdit={handleEditQuizClick}
+                onRename={handleRenameQuizClick}
                 onSchedule={(quiz) => openScheduleForQuiz(quiz.id, quiz.timeLimit)}
                 onDelete={handlers.handleDeleteQuiz}
                 onToggleLibrary={handleToggleLibrary}
@@ -350,6 +386,17 @@ export const QuizManagement: React.FC = () => {
           onClose={onClose}
           onCreate={handleCreateQuiz}
           loading={actionLoading}
+        />
+
+        <RenameQuizModal
+          isOpen={isRenameOpen}
+          onClose={() => {
+            onRenameClose();
+            setRenamingQuiz(null);
+          }}
+          initialName={renamingQuiz?.name ?? ''}
+          onSave={handleRenameQuizSave}
+          isLoading={renameLoading}
         />
 
         <EditQuizModal
