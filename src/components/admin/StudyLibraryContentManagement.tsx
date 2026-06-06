@@ -37,14 +37,25 @@ import {
   useToast,
   Flex,
 } from '@/shared/design-system';
-import { studyLibraryContentApi, StudyLibraryContent } from '@/services/admin';
+import {
+  studyLibraryContentApi,
+  StudyLibraryContent,
+  type StudyLibraryContentType,
+} from '@/services/admin';
+import {
+  StudyContentAudienceFields,
+  STUDY_CONTENT_FILE_ACCEPT,
+  STUDY_CONTENT_TYPES,
+} from './study/StudyContentAudienceFields';
 
 interface StudyLibraryContentFormData {
   title: string;
   description: string;
-  contentType: 'ppt' | 'pdf' | 'text';
+  contentType: StudyLibraryContentType;
   textContent: string;
   subject: string;
+  grade: string;
+  isGeneral: boolean;
   ageGroup: string;
   difficulty: string;
   language: string;
@@ -83,9 +94,11 @@ export const StudyLibraryContentManagement: React.FC = () => {
   const [formData, setFormData] = useState<StudyLibraryContentFormData>({
     title: '',
     description: '',
-    contentType: 'text',
+    contentType: 'pdf',
     textContent: '',
     subject: '',
+    grade: '',
+    isGeneral: false,
     ageGroup: '',
     difficulty: '',
     language: 'English',
@@ -100,7 +113,9 @@ export const StudyLibraryContentManagement: React.FC = () => {
       const response = await studyLibraryContentApi.getStudyLibraryContent({
         page: pagination.page,
         limit: pagination.limit,
-        contentType: filters.contentType ? (filters.contentType as 'ppt' | 'pdf' | 'text') : undefined,
+        contentType: filters.contentType
+          ? (filters.contentType as StudyLibraryContentType)
+          : undefined,
         isPublished: filters.isPublished ? filters.isPublished === 'true' : undefined,
         subject: filters.subject || undefined,
         ageGroup: filters.ageGroup || undefined,
@@ -109,7 +124,7 @@ export const StudyLibraryContentManagement: React.FC = () => {
       const normalizedContent = response.content.map((item) => {
         const contentType = (item.contentType || 
           (item as unknown as { content_type?: string }).content_type || 
-          'text') as 'ppt' | 'pdf' | 'text';
+          'text') as StudyLibraryContentType;
         return {
           ...item,
           contentType,
@@ -136,9 +151,11 @@ export const StudyLibraryContentManagement: React.FC = () => {
     setFormData({
       title: '',
       description: '',
-      contentType: 'text',
+      contentType: 'pdf',
       textContent: '',
       subject: '',
+      grade: '',
+      isGeneral: false,
       ageGroup: '',
       difficulty: '',
       language: 'English',
@@ -157,6 +174,8 @@ export const StudyLibraryContentManagement: React.FC = () => {
       contentType: item.contentType || 'text',
       textContent: item.textContent || '',
       subject: item.subject || '',
+      grade: item.grade || '',
+      isGeneral: item.isGeneral || false,
       ageGroup: item.ageGroup || '',
       difficulty: item.difficulty || '',
       language: item.language || 'English',
@@ -177,10 +196,11 @@ export const StudyLibraryContentManagement: React.FC = () => {
       return;
     }
 
-    if ((formData.contentType === 'ppt' || formData.contentType === 'pdf') && !selectedFile && !selectedContent) {
+    const needsFile = ['ppt', 'pdf', 'image', 'doc'].includes(formData.contentType);
+    if (needsFile && !selectedFile && !selectedContent?.fileUrl) {
       toast({
         title: 'Validation Error',
-        description: 'Please upload a file for PPT or PDF content',
+        description: `Please upload a file for ${formData.contentType.toUpperCase()} content`,
         status: 'error',
         duration: 3000,
       });
@@ -327,9 +347,11 @@ export const StudyLibraryContentManagement: React.FC = () => {
               w={{ base: '100%', sm: '150px' }}
             >
               <option value="">All Types</option>
-              <option value="ppt">PPT</option>
-              <option value="pdf">PDF</option>
-              <option value="text">Text</option>
+              {STUDY_CONTENT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
             </Select>
             <Select
               placeholder="Status"
@@ -370,6 +392,7 @@ export const StudyLibraryContentManagement: React.FC = () => {
                 <Th>Title</Th>
                 <Th>Type</Th>
                 <Th>Subject</Th>
+                <Th>Grade</Th>
                 <Th>File</Th>
                 <Th>Publish Date</Th>
                 <Th>Status</Th>
@@ -380,7 +403,7 @@ export const StudyLibraryContentManagement: React.FC = () => {
             <Tbody>
               {content.length === 0 ? (
                 <Tr>
-                  <Td colSpan={8} textAlign="center" py={8}>
+                  <Td colSpan={9} textAlign="center" py={8}>
                     <Text color="gray.500">No content found</Text>
                   </Td>
                 </Tr>
@@ -389,11 +412,29 @@ export const StudyLibraryContentManagement: React.FC = () => {
                   <Tr key={item.id}>
                     <Td fontWeight="bold">{item.title}</Td>
                     <Td>
-                      <Badge colorScheme={item.contentType === 'pdf' ? 'red' : item.contentType === 'ppt' ? 'blue' : 'green'}>
+                      <Badge
+                        colorScheme={
+                          item.contentType === 'pdf'
+                            ? 'red'
+                            : item.contentType === 'image'
+                              ? 'purple'
+                              : item.contentType === 'doc'
+                                ? 'orange'
+                                : item.contentType === 'ppt'
+                                  ? 'blue'
+                                  : 'green'
+                        }
+                      >
                         {(item.contentType || 'text').toUpperCase()}
                       </Badge>
+                      {item.isGeneral && (
+                        <Badge ml={1} colorScheme="teal">
+                          General
+                        </Badge>
+                      )}
                     </Td>
-                    <Td>{item.subject || '-'}</Td>
+                    <Td>{item.subject || (item.isGeneral ? 'General' : '-')}</Td>
+                    <Td>{item.grade || (item.isGeneral ? 'All' : '-')}</Td>
                     <Td>
                       {item.fileName ? (
                         <Text fontSize="sm" isTruncated maxW="200px">
@@ -487,26 +528,28 @@ export const StudyLibraryContentManagement: React.FC = () => {
                 <FormControl isRequired>
                   <FormLabel>Content Type</FormLabel>
                   <Select
-                    value={formData.contentType || 'text'}
+                    value={formData.contentType || 'pdf'}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        contentType: e.target.value as 'ppt' | 'pdf' | 'text',
+                        contentType: e.target.value as StudyLibraryContentType,
                       })
                     }
                   >
-                    <option value="text">Text</option>
-                    <option value="pdf">PDF</option>
-                    <option value="ppt">PPT/PPTX</option>
+                    {STUDY_CONTENT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
                   </Select>
                 </FormControl>
 
-                {(formData.contentType === 'ppt' || formData.contentType === 'pdf') && (
+                {formData.contentType !== 'text' && (
                   <FormControl isRequired={!selectedContent}>
                     <FormLabel>Upload File</FormLabel>
                     <Input
                       type="file"
-                      accept={formData.contentType === 'pdf' ? '.pdf' : '.ppt,.pptx'}
+                      accept={STUDY_CONTENT_FILE_ACCEPT[formData.contentType] || '*'}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
@@ -556,29 +599,14 @@ export const StudyLibraryContentManagement: React.FC = () => {
                   </FormControl>
                 )}
 
-                <HStack spacing={4}>
-                  <FormControl>
-                    <FormLabel>Subject</FormLabel>
-                    <Input
-                      value={formData.subject || ''}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      placeholder="e.g., Mathematics, Science"
-                    />
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Age Group</FormLabel>
-                    <Select
-                      value={formData.ageGroup || ''}
-                      onChange={(e) => setFormData({ ...formData, ageGroup: e.target.value })}
-                      placeholder="Select age group"
-                    >
-                      <option value="6-8">6-8 years</option>
-                      <option value="9-11">9-11 years</option>
-                      <option value="12-14">12-14 years</option>
-                    </Select>
-                  </FormControl>
-                </HStack>
+                <StudyContentAudienceFields
+                  value={{
+                    subject: formData.subject,
+                    grade: formData.grade,
+                    isGeneral: formData.isGeneral,
+                  }}
+                  onChange={(patch) => setFormData({ ...formData, ...patch })}
+                />
 
                 <HStack spacing={4}>
                   <FormControl>

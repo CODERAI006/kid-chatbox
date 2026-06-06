@@ -11,6 +11,7 @@ const { migrateAnalyticsSchema } = require('./migrate-analytics-schema');
 const { migratePlansSchema } = require('./migrate-plans-schema');
 const { migrateScheduledTests } = require('./migrate-scheduled-tests');
 const { migrateStudyLibraryContent } = require('./migrate-study-library-content');
+const { migrateStudyLibraryContentV2 } = require('./migrate-study-library-content-v2');
 const { migrateQuizLibrary } = require('./migrate-quiz-library');
 const { migrateQuizScheduler } = require('./migrate-quiz-scheduler');
 const { migrateQuizSchedulerV2 } = require('./migrate-quiz-scheduler-v2');
@@ -22,6 +23,7 @@ async function runAllDbMigrations() {
   await migratePlansSchema();
   await migrateScheduledTests();
   await migrateStudyLibraryContent();
+  await migrateStudyLibraryContentV2();
   await migrateQuizLibrary();
   await migrateQuizScheduler();
   await migrateQuizSchedulerV2();

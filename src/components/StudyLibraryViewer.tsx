@@ -23,6 +23,7 @@ import {
   SimpleGrid,
 } from '@/shared/design-system';
 import { studyApi } from '@/services/api';
+import { resolveUploadUrl } from '@/utils/uploadUrl';
 import { AnimatedSection } from './study/AnimatedSection';
 import { AnimatedListItem } from './study/AnimatedListItem';
 import { KeyPointCard } from './study/KeyPointCard';
@@ -80,6 +81,8 @@ export const StudyLibraryViewer: React.FC = () => {
     );
   }
 
+  const fileSrc = resolveUploadUrl(session.fileUrl);
+
   return (
     <Box p={6} maxW="1200px" mx="auto">
       <VStack spacing={6} align="stretch">
@@ -97,8 +100,22 @@ export const StudyLibraryViewer: React.FC = () => {
             </HStack>
             <HStack spacing={2}>
               <Badge colorScheme="blue">{session.subject || 'General'}</Badge>
+              {session.grade && <Badge colorScheme="cyan">{session.grade}</Badge>}
+              {session.is_general && <Badge colorScheme="teal">General</Badge>}
               {session.content_source === 'admin_content' && session.contentType && (
-                <Badge colorScheme={session.contentType === 'pdf' ? 'red' : session.contentType === 'ppt' ? 'blue' : 'green'}>
+                <Badge
+                  colorScheme={
+                    session.contentType === 'pdf'
+                      ? 'red'
+                      : session.contentType === 'image'
+                        ? 'purple'
+                        : session.contentType === 'doc'
+                          ? 'orange'
+                          : session.contentType === 'ppt'
+                            ? 'blue'
+                            : 'green'
+                  }
+                >
                   {session.contentType.toUpperCase()}
                 </Badge>
               )}
@@ -120,25 +137,36 @@ export const StudyLibraryViewer: React.FC = () => {
         {/* Admin Content Display (PPT, PDF, Text) */}
         {session.content_source === 'admin_content' && (
           <>
-            {session.contentType === 'pdf' && session.fileUrl && (
+            {session.contentType === 'pdf' && fileSrc && (
               <AnimatedSection title="PDF Document">
                 <Card>
                   <CardBody>
                     <VStack spacing={4}>
                       <Text fontSize="lg">{session.lesson_summary || session.description}</Text>
-                      <Box w="100%" h="600px">
-                        <iframe
-                          src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}${session.fileUrl}`}
-                          width="100%"
-                          height="100%"
-                          style={{ border: 'none' }}
-                          title={session.fileName || session.lesson_title}
-                        />
+                      <Box w="100%" h="600px" borderWidth="1px" borderRadius="md" overflow="hidden">
+                        <Box
+                          as="object"
+                          data={fileSrc}
+                          type="application/pdf"
+                          w="100%"
+                          h="100%"
+                          aria-label={session.fileName || session.lesson_title}
+                        >
+                          <iframe
+                            src={fileSrc}
+                            width="100%"
+                            height="100%"
+                            style={{ border: 'none' }}
+                            title={session.fileName || session.lesson_title}
+                          />
+                        </Box>
                       </Box>
                       <Button
                         as="a"
-                        href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}${session.fileUrl}`}
-                        download
+                        href={fileSrc}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={session.fileName || 'document.pdf'}
                         colorScheme="blue"
                       >
                         Download PDF
@@ -149,7 +177,7 @@ export const StudyLibraryViewer: React.FC = () => {
               </AnimatedSection>
             )}
 
-            {session.contentType === 'ppt' && session.fileUrl && (
+            {session.contentType === 'ppt' && fileSrc && (
               <AnimatedSection title="PowerPoint Presentation">
                 <Card>
                   <CardBody>
@@ -163,12 +191,70 @@ export const StudyLibraryViewer: React.FC = () => {
                       </Alert>
                       <Button
                         as="a"
-                        href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}${session.fileUrl}`}
-                        download
+                        href={fileSrc}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={session.fileName}
                         colorScheme="blue"
                         size="lg"
                       >
                         📥 Download {session.fileName || 'Presentation'}
+                      </Button>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </AnimatedSection>
+            )}
+
+            {session.contentType === 'image' && fileSrc && (
+              <AnimatedSection title="Image">
+                <Card>
+                  <CardBody>
+                    <VStack spacing={4}>
+                      <Text fontSize="lg">{session.lesson_summary || session.description}</Text>
+                      <Box
+                        as="img"
+                        src={fileSrc}
+                        alt={session.fileName || session.lesson_title}
+                        maxW="100%"
+                        borderRadius="md"
+                      />
+                      <Button
+                        as="a"
+                        href={fileSrc}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={session.fileName}
+                        colorScheme="blue"
+                      >
+                        Download Image
+                      </Button>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </AnimatedSection>
+            )}
+
+            {session.contentType === 'doc' && fileSrc && (
+              <AnimatedSection title="Document">
+                <Card>
+                  <CardBody>
+                    <VStack spacing={4}>
+                      <Text fontSize="lg">{session.lesson_summary || session.description}</Text>
+                      <Alert status="info">
+                        <AlertIcon />
+                        <Text>Word documents open best after download.</Text>
+                      </Alert>
+                      <Button
+                        as="a"
+                        href={fileSrc}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={session.fileName}
+                        colorScheme="blue"
+                        size="lg"
+                      >
+                        Download {session.fileName || 'Document'}
                       </Button>
                     </VStack>
                   </CardBody>
@@ -195,11 +281,13 @@ export const StudyLibraryViewer: React.FC = () => {
                           <Text>{session.textContent}</Text>
                         </Box>
                       )}
-                      {session.fileUrl && (
+                      {fileSrc && (
                         <Button
                           as="a"
-                          href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}${session.fileUrl}`}
-                          download
+                          href={fileSrc}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={session.fileName}
                           colorScheme="blue"
                         >
                           Download Text File

@@ -34,15 +34,87 @@ const storage = multer.diskStorage({
   },
 });
 
+const ALLOWED_EXTENSIONS = new Set([
+  '.ppt', '.pptx', '.pdf', '.txt',
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tif', '.tiff', '.heic', '.avif',
+  '.doc', '.docx', '.odt', '.rtf',
+]);
+
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.oasis.opendocument.text',
+  'application/rtf',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/bmp',
+  'image/svg+xml',
+  'image/x-icon',
+  'image/tiff',
+  'image/heic',
+  'image/heif',
+  'image/avif',
+]);
+
+/** ppt | pdf | text | image | doc */
+const VALID_CONTENT_TYPES = ['ppt', 'pdf', 'text', 'image', 'doc'];
+
+const IMAGE_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tif', '.tiff', '.heic', '.avif',
+]);
+
+const DOC_EXTENSIONS = new Set(['.doc', '.docx', '.odt', '.rtf']);
+
+const isAllowedUpload = (file) => {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if (ext && ALLOWED_EXTENSIONS.has(ext)) return true;
+  const mime = String(file.mimetype || '').toLowerCase();
+  if (ALLOWED_MIME_TYPES.has(mime)) return true;
+  if (mime.startsWith('image/')) return true;
+  return false;
+};
+
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['.ppt', '.pptx', '.pdf', '.txt'];
-  const ext = path.extname(file.originalname).toLowerCase();
-  
-  if (allowedTypes.includes(ext)) {
+  if (isAllowedUpload(file)) {
     cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only PPT, PPTX, PDF, and TXT files are allowed.'), false);
+    return;
   }
+  cb(
+    new Error(
+      'Invalid file type. Allowed: PDF, PPT, TXT, images (JPG/PNG/GIF/WebP/BMP/SVG/etc.), DOC/DOCX/ODT/RTF.'
+    ),
+    false
+  );
+};
+
+const inferContentTypeFromFile = (filename, mimetype) => {
+  const ext = path.extname(filename || '').toLowerCase();
+  if (IMAGE_EXTENSIONS.has(ext)) return 'image';
+  if (DOC_EXTENSIONS.has(ext)) return 'doc';
+  if (ext === '.pdf') return 'pdf';
+  if (['.ppt', '.pptx'].includes(ext)) return 'ppt';
+  if (ext === '.txt') return 'text';
+
+  const mime = String(mimetype || '').toLowerCase();
+  if (mime.startsWith('image/')) return 'image';
+  if (
+    mime.includes('word') ||
+    mime === 'application/msword' ||
+    mime === 'application/rtf' ||
+    mime.includes('opendocument.text')
+  ) {
+    return 'doc';
+  }
+  if (mime === 'application/pdf') return 'pdf';
+  if (mime.includes('presentation') || mime.includes('powerpoint')) return 'ppt';
+  if (mime === 'text/plain') return 'text';
+  return null;
 };
 
 const upload = multer({
@@ -59,7 +131,7 @@ const upload = multer({
  */
 router.get('/', checkPermission('manage_study_material'), async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, contentType, isPublished, subject, ageGroup } = req.query;
+    const { page = 1, limit = 20, contentType, isPublished, subject, ageGroup, grade, isGeneral } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let query = `
@@ -73,6 +145,8 @@ router.get('/', checkPermission('manage_study_material'), async (req, res, next)
         slc.file_size as "fileSize",
         slc.text_content as "textContent",
         slc.subject,
+        slc.grade,
+        slc.is_general as "isGeneral",
         slc.age_group as "ageGroup",
         slc.difficulty,
         slc.language,
@@ -115,6 +189,18 @@ router.get('/', checkPermission('manage_study_material'), async (req, res, next)
       params.push(ageGroup);
     }
 
+    if (grade) {
+      paramCount++;
+      query += ` AND slc.grade = $${paramCount}`;
+      params.push(grade);
+    }
+
+    if (isGeneral !== undefined) {
+      paramCount++;
+      query += ` AND slc.is_general = $${paramCount}`;
+      params.push(isGeneral === 'true');
+    }
+
     query += ` ORDER BY slc.created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
     params.push(parseInt(limit), offset);
 
@@ -147,6 +233,18 @@ router.get('/', checkPermission('manage_study_material'), async (req, res, next)
       countParamCount++;
       countQuery += ` AND age_group = $${countParamCount}`;
       countParams.push(ageGroup);
+    }
+
+    if (grade) {
+      countParamCount++;
+      countQuery += ` AND grade = $${countParamCount}`;
+      countParams.push(grade);
+    }
+
+    if (isGeneral !== undefined) {
+      countParamCount++;
+      countQuery += ` AND is_general = $${countParamCount}`;
+      countParams.push(isGeneral === 'true');
     }
 
     const countResult = await pool.query(countQuery, countParams);
@@ -186,6 +284,8 @@ router.get('/:id', checkPermission('manage_study_material'), async (req, res, ne
         slc.file_size as "fileSize",
         slc.text_content as "textContent",
         slc.subject,
+        slc.grade,
+        slc.is_general as "isGeneral",
         slc.age_group as "ageGroup",
         slc.difficulty,
         slc.language,
@@ -231,6 +331,8 @@ router.post('/', checkPermission('manage_study_material'), upload.single('file')
       contentType,
       textContent,
       subject,
+      grade,
+      isGeneral,
       ageGroup,
       difficulty,
       language,
@@ -238,36 +340,50 @@ router.post('/', checkPermission('manage_study_material'), upload.single('file')
       isPublished,
     } = req.body;
 
-    if (!title || !contentType) {
+    if (!title) {
       return res.status(400).json({
         success: false,
-        message: 'Title and content type are required',
+        message: 'Title is required',
       });
     }
 
-    const validContentTypes = ['ppt', 'pdf', 'text'];
-    if (!validContentTypes.includes(contentType)) {
+    let resolvedContentType = contentType;
+    if (req.file) {
+      const inferred = inferContentTypeFromFile(req.file.originalname, req.file.mimetype);
+      if (inferred) resolvedContentType = inferred;
+    }
+
+    if (!resolvedContentType) {
       return res.status(400).json({
         success: false,
-        message: `Invalid content type. Must be one of: ${validContentTypes.join(', ')}`,
+        message: 'Content type is required (or upload a supported file)',
       });
     }
 
-    // Validate file upload for PPT and PDF
-    if ((contentType === 'ppt' || contentType === 'pdf') && !req.file) {
+    if (!VALID_CONTENT_TYPES.includes(resolvedContentType)) {
       return res.status(400).json({
         success: false,
-        message: 'File is required for PPT and PDF content types',
+        message: `Invalid content type. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}`,
+      });
+    }
+
+    const fileRequiredTypes = ['ppt', 'pdf', 'image', 'doc'];
+    if (fileRequiredTypes.includes(resolvedContentType) && !req.file) {
+      return res.status(400).json({
+        success: false,
+        message: `File is required for ${resolvedContentType} content`,
       });
     }
 
     // Validate text content for text type
-    if (contentType === 'text' && !textContent && !req.file) {
+    if (resolvedContentType === 'text' && !textContent && !req.file) {
       return res.status(400).json({
         success: false,
         message: 'Text content or file is required for text content type',
       });
     }
+
+    const generalFlag = isGeneral === 'true' || isGeneral === true;
 
     let fileUrl = null;
     let fileName = null;
@@ -281,7 +397,7 @@ router.post('/', checkPermission('manage_study_material'), upload.single('file')
       fileSize = req.file.size;
 
       // If it's a text file, read its content
-      if (contentType === 'text' && req.file.mimetype === 'text/plain') {
+      if (resolvedContentType === 'text' && req.file.mimetype === 'text/plain') {
         finalTextContent = fs.readFileSync(req.file.path, 'utf8');
       }
     }
@@ -289,10 +405,10 @@ router.post('/', checkPermission('manage_study_material'), upload.single('file')
     const result = await pool.query(
       `INSERT INTO study_library_content (
         title, description, content_type, file_url, file_name, file_size,
-        text_content, subject, age_group, difficulty, language,
+        text_content, subject, grade, is_general, age_group, difficulty, language,
         publish_date, is_published, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING 
         id,
         title,
@@ -303,6 +419,8 @@ router.post('/', checkPermission('manage_study_material'), upload.single('file')
         file_size as "fileSize",
         text_content as "textContent",
         subject,
+        grade,
+        is_general as "isGeneral",
         age_group as "ageGroup",
         difficulty,
         language,
@@ -315,12 +433,14 @@ router.post('/', checkPermission('manage_study_material'), upload.single('file')
       [
         title,
         description || null,
-        contentType,
+        resolvedContentType,
         fileUrl,
         fileName,
         fileSize,
         finalTextContent,
         subject || null,
+        grade || null,
+        generalFlag,
         ageGroup || null,
         difficulty || null,
         language || 'English',
@@ -357,6 +477,8 @@ router.put('/:id', checkPermission('manage_study_material'), upload.single('file
       contentType,
       textContent,
       subject,
+      grade,
+      isGeneral,
       ageGroup,
       difficulty,
       language,
@@ -404,6 +526,14 @@ router.put('/:id', checkPermission('manage_study_material'), upload.single('file
     const params = [];
     let paramCount = 0;
 
+    if (req.file) {
+      const inferred = inferContentTypeFromFile(req.file.originalname, req.file.mimetype);
+      if (inferred) {
+        updates.push(`content_type = $${++paramCount}`);
+        params.push(inferred);
+      }
+    }
+
     if (title !== undefined) {
       updates.push(`title = $${++paramCount}`);
       params.push(title);
@@ -434,7 +564,15 @@ router.put('/:id', checkPermission('manage_study_material'), upload.single('file
     }
     if (subject !== undefined) {
       updates.push(`subject = $${++paramCount}`);
-      params.push(subject);
+      params.push(subject || null);
+    }
+    if (grade !== undefined) {
+      updates.push(`grade = $${++paramCount}`);
+      params.push(grade || null);
+    }
+    if (isGeneral !== undefined) {
+      updates.push(`is_general = $${++paramCount}`);
+      params.push(isGeneral === 'true' || isGeneral === true);
     }
     if (ageGroup !== undefined) {
       updates.push(`age_group = $${++paramCount}`);
@@ -479,6 +617,8 @@ router.put('/:id', checkPermission('manage_study_material'), upload.single('file
         file_size as "fileSize",
         text_content as "textContent",
         subject,
+        grade,
+        is_general as "isGeneral",
         age_group as "ageGroup",
         difficulty,
         language,

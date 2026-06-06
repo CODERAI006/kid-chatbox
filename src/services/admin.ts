@@ -763,16 +763,20 @@ export const adminApi = {
   },
 };
 
+export type StudyLibraryContentType = 'ppt' | 'pdf' | 'text' | 'image' | 'doc';
+
 export interface StudyLibraryContent {
   id: string;
   title: string;
   description?: string;
-  contentType: 'ppt' | 'pdf' | 'text';
+  contentType: StudyLibraryContentType;
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
   textContent?: string;
   subject?: string;
+  grade?: string;
+  isGeneral?: boolean;
   ageGroup?: string;
   difficulty?: string;
   language?: string;
@@ -793,9 +797,11 @@ export const studyLibraryContentApi = {
   getStudyLibraryContent: async (params?: {
     page?: number;
     limit?: number;
-    contentType?: 'ppt' | 'pdf' | 'text';
+    contentType?: StudyLibraryContentType;
     isPublished?: boolean;
     subject?: string;
+    grade?: string;
+    isGeneral?: boolean;
     ageGroup?: string;
   }): Promise<{
     content: StudyLibraryContent[];
@@ -825,9 +831,11 @@ export const studyLibraryContentApi = {
     data: {
       title: string;
       description?: string;
-      contentType: 'ppt' | 'pdf' | 'text';
+      contentType?: StudyLibraryContentType;
       textContent?: string;
       subject?: string;
+      grade?: string;
+      isGeneral?: boolean;
       ageGroup?: string;
       difficulty?: string;
       language?: string;
@@ -863,9 +871,11 @@ export const studyLibraryContentApi = {
     data: {
       title?: string;
       description?: string;
-      contentType?: 'ppt' | 'pdf' | 'text';
+      contentType?: StudyLibraryContentType;
       textContent?: string;
       subject?: string;
+      grade?: string;
+      isGeneral?: boolean;
       ageGroup?: string;
       difficulty?: string;
       language?: string;

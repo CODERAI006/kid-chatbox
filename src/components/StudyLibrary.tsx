@@ -29,7 +29,8 @@ import {
   Divider,
 } from '@/shared/design-system';
 import { motion } from 'framer-motion';
-import { studyApi } from '@/services/api';
+import { studyApi, authApi } from '@/services/api';
+import { SUBJECTS } from '@/constants/quiz';
 import { PullToRefresh } from './PullToRefresh';
 
 interface StudySession {
@@ -46,7 +47,9 @@ interface StudySession {
   timestamp: string;
   // Admin content properties
   content_source?: 'admin_content';
-  contentType?: 'ppt' | 'pdf' | 'text';
+  contentType?: 'ppt' | 'pdf' | 'text' | 'image' | 'doc';
+  grade?: string;
+  is_general?: boolean;
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
@@ -72,6 +75,8 @@ export const StudyLibrary: React.FC = () => {
   });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const { user } = authApi.getCurrentUser();
+  const userGrade = (user as { grade?: string } | undefined)?.grade;
 
   useEffect(() => {
     loadStudyLibrary();
@@ -173,8 +178,13 @@ export const StudyLibrary: React.FC = () => {
           📚 Study Library
         </Heading>
         <Text color="gray.600">
-          Browse and explore study materials created by other students and teachers
+          Browse study materials for your grade and subject, plus general resources from your teachers
         </Text>
+        {userGrade && (
+          <Badge colorScheme="blue" alignSelf="flex-start">
+            Showing content for: {userGrade}
+          </Badge>
+        )}
 
         {error && (
           <Alert status="error">
@@ -217,12 +227,11 @@ export const StudyLibrary: React.FC = () => {
                   onChange={(e) => handleFilterChange('subject', e.target.value)}
                 >
                   <option value="">All Subjects</option>
-                  <option value="Math">Math</option>
-                  <option value="Science">Science</option>
-                  <option value="English">English</option>
-                  <option value="Hindi">Hindi</option>
-                  <option value="EVS">EVS</option>
-                  <option value="General Knowledge">General Knowledge</option>
+                  {Object.values(SUBJECTS).map((subj) => (
+                    <option key={subj} value={subj}>
+                      {subj}
+                    </option>
+                  ))}
                 </Select>
 
                 <Select
@@ -338,9 +347,26 @@ export const StudyLibrary: React.FC = () => {
                           {session.lesson_title}
                         </Heading>
                         <HStack>
-                          <Badge colorScheme="blue">{session.subject || 'General'}</Badge>
+                          <Badge colorScheme="blue">
+                            {session.is_general ? 'General' : session.subject || 'Study'}
+                          </Badge>
+                          {session.grade && (
+                            <Badge colorScheme="cyan">{session.grade}</Badge>
+                          )}
                           {session.content_source === 'admin_content' && (
-                            <Badge colorScheme={session.contentType === 'pdf' ? 'red' : session.contentType === 'ppt' ? 'blue' : 'green'}>
+                            <Badge
+                              colorScheme={
+                                session.contentType === 'pdf'
+                                  ? 'red'
+                                  : session.contentType === 'image'
+                                    ? 'purple'
+                                    : session.contentType === 'doc'
+                                      ? 'orange'
+                                      : session.contentType === 'ppt'
+                                        ? 'blue'
+                                        : 'green'
+                              }
+                            >
                               {session.contentType?.toUpperCase() || 'TEXT'}
                             </Badge>
                           )}

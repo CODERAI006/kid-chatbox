@@ -7,6 +7,7 @@ const express = require('express');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { checkModuleAccess } = require('../middleware/rbac');
+const { isAdminUser, buildStudentVisibilityClause } = require('../utils/studyContentVisibility');
 
 const router = express.Router();
 
@@ -159,6 +160,13 @@ router.get('/', async (req, res, next) => {
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
 
+    const skipVisibility = isAdminUser(req.user);
+    const userGrade = req.user?.grade || null;
+    const visibility = buildStudentVisibilityClause(
+      { userGrade, skipFilter: skipVisibility },
+      0
+    );
+
     // Also fetch published admin-created study library content
     let contentQuery = `
       SELECT 
@@ -171,6 +179,8 @@ router.get('/', async (req, res, next) => {
         slc.file_size as "fileSize",
         slc.text_content as "textContent",
         slc.subject,
+        slc.grade,
+        slc.is_general as "isGeneral",
         slc.age_group as "ageGroup",
         slc.difficulty,
         slc.language,
@@ -184,12 +194,14 @@ router.get('/', async (req, res, next) => {
       WHERE slc.is_published = true
         AND (slc.publish_date IS NULL OR slc.publish_date <= CURRENT_TIMESTAMP)
     `;
-    const contentParams = [];
-    let contentParamCount = 0;
+    const contentParams = [...visibility.params];
+    let contentParamCount = visibility.nextIndex;
+
+    contentQuery += visibility.clause;
 
     if (subject) {
       contentParamCount++;
-      contentQuery += ` AND slc.subject ILIKE $${contentParamCount}`;
+      contentQuery += ` AND (slc.subject IS NULL OR slc.subject ILIKE $${contentParamCount})`;
       contentParams.push(`%${subject}%`);
     }
 
@@ -248,8 +260,10 @@ router.get('/', async (req, res, next) => {
       id: `admin_${row.id}`,
       title: row.title,
       lesson_title: row.title,
-      topic: row.subject || 'General',
+      topic: row.subject || (row.isGeneral ? 'General' : 'Study Material'),
       subject: row.subject || '',
+      grade: row.grade || null,
+      is_general: row.isGeneral || false,
       age: row.ageGroup ? parseInt(row.ageGroup.split('-')[0]) : null,
       difficulty: row.difficulty || '',
       language: row.language || 'English',
@@ -372,6 +386,23 @@ router.get('/:id', async (req, res, next) => {
       }
 
       const content = result.rows[0];
+      const skipVisibility = isAdminUser(req.user);
+      const userGrade = req.user?.grade || null;
+
+      if (!skipVisibility) {
+        const allowed =
+          content.is_general ||
+          !content.grade ||
+          (userGrade && content.grade === userGrade) ||
+          (!userGrade && !content.grade);
+
+        if (!allowed) {
+          return res.status(403).json({
+            success: false,
+            message: 'This content is not available for your grade',
+          });
+        }
+      }
 
       // Record view in activity_logs
       if (req.user && req.user.id) {
@@ -391,8 +422,10 @@ router.get('/:id', async (req, res, next) => {
       const session = {
         id: `admin_${content.id}`,
         lesson_title: content.title,
-        topic: content.subject || 'General',
+        topic: content.subject || (content.is_general ? 'General' : 'Study Material'),
         subject: content.subject || '',
+        grade: content.grade || null,
+        is_general: content.is_general || false,
         age: content.age_group ? parseInt(content.age_group.split('-')[0]) : null,
         difficulty: content.difficulty || '',
         language: content.language || 'English',
