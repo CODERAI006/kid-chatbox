@@ -33,6 +33,7 @@ import { HeroSection, HeroButtons } from '@/components/home/HeroSection';
 import { FeatureCard } from '@/components/home/FeatureCard';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
+import { PricingPlansSection } from '@/components/pricing/PricingPlansSection';
 import { APP_CONSTANTS } from '@/constants/app';
 import { publicApi } from '@/services/api';
 import { authApi } from '@/services/api';
@@ -288,8 +289,43 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
               />
             </SimpleGrid>
           </VStack>
+
+          <Box mt={{ base: 8, md: 12 }} position="relative" zIndex={2}>
+            <PricingPlansSection variant="landing" />
+          </Box>
         </VStack>
       </Container>
+
+      <Box
+        as="footer"
+        bg="rgba(0, 0, 0, 0.5)"
+        borderTop="1px solid"
+        borderColor="whiteAlpha.200"
+        py={6}
+        px={4}
+        position="relative"
+        zIndex={2}
+      >
+        <HStack justify="space-between" flexWrap="wrap" spacing={4} maxW="7xl" mx="auto">
+          <Text fontSize="sm" color="whiteAlpha.700">
+            © {new Date().getFullYear()} {APP_CONSTANTS.BRAND_NAME}. All rights reserved.
+          </Text>
+          <HStack spacing={4}>
+            <Text
+              as="a"
+              href="#pricing"
+              fontSize="sm"
+              color="cyan.300"
+              _hover={{ textDecoration: 'underline' }}
+            >
+              Pricing Plans
+            </Text>
+            <Text fontSize="sm" color="whiteAlpha.600">
+              Made with ❤️ for kids
+            </Text>
+          </HStack>
+        </HStack>
+      </Box>
 
       {/* Auth Modal */}
       <Modal isOpen={isOpen} onClose={handleClose} size={{ base: 'full', md: 'lg' }} isCentered>

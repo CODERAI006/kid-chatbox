@@ -26,8 +26,11 @@ export const Footer: React.FC = () => {
           © {currentYear} {APP_CONSTANTS.BRAND_NAME}. All rights reserved.
         </Text>
         <HStack spacing={{ base: 2, md: 4 }}>
-          <RouterLink to="/dashboard" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', color: '#90cdf4' }}>
+          <RouterLink to="/" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', color: '#90cdf4' }}>
             Home
+          </RouterLink>
+          <RouterLink to="/#pricing" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', color: '#90cdf4' }}>
+            Pricing Plans
           </RouterLink>
           <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.400">
             Made with ❤️ for kids

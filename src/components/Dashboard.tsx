@@ -508,15 +508,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                           />
                         </Box>
                       </VStack>
-                      <Button
-                        size="sm"
-                        colorScheme="blue"
-                        variant="outline"
-                        onClick={() => navigate('/pricing-plans')}
-                        w="100%"
-                      >
-                        View pricing plans
-                      </Button>
                     </VStack>
                   </CardBody>
                 </Card>

@@ -836,43 +836,6 @@ export const scheduledTestsApi = {
 
 export const planApi = {
   /**
-   * Get active plans for student pricing portal
-   */
-  getCatalogPlans: async (): Promise<{
-    success: boolean;
-    plans: Array<{
-      id: string;
-      name: string;
-      description: string | null;
-      daily_quiz_limit: number;
-      daily_topic_limit: number;
-      monthly_cost: number;
-      hide_ai_study?: boolean;
-      hide_ai_quiz?: boolean;
-      status: string;
-    }>;
-  }> => {
-    const response = await apiClient.get('/plans/catalog');
-    return response.data;
-  },
-
-  /**
-   * Select a plan for the current user
-   */
-  selectPlan: async (planId: string): Promise<{
-    success: boolean;
-    message: string;
-    plan: {
-      id: string;
-      name: string;
-      monthly_cost: number;
-    };
-  }> => {
-    const response = await apiClient.post(`/plans/select/${planId}`);
-    return response.data;
-  },
-
-  /**
    * Get all plans
    */
   getAllPlans: async (): Promise<{
@@ -955,6 +918,26 @@ export const publicApi = {
       console.error('Failed to get home views:', error);
       return { success: false, totalViews: 0 };
     }
+  },
+
+  /**
+   * Get active pricing plans for landing page
+   */
+  getPricingPlans: async (): Promise<{
+    success: boolean;
+    plans: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      daily_quiz_limit: number;
+      daily_topic_limit: number;
+      monthly_cost: number;
+      hide_ai_study?: boolean;
+      hide_ai_quiz?: boolean;
+    }>;
+  }> => {
+    const response = await apiClient.get('/public/plans');
+    return response.data;
   },
 
   /**

@@ -382,5 +382,35 @@ router.get('/news', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/public/plans
+ * Active pricing plans for landing page (no auth)
+ */
+router.get('/plans', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+        id,
+        name,
+        description,
+        daily_quiz_limit,
+        daily_topic_limit,
+        monthly_cost,
+        hide_ai_study,
+        hide_ai_quiz
+      FROM plans
+      WHERE status = 'active'
+      ORDER BY monthly_cost ASC, name ASC`
+    );
+
+    res.json({
+      success: true,
+      plans: result.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 
