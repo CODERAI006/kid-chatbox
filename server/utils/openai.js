@@ -4,6 +4,7 @@
  */
 
 const { ollamaChat, isLlmConfigured, getOllamaLogMode } = require('./ollamaClient');
+const { enrichQuestionsWithImages } = require('./quizQuestionImages');
 
 /**
  * Generates quiz questions using local Ollama
@@ -435,7 +436,26 @@ Generate the questions now, following ALL requirements strictly. Ensure maximum 
       }
     }
 
-    return questions;
+    const includeImages =
+      config.includeImages !== false &&
+      String(process.env.QUIZ_IMAGES_DISABLED || '').toLowerCase() !== 'true';
+
+    if (!includeImages) {
+      return questions;
+    }
+
+    try {
+      return await enrichQuestionsWithImages(questions, {
+        subject: topics[0] || 'education',
+        gradeLevel: gradeLevel || null,
+      });
+    } catch (imgErr) {
+      console.warn(
+        '[quiz] illustration pass failed, saving text-only questions:',
+        imgErr instanceof Error ? imgErr.message : imgErr
+      );
+      return questions;
+    }
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error('Failed to parse quiz questions. Please try again.');

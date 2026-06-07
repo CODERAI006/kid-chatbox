@@ -166,7 +166,7 @@ Kid Chatbox can route AI to [Ollama Cloud](https://docs.ollama.com/cloud) instea
 |------|----------|-----------------|
 | `text` | Quiz, study, learning bot | `gpt-oss:120b` |
 | `ocr` | Page photo reading | `qwen3-vl:235b-cloud` |
-| `image` | Illustrations (planned) | `flux:cloud` |
+| `image` | Quiz illustrations (~20% of questions) | `flux:cloud` |
 | `voice` | TTS narration (planned) | — |
 | `pdf` | Document export (planned) | — |
 

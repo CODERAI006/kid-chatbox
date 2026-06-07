@@ -117,16 +117,18 @@ async function runQuizAiGenerationJob(jobId) {
 
     for (let i = 0; i < generatedQuestions.length; i++) {
       const q = generatedQuestions[i];
+      const imageUrl = q.imageUrl || null;
       await pool.query(
         `INSERT INTO quiz_questions (
-          quiz_id, question_type, question_text, options,
+          quiz_id, question_type, question_text, question_image_url, options,
           correct_answer, explanation, points, order_index
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           quiz.id,
-          'multiple_choice',
+          imageUrl ? 'image_based' : 'multiple_choice',
           q.question,
+          imageUrl,
           JSON.stringify(q.options),
           JSON.stringify(q.correctAnswer),
           q.explanation,

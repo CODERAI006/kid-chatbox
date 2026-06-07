@@ -25,6 +25,8 @@ export interface QuizConfig {
 export interface Question {
   number: number;
   question: string;
+  /** Illustration URL when the question was generated with an image */
+  imageUrl?: string | null;
   options: {
     A: string;
     B: string;

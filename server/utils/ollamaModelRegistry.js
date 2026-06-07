@@ -37,12 +37,12 @@ const OLLAMA_MODEL_TYPES = [
   {
     id: 'image',
     label: 'Image generation',
-    description: 'Lesson illustrations and visual assets',
+    description: 'Quiz illustrations (~20% of AI-generated questions)',
     emoji: '🖼️',
     defaultCloud: 'flux:cloud',
     defaultLocal: 'flux',
     envVar: 'OLLAMA_IMAGE_MODEL',
-    implemented: false,
+    implemented: true,
     presets: [
       { id: 'flux:cloud', label: 'Flux Cloud' },
       { id: 'gemma4:31b-cloud', label: 'Gemma 4 (multimodal fallback)' },

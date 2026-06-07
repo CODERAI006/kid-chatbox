@@ -360,6 +360,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
         return {
           number: index + 1,
           question: q.question_text,
+          imageUrl: q.question_image_url || null,
           options: questionOptions,
           correctAnswer,
           explanation: q.explanation || '',
@@ -900,6 +901,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
         return {
           number: index + 1,
           question: q.question_text,
+          imageUrl: q.question_image_url || null,
           options: questionOptions,
           correctAnswer,
           explanation: q.explanation || '',

@@ -5,6 +5,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Box, VStack, Text, Button, Card, CardBody, HStack } from '@/shared/design-system';
 import { Question } from '@/types/quiz';
+import { QuizQuestionImage } from '@/components/quiz/QuizQuestionImage';
 
 interface AllQuestionsViewProps {
   questions: Question[];
@@ -61,6 +62,8 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                         Q{question.number}. {question.question}
                       </Text>
                     </motion.div>
+
+                    <QuizQuestionImage imageUrl={question.imageUrl} />
 
                     <HStack spacing={2} flexWrap="wrap" w="100%">
                       {options.map((option, optIndex) => {

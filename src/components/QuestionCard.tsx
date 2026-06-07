@@ -5,6 +5,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Box, VStack, Text, Button, Card, CardBody, HStack } from '@/shared/design-system';
 import { Question } from '@/types/quiz';
+import { QuizQuestionImage } from '@/components/quiz/QuizQuestionImage';
 
 interface QuestionCardProps {
   question: Question;
@@ -43,6 +44,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <Text fontSize={{ base: 'lg', md: 'xl' }} fontWeight="bold" color="blue.600">
             Q{question.number}. {question.question}
           </Text>
+
+          <QuizQuestionImage imageUrl={question.imageUrl} />
 
           <VStack spacing={3} align="stretch">
             {options.map((option) => {

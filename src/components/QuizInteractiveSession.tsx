@@ -13,6 +13,7 @@ import {
   Progress,
 } from '@/shared/design-system';
 import type { Question } from '@/types/quiz';
+import { QuizQuestionImage } from '@/components/quiz/QuizQuestionImage';
 
 export interface QuizInteractiveSessionProps {
   questions: Question[];
@@ -83,6 +84,8 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
             >
               {q.question}
             </Text>
+
+            <QuizQuestionImage imageUrl={q.imageUrl} />
 
             <VStack spacing={3} align="stretch">
               {options.map((opt, i) => {
