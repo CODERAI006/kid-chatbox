@@ -6,6 +6,7 @@ import { resolveWorkspace } from '@/utils/learningWorkspaceParser';
 import { filterCardsByStudyFormat } from '@/utils/formatCardFilter';
 import type { LearningStudyFormat } from '@/types/learningWorkspace';
 import { LearningWorkspaceCardView } from './LearningWorkspaceCardView';
+import { InteractiveQuizDeck } from './InteractiveQuizDeck';
 
 interface Props {
   content: string;
@@ -16,15 +17,33 @@ interface Props {
 export function LearningWorkspaceMessage({ content, studyFormat, onAskPrompt }: Props) {
   const workspace = resolveWorkspace(content);
   const cards = filterCardsByStudyFormat(workspace.cards, studyFormat);
+  const detailInline = studyFormat === 'detail';
+  const quizCards = cards.filter((c) => c.type === 'quiz');
+  const nonQuizCards = cards.filter((c) => c.type !== 'quiz');
+  const useQuizDeck = studyFormat === 'quiz' && quizCards.length > 0;
 
   return (
     <VStack align="stretch" spacing={2} w="100%">
       <Text fontSize="xs" color="gray.500" fontWeight="semibold">
         🤖 Guru AI · {workspace.topic}
       </Text>
-      {cards.map((card, i) => (
-        <LearningWorkspaceCardView key={`${card.type}-${i}`} card={card} onAskPrompt={onAskPrompt} />
+      {nonQuizCards.map((card, i) => (
+        <LearningWorkspaceCardView
+          key={`${card.type}-${i}`}
+          card={card}
+          detailInline={detailInline}
+          onAskPrompt={onAskPrompt}
+        />
       ))}
+      {useQuizDeck && <InteractiveQuizDeck cards={quizCards} />}
+      {!useQuizDeck &&
+        quizCards.map((card, i) => (
+          <LearningWorkspaceCardView
+            key={`quiz-${i}`}
+            card={card}
+            onAskPrompt={onAskPrompt}
+          />
+        ))}
       {cards.length === 0 && (
         <Box p={3} borderRadius="md" bg="orange.50">
           <Text fontSize="sm" color="orange.800">

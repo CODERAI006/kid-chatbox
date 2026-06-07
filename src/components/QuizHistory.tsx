@@ -194,6 +194,7 @@ export const QuizHistory = () => {
             {history.map((quiz) => {
               const percentage = Math.round(quiz.score_percentage);
               const totalQuestions = quiz.correct_count + quiz.wrong_count;
+              const isScheduled = quiz.subtopic.startsWith('Scheduled ·');
 
               return (
                 <AccordionItem key={quiz.id}>
@@ -201,10 +202,13 @@ export const QuizHistory = () => {
                     <Box flex="1" textAlign="left">
                       <HStack spacing={4} alignItems="center">
                         <VStack align="start" spacing={1} flex="1">
-                          <HStack spacing={2}>
+                          <HStack spacing={2} flexWrap="wrap">
                             <Text fontWeight="bold" fontSize="lg">
                               {quiz.subject}
                             </Text>
+                            {isScheduled && (
+                              <Badge colorScheme="purple">Scheduled</Badge>
+                            )}
                             <Badge colorScheme="blue">{quiz.subtopic}</Badge>
                           </HStack>
                           <Text fontSize="sm" color="gray.600">

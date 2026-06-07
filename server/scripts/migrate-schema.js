@@ -253,6 +253,11 @@ const migrateSchema = async () => {
       )
     `);
 
+    await client.query(`
+      ALTER TABLE quiz_results
+      ADD COLUMN IF NOT EXISTS quiz_attempt_id UUID UNIQUE REFERENCES quiz_attempts(id) ON DELETE SET NULL
+    `);
+
     // 13c. Per-question rows for AI quiz results
     await client.query(`
       CREATE TABLE IF NOT EXISTS quiz_answers (
@@ -381,6 +386,7 @@ const migrateSchema = async () => {
       CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts(user_id);
       CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz_id ON quiz_attempts(quiz_id);
       CREATE INDEX IF NOT EXISTS idx_quiz_results_user_id ON quiz_results(user_id);
+      CREATE INDEX IF NOT EXISTS idx_quiz_results_attempt_id ON quiz_results(quiz_attempt_id);
       CREATE INDEX IF NOT EXISTS idx_quiz_results_timestamp ON quiz_results(timestamp);
       CREATE INDEX IF NOT EXISTS idx_quiz_results_subject_subtopic ON quiz_results(subject, subtopic);
       CREATE INDEX IF NOT EXISTS idx_quiz_answers_quiz_result_id ON quiz_answers(quiz_result_id);

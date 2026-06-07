@@ -514,6 +514,7 @@ export const quizApi = {
     payload: {
       answers: Array<{ questionId: string; answer: string; timeSpent?: number }>;
       timeTaken: number;
+      scheduledTest?: boolean;
     }
   ): Promise<{ success: boolean; result: Record<string, unknown> }> => {
     const response = await apiClient.post(`/quizzes/attempts/${attemptId}/submit`, payload);

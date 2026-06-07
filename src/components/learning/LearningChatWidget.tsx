@@ -23,6 +23,7 @@ import { useVoiceConversation } from '@/hooks/useVoiceConversation';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import type { LearningBotMode, LearningStudyFormat } from '@/types/learningWorkspace';
 import { formatOptionLabel } from '@/types/learningWorkspace';
+import { DEFAULT_QUIZ_COUNT } from '@/constants/learningQuiz';
 import { inferStudyFormat } from '@/utils/inferStudyFormat';
 
 const WELCOME_TOPIC = 'Pick a format to start';
@@ -33,6 +34,7 @@ export const LearningChatWidget: FC = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<LearningBotMode>('workspace');
   const [studyFormat, setStudyFormat] = useState<LearningStudyFormat | null>(null);
+  const [quizQuestionCount, setQuizQuestionCount] = useState(DEFAULT_QUIZ_COUNT);
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState(false);
   const [bootLoading, setBootLoading] = useState(false);
@@ -64,10 +66,14 @@ export const LearningChatWidget: FC = () => {
       }
     }
     const formatLabel = formatOptionLabel(studyFormat);
-    if (formatLabel && topic !== WELCOME_TOPIC) return `${formatLabel} · ${topic}`;
-    if (formatLabel && messages.length === 0) return formatLabel;
+    const quizSuffix =
+      studyFormat === 'quiz' ? ` (${quizQuestionCount} Qs)` : '';
+    if (formatLabel && topic !== WELCOME_TOPIC) {
+      return `${formatLabel}${quizSuffix} · ${topic}`;
+    }
+    if (formatLabel && messages.length === 0) return `${formatLabel}${quizSuffix}`;
     return topic;
-  }, [messages, studyFormat]);
+  }, [messages, studyFormat, quizQuestionCount]);
 
   const loadActive = useCallback(async () => {
     setBootLoading(true);
@@ -98,13 +104,14 @@ export const LearningChatWidget: FC = () => {
   const sendText = useCallback(
     async (
       text: string,
-      opts?: { mode?: LearningBotMode; format?: LearningStudyFormat | null }
+      opts?: { mode?: LearningBotMode; format?: LearningStudyFormat | null; quizCount?: number }
     ): Promise<boolean> => {
       const trimmed = text.trim();
       if (!trimmed || pendingRef.current || bootLoadingRef.current) return false;
 
       const mode = opts?.mode ?? chatMode;
       const format = opts?.format ?? studyFormat ?? undefined;
+      const quizCount = opts?.quizCount ?? quizQuestionCount;
 
       setError(null);
       setSaveHint(null);
@@ -112,11 +119,17 @@ export const LearningChatWidget: FC = () => {
       setPending(true);
       if (opts?.mode) setChatMode(opts.mode);
       if (opts?.format) setStudyFormat(opts.format);
+      if (opts?.quizCount) setQuizQuestionCount(opts.quizCount);
+
+      let outbound = trimmed;
+      if (format === 'quiz' && !/separate quiz cards/i.test(trimmed)) {
+        outbound = `${trimmed} Return exactly ${quizCount} separate quiz cards.`;
+      }
 
       try {
         const { conversationId: cid, content } = await learningBotApi.sendMessage({
           conversationId,
-          text: trimmed,
+          text: outbound,
           mode,
           format: format ?? undefined,
         });
@@ -136,7 +149,7 @@ export const LearningChatWidget: FC = () => {
         setPending(false);
       }
     },
-    [conversationId, chatMode, studyFormat]
+    [conversationId, chatMode, studyFormat, quizQuestionCount]
   );
 
   const send = useCallback(() => void sendText(draft), [draft, sendText]);
@@ -153,6 +166,7 @@ export const LearningChatWidget: FC = () => {
     setMessages([]);
     setChatMode('workspace');
     setStudyFormat(null);
+    setQuizQuestionCount(DEFAULT_QUIZ_COUNT);
   };
 
   const startNewTopic = async () => {

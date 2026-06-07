@@ -7,10 +7,11 @@ import { resolveWorkspace } from '@/utils/learningWorkspaceParser';
 
 const USER_HINTS: Array<{ format: LearningStudyFormat; patterns: RegExp[] }> = [
   { format: 'flashcards', patterns: [/only flashcards/i, /flashcard card with at least/i] },
-  { format: 'visualize', patterns: [/only an interactive diagram/i, /diagram card with/i] },
-  { format: 'watch', patterns: [/only a video card/i, /video card and an audio/i] },
-  { format: 'quiz', patterns: [/only a quiz card/i, /quiz me on/i] },
-  { format: 'detail', patterns: [/detailed readMore/i, /detailed lesson/i] },
+  { format: 'quiz', patterns: [/separate quiz cards/i, /quiz me on/i, /exactly \d+ separate quiz/i] },
+  {
+    format: 'detail',
+    patterns: [/complete in-chat lesson/i, /Key facts/i, /Points to remember/i],
+  },
   { format: 'learn', patterns: [/only a hook card and a short explanation/i] },
   { format: 'chat', patterns: [/let's talk about/i] },
 ];
@@ -23,14 +24,16 @@ function inferFromAssistant(messages: LearningBotUiMessage[]): LearningStudyForm
 
   const ws = resolveWorkspace(assistant.content);
   const types = new Set(ws.cards.map((c) => c.type));
+  const quizCount = ws.cards.filter((c) => c.type === 'quiz').length;
 
   if (types.has('flashcard') && !types.has('explanation') && !types.has('quiz')) return 'flashcards';
-  if (types.has('quiz') && !types.has('flashcard')) return 'quiz';
-  if (types.has('video') || types.has('audio')) return 'watch';
-  if (types.has('diagram') || types.has('interactive') || types.has('image')) return 'visualize';
+  if (quizCount >= 2 || (types.has('quiz') && !types.has('flashcard'))) return 'quiz';
   if (types.has('explanation') || types.has('text')) {
+    const hasFacts = ws.cards.some(
+      (c) => c.type === 'text' && /fact|remember/i.test(c.title || '')
+    );
     const expl = ws.cards.find((c) => c.type === 'explanation' || c.type === 'text');
-    if (expl?.readMore && expl.readMore.length > 400) return 'detail';
+    if (hasFacts || (expl?.readMore && expl.readMore.length > 400)) return 'detail';
     return 'learn';
   }
   return null;

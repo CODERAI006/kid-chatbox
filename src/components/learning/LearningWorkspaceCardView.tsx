@@ -15,12 +15,15 @@ import { InteractiveFlashcardDeck } from '@/components/shared/InteractiveFlashca
 import { FLASHCARD_MORE_PROMPT } from '@/constants/flashcards';
 import { flashcardsFromWorkspaceCard } from '@/utils/flashcardNormalize';
 import { ExplanationCardBody } from './ExplanationCardBody';
+import { DetailLessonBody, DetailFactsCard } from './DetailLessonBody';
+import { QuizQuestionCard } from './QuizQuestionCard';
 import { AiRichContentView } from './AiRichContentView';
 import { speakText, unlockSpeechSynthesis } from '@/utils/speechSynthesis';
 
 interface Props {
   card: LearningWorkspaceCard;
   onAskPrompt?: (prompt: string) => void;
+  detailInline?: boolean;
 }
 
 function CardShell({
@@ -55,45 +58,7 @@ function CardShell({
 }
 
 function QuizCardBody({ card }: { card: LearningWorkspaceCard }) {
-  const [picked, setPicked] = useState<string | null>(null);
-  const correct = card.correctOptionId;
-  const isCorrect = picked != null && picked === correct;
-
-  return (
-    <VStack align="stretch" spacing={2}>
-      <Text fontSize="sm" fontWeight="semibold">{card.question}</Text>
-      <VStack align="stretch" spacing={1}>
-        {(card.options || []).map((opt) => {
-          const chosen = picked === opt.id;
-          const showCorrect = picked != null && opt.id === correct;
-          const showWrong = chosen && opt.id !== correct;
-          return (
-            <Button
-              key={opt.id}
-              size="sm"
-              variant={chosen ? 'solid' : 'outline'}
-              colorScheme={showCorrect ? 'green' : showWrong ? 'red' : 'blue'}
-              justifyContent="flex-start"
-              isDisabled={picked != null}
-              onClick={() => setPicked(opt.id)}
-            >
-              {opt.label}
-            </Button>
-          );
-        })}
-      </VStack>
-      {picked != null && (
-        <Box mt={1} p={2} borderRadius="md" bg={isCorrect ? 'green.50' : 'orange.50'}>
-          <Text fontSize="sm" fontWeight="semibold" color={isCorrect ? 'green.700' : 'orange.700'}>
-            {isCorrect ? '✅ Correct' : '💡 Not quite'}
-          </Text>
-          <Text fontSize="sm" mt={1}>
-            {isCorrect ? card.correctFeedback : card.wrongFeedback || card.correctFeedback}
-          </Text>
-        </Box>
-      )}
-    </VStack>
-  );
+  return <QuizQuestionCard card={card} />;
 }
 
 function FlashcardDeckBody({
@@ -147,7 +112,7 @@ function DiagramHotspots({ card }: { card: LearningWorkspaceCard }) {
   );
 }
 
-export function LearningWorkspaceCardView({ card, onAskPrompt }: Props) {
+export function LearningWorkspaceCardView({ card, onAskPrompt, detailInline }: Props) {
   switch (card.type) {
     case 'hook':
       return (
@@ -161,10 +126,28 @@ export function LearningWorkspaceCardView({ card, onAskPrompt }: Props) {
       );
 
     case 'explanation':
+      return (
+        <CardShell emoji="📖" title={card.title || 'Explanation'} accent={detailInline ? 'purple' : 'blue'}>
+          {detailInline ? (
+            <DetailLessonBody card={card} onAskPrompt={onAskPrompt} />
+          ) : (
+            <ExplanationCardBody card={card} onAskPrompt={onAskPrompt} />
+          )}
+        </CardShell>
+      );
+
     case 'text':
       return (
-        <CardShell emoji="📖" title={card.title || 'Explanation'}>
-          <ExplanationCardBody card={card} onAskPrompt={onAskPrompt} />
+        <CardShell
+          emoji={/remember/i.test(card.title || '') ? '📝' : '📌'}
+          title={card.title || 'Notes'}
+          accent={detailInline ? 'cyan' : 'blue'}
+        >
+          {detailInline ? (
+            <DetailFactsCard card={card} />
+          ) : (
+            <ExplanationCardBody card={card} onAskPrompt={onAskPrompt} />
+          )}
         </CardShell>
       );
 

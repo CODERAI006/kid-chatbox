@@ -532,6 +532,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
         await quizApi.submitQuizAttempt(libraryAttemptId, {
           answers: submitAnswers,
           timeTaken,
+          scheduledTest: Boolean(scheduledTestId),
         });
         setResultSaved(true);
       } else {
@@ -555,7 +556,6 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
             explanation_of_mistakes: explanations,
             time_taken: timeTaken,
             score_percentage: scorePercentage,
-            isLibraryQuiz: Boolean(scheduledTestId),
           });
           setResultSaved(true);
         }
@@ -873,7 +873,9 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
       }
 
       // Map API questions to Question format
+      const idMap = new Map<number, string>();
       const mappedQuestions: Question[] = quiz.questions.map((q, index: number) => {
+        idMap.set(index + 1, q.id);
         const options = q.options as Record<string, string>;
         
         // Convert options to the format expected by Question type
@@ -912,7 +914,6 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
       const ageMatch = test.quiz_age_group.match(/^(\d+)/);
       const age = ageMatch ? parseInt(ageMatch[1], 10) : 8;
 
-      // Set up quiz config for scheduled test
       const scheduledConfig: QuizConfig = {
         age,
         language: 'English', // Default, adjust if available in test data
@@ -929,6 +930,8 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
         return;
       }
 
+      questionIdByNumberRef.current = idMap;
+      setLibraryAttemptId(attemptData.attempt.id);
       setConfig(scheduledConfig);
       setQuestions(mappedQuestions);
       setAnswers(restoredAnswers);

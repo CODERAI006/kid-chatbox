@@ -31,12 +31,22 @@ interface HeaderProps {
   user?: User | null;
   onMenuOpen?: () => void;
   showMenuButton?: boolean;
+  showSidebarToggle?: boolean;
+  sidebarVisible?: boolean;
+  onSidebarToggle?: () => void;
 }
 
 /**
  * Header component with navigation and user menu
  */
-export const Header: React.FC<HeaderProps> = ({ user, onMenuOpen, showMenuButton = false }) => {
+export const Header: React.FC<HeaderProps> = ({
+  user,
+  onMenuOpen,
+  showMenuButton = false,
+  showSidebarToggle = false,
+  sidebarVisible = true,
+  onSidebarToggle,
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { fontSize, increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize();
@@ -116,12 +126,22 @@ export const Header: React.FC<HeaderProps> = ({ user, onMenuOpen, showMenuButton
         <Box maxWidth="1400px" margin="0 auto">
           <Box paddingY={{ base: 2, md: 3 }} paddingX={{ base: 4, md: 6 }}>
             <HStack justifyContent="space-between" alignItems="center" flexWrap="wrap" spacing={{ base: 2, md: 4 }}>
-            {/* Left: Menu Button (Mobile) */}
+            {/* Left: Menu / sidebar controls */}
             {showMenuButton && onMenuOpen && (
               <IconButton
                 aria-label="Open menu"
                 icon={<Text fontSize={{ base: 'lg', md: 'xl' }}>☰</Text>}
                 onClick={onMenuOpen}
+                variant="ghost"
+                size={{ base: 'sm', md: 'md' }}
+                flexShrink={0}
+              />
+            )}
+            {showSidebarToggle && onSidebarToggle && (
+              <IconButton
+                aria-label={sidebarVisible ? 'Hide navigation' : 'Show navigation'}
+                icon={<Text fontSize={{ base: 'lg', md: 'xl' }}>{sidebarVisible ? '◀' : '☰'}</Text>}
+                onClick={onSidebarToggle}
                 variant="ghost"
                 size={{ base: 'sm', md: 'md' }}
                 flexShrink={0}

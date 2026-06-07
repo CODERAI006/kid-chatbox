@@ -17,9 +17,7 @@ const SYSTEM_PROMPT =
   'Card types:\n' +
   '  hook — { "type": "hook", "title", "bullets": [] }\n' +
   '  explanation — { "type": "explanation", "title", "body", "readMore" }\n' +
-  '  diagram — { "type": "diagram", "title", "hotspots": [{ "id", "label", "detail" }] }\n' +
-  '  video — { "type": "video", "title", "videoLabel", "videoUrl" }\n' +
-  '  audio — { "type": "audio", "title", "audioText" }\n' +
+  '  text — { "type": "text", "title", "body" optional, "bullets": [] }\n' +
   '  quiz — { "type": "quiz", "question", "options": [{ "id", "label" }], "correctOptionId", "correctFeedback", "wrongFeedback" }\n' +
   `  flashcard — { "type": "flashcard", "title", "flashcards": [{ "front": "Question?", "back": "Answer" }] /* min ${MIN_FLASHCARDS} pairs */ }\n` +
   '\nWhen a STUDY FORMAT is specified below, return ONLY the card types allowed for that format. Do not mix in other card types.';
@@ -35,28 +33,21 @@ const FORMAT_FOCUS = {
   learn:
     '\n\nSTUDY FORMAT: Quick explanation\n' +
     'Return ONLY: one hook card + one explanation card (short body, optional brief readMore). ' +
-    'Do NOT include flashcard, quiz, diagram, video, or audio cards.',
+    'Do NOT include flashcard or quiz cards.',
   detail:
-    '\n\nSTUDY FORMAT: Detailed lesson\n' +
-    'Return ONLY: one hook card + one explanation card with rich readMore (3-6 paragraphs with examples). ' +
+    '\n\nSTUDY FORMAT: Detailed lesson (full in-chat content)\n' +
+    'Return ONLY: (1) hook card with overview bullets, (2) explanation card with intro body AND readMore as the complete detailed lesson (6+ paragraphs with facts and examples), ' +
+    '(3) text card titled "Key facts" with 8-12 bullet facts, (4) text card titled "Points to remember" with 5-8 bullet points. ' +
     'Do NOT include flashcard, quiz, diagram, video, or audio cards.',
   flashcards:
     `\n\nSTUDY FORMAT: Flashcards only\n` +
     `Return ONLY: one flashcard card with at least ${MIN_FLASHCARDS} question/answer pairs. ` +
-    'Optional: one very brief hook card (max 2 bullets). Each front MUST end with ?. ' +
-    'Do NOT include explanation, quiz, diagram, video, or audio cards.',
-  visualize:
-    '\n\nSTUDY FORMAT: Diagram\n' +
-    'Return ONLY: one diagram card with 4-8 tappable hotspots (id, label, detail). ' +
-    'Optional: one brief hook card. Do NOT include flashcard, quiz, video, audio, or long explanation.',
-  watch:
-    '\n\nSTUDY FORMAT: Video & audio\n' +
-    'Return ONLY: one video card (YouTube search URL) + one audio card (audioText narration script). ' +
-    'Optional: one brief hook card. Do NOT include flashcard, quiz, or diagram cards.',
+    'Each front MUST end with ?. Do NOT include explanation or quiz cards.',
   quiz:
-    '\n\nSTUDY FORMAT: Quiz\n' +
-    'Return ONLY: one quiz card with 3-4 options and clear correct/wrong feedback. ' +
-    'Optional: one brief hook card. Do NOT include flashcard, diagram, video, audio, or long explanation.',
+    '\n\nSTUDY FORMAT: Multi-question quiz\n' +
+    'The user message states how many quiz cards to create. Return that many separate quiz cards (each type "quiz"). ' +
+    'Each quiz card: one question, 3-4 options, correctOptionId, correctFeedback, wrongFeedback. ' +
+    'Optional: one brief hook card. Do NOT include flashcard or long explanation cards.',
 };
 
 /**

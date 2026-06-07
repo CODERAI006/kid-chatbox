@@ -17,6 +17,7 @@ const { trackQuizStart, trackQuizComplete, trackQuestionAnswer, trackQuizCreated
 const { runQuizAiGenerationJob } = require('../services/quizAiGenerationJob');
 const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
 const { normalizeBase64Images } = require('../utils/quizImageExtract');
+const { syncQuizAttemptToHistory } = require('../utils/syncQuizAttemptToHistory');
 
 const router = express.Router();
 
@@ -767,7 +768,7 @@ router.post('/attempts/:attemptId/submit', checkModuleAccess('quiz'), async (req
         message: 'Quiz attempt not found',
       });
     }
-    const { answers, timeTaken } = req.body; // answers: [{ questionId, answer }]
+    const { answers, timeTaken, scheduledTest } = req.body; // answers: [{ questionId, answer }]
 
     if (!Array.isArray(answers)) {
       return res.status(400).json({
@@ -925,6 +926,14 @@ router.post('/attempts/:attemptId/submit', checkModuleAccess('quiz'), async (req
     } catch (emailError) {
       // Log error but don't fail quiz submission if email fails
       console.error(`Failed to send quiz completion email to user ${req.user.id}:`, emailError.message);
+    }
+
+    try {
+      await syncQuizAttemptToHistory(attemptId, req.user.id, {
+        scheduledTest: Boolean(scheduledTest),
+      });
+    } catch (syncError) {
+      console.error(`Failed to sync attempt ${attemptId} to quiz history:`, syncError.message);
     }
 
     // Get detailed results

@@ -76,10 +76,12 @@ export type LearningStudyFormat =
   | 'learn'
   | 'detail'
   | 'flashcards'
-  | 'visualize'
-  | 'watch'
   | 'quiz'
   | 'chat';
+
+export interface StudyFormatOptions {
+  quizCount?: number;
+}
 
 export type LearningBotMode = 'workspace' | 'chat';
 
@@ -94,11 +96,9 @@ export interface LearningFormatOption {
 /** Shown when starting a new chat — pick format first, then enter topic. */
 export const STUDY_FORMAT_OPTIONS: LearningFormatOption[] = [
   { key: 'learn', emoji: '📖', label: 'Quick explanation', hint: 'Hook + short summary', mode: 'workspace' },
-  { key: 'detail', emoji: '📚', label: 'Detailed lesson', hint: 'Summary + read more', mode: 'workspace' },
-  { key: 'flashcards', emoji: '⚡', label: 'Flashcards', hint: '20+ question cards', mode: 'workspace' },
-  { key: 'visualize', emoji: '🖼', label: 'Diagram', hint: 'Interactive hotspots', mode: 'workspace' },
-  { key: 'watch', emoji: '🎥', label: 'Video & audio', hint: 'Watch + listen', mode: 'workspace' },
-  { key: 'quiz', emoji: '🎮', label: 'Quiz me', hint: 'Quick challenge', mode: 'workspace' },
+  { key: 'detail', emoji: '📚', label: 'Detailed lesson', hint: 'Full lesson, facts & key points', mode: 'workspace' },
+  { key: 'flashcards', emoji: '⚡', label: 'Flashcards', hint: '20+ swipe cards', mode: 'workspace' },
+  { key: 'quiz', emoji: '🎮', label: 'Quiz me', hint: 'Choose how many questions', mode: 'workspace' },
   { key: 'chat', emoji: '💬', label: 'Just chat', hint: 'Natural conversation', mode: 'chat' },
 ];
 
@@ -112,15 +112,29 @@ export const QUICK_ACTION_PROMPTS: Record<LearningQuickAction, string> = {
 };
 
 /** Builds the first user message after format + topic are chosen. */
-export function buildStudyTopicPrompt(format: LearningStudyFormat, topic: string): string {
+export function buildStudyTopicPrompt(
+  format: LearningStudyFormat,
+  topic: string,
+  options?: StudyFormatOptions
+): string {
   const t = topic.trim();
+  const quizCount = options?.quizCount ?? 10;
+
   const prompts: Record<LearningStudyFormat, string> = {
-    learn: `Explain "${t}" using ONLY a hook card and a short explanation card. No flashcards, quiz, or media.`,
-    detail: `Teach "${t}" using ONLY a hook card and one explanation card with detailed readMore (3-6 paragraphs). No flashcards or quiz.`,
-    flashcards: `Create ONLY flashcards about "${t}" — one flashcard card with at least 20 question/answer pairs. Each front must be a question ending with ?. No explanation or quiz cards.`,
-    visualize: `Explain "${t}" using ONLY an interactive diagram card with 4+ hotspots. No flashcards or quiz.`,
-    watch: `Help me learn "${t}" using ONLY a video card and an audio summary card. No flashcards or quiz.`,
-    quiz: `Quiz me on "${t}" using ONLY a quiz card with 3-4 options and feedback. No flashcards or long lesson.`,
+    learn: `Explain "${t}" using ONLY a hook card and a short explanation card. No flashcards or quiz.`,
+    detail:
+      `Teach "${t}" as a complete in-chat lesson. Return ONLY: ` +
+      '(1) hook card with 3-5 overview bullets, ' +
+      '(2) explanation card with intro body plus readMore as the FULL detailed lesson (facts, examples, steps — at least 6 paragraphs), ' +
+      '(3) text card titled "Key facts" with 8-12 bullet facts, ' +
+      '(4) text card titled "Points to remember" with 5-8 bullet points. ' +
+      'Put all content in the cards — no placeholders.',
+    flashcards:
+      `Create ONLY flashcards about "${t}" — one flashcard card with at least 20 question/answer pairs. Each front must end with ?.`,
+    quiz:
+      `Quiz me on "${t}". Return exactly ${quizCount} separate quiz cards (type "quiz"). ` +
+      'Each card: one question, 3-4 options, correctOptionId, correctFeedback, wrongFeedback. ' +
+      'Optional: one brief hook card. No flashcards or long lesson cards.',
     chat: `Let's talk about "${t}". I may ask follow-up questions — answer naturally.`,
   };
   return prompts[format];

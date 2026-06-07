@@ -8,8 +8,6 @@ const FORMAT_ALLOWED: Record<LearningStudyFormat, Set<LearningCardType>> = {
   learn: new Set(['hook', 'explanation', 'text']),
   detail: new Set(['hook', 'explanation', 'text', 'timeline', 'example', 'comparison']),
   flashcards: new Set(['flashcard']),
-  visualize: new Set(['diagram', 'interactive', 'image', 'hook', 'text']),
-  watch: new Set(['video', 'audio', 'hook', 'text']),
   quiz: new Set(['quiz', 'hook', 'text']),
   chat: new Set(),
 };
@@ -43,18 +41,6 @@ export function filterCardsByStudyFormat(
     filtered = mergeFlashcardCards(filtered);
     if (!filtered.some((c) => c.type === 'flashcard') && cards.some((c) => c.type === 'flashcard')) {
       filtered = mergeFlashcardCards(cards.filter((c) => c.type === 'flashcard'));
-    }
-  }
-
-  if (format === 'visualize') {
-    const hasVisual = filtered.some((c) =>
-      c.type === 'diagram' || c.type === 'interactive' || c.type === 'image'
-    );
-    if (!hasVisual) {
-      const fallback = cards.find(
-        (c) => c.type === 'diagram' || c.type === 'interactive' || c.type === 'image'
-      );
-      if (fallback) filtered = [fallback, ...filtered.filter((c) => c !== fallback)];
     }
   }
 

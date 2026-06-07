@@ -1,11 +1,17 @@
 /**
- * Step 1: pick study format. Step 2: enter topic.
+ * Step 1: pick study format. Step 2: configure options + enter topic.
  */
 import { useState } from 'react';
 import {
   Box,
   Button,
+  HStack,
   Input,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
   SimpleGrid,
   Text,
   VStack,
@@ -17,16 +23,29 @@ import {
   type LearningBotMode,
   type LearningStudyFormat,
 } from '@/types/learningWorkspace';
+import {
+  DEFAULT_QUIZ_COUNT,
+  MIN_QUIZ_COUNT,
+  MAX_QUIZ_COUNT,
+  QUIZ_COUNT_OPTIONS,
+  clampQuizCount,
+} from '@/constants/learningQuiz';
 
 interface Props {
   disabled?: boolean;
-  onStart: (params: { text: string; mode: LearningBotMode; format: LearningStudyFormat }) => void;
+  onStart: (params: {
+    text: string;
+    mode: LearningBotMode;
+    format: LearningStudyFormat;
+    quizCount?: number;
+  }) => void;
 }
 
 export function LearningFormatOnboarding({ disabled, onStart }: Props) {
   const [step, setStep] = useState<'format' | 'topic'>('format');
   const [format, setFormat] = useState<LearningStudyFormat | null>(null);
   const [topic, setTopic] = useState('');
+  const [quizCount, setQuizCount] = useState(DEFAULT_QUIZ_COUNT);
 
   const cardBg = useColorModeValue('white', 'gray.700');
   const highlightBg = useColorModeValue('blue.50', 'blue.900');
@@ -41,14 +60,17 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
     if (!format || !topic.trim()) return;
     const option = STUDY_FORMAT_OPTIONS.find((o) => o.key === format);
     if (!option) return;
+    const count = format === 'quiz' ? clampQuizCount(quizCount) : undefined;
     onStart({
-      text: buildStudyTopicPrompt(format, topic),
+      text: buildStudyTopicPrompt(format, topic, { quizCount: count }),
       mode: option.mode,
       format,
+      quizCount: count,
     });
     setStep('format');
     setFormat(null);
     setTopic('');
+    setQuizCount(DEFAULT_QUIZ_COUNT);
   };
 
   if (step === 'format') {
@@ -103,6 +125,44 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
         </Text>
         <Text fontSize="xs" color="gray.600">{selected?.hint}</Text>
       </Box>
+
+      {format === 'quiz' && (
+        <Box>
+          <Text fontSize="sm" fontWeight="semibold" mb={2}>
+            How many questions?
+          </Text>
+          <HStack spacing={2} flexWrap="wrap" mb={2}>
+            {QUIZ_COUNT_OPTIONS.map((n) => (
+              <Button
+                key={n}
+                size="sm"
+                variant={quizCount === n ? 'solid' : 'outline'}
+                colorScheme="green"
+                onClick={() => setQuizCount(n)}
+              >
+                {n}
+              </Button>
+            ))}
+          </HStack>
+          <NumberInput
+            size="sm"
+            min={MIN_QUIZ_COUNT}
+            max={MAX_QUIZ_COUNT}
+            value={quizCount}
+            onChange={(_, val) => setQuizCount(clampQuizCount(Number.isFinite(val) ? val : DEFAULT_QUIZ_COUNT))}
+          >
+            <NumberInputField />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+          <Text fontSize="xs" color="gray.500" mt={1}>
+            Guru AI will generate {clampQuizCount(quizCount)} multiple-choice questions.
+          </Text>
+        </Box>
+      )}
+
       <Text fontSize="sm" fontWeight="semibold">
         What topic should we study?
       </Text>
