@@ -9,7 +9,7 @@ import {
 } from '@/shared/design-system';
 import { StudyModeForm, StudyTopicConfig } from './StudyModeForm';
 import { StudyLessonView } from './study/StudyLessonView';
-import { generateLesson } from '@/services/study';
+import { generateLesson, getIntroductionText } from '@/services/study';
 import { QuizConfig } from '@/types/quiz';
 import { Lesson } from '@/services/study';
 import { authApi, studyApi, profileApi } from '@/services/api';
@@ -95,7 +95,7 @@ export const StudyMode: React.FC = () => {
             language: quizConfig.language,
             difficulty: quizConfig.difficulty,
             lesson_title: generatedLesson.title,
-            lesson_introduction: generatedLesson.introduction,
+            lesson_introduction: getIntroductionText(generatedLesson.introduction),
             lesson_explanation: generatedLesson.explanation,
             lesson_key_points: generatedLesson.keyPoints,
             lesson_examples: generatedLesson.examples,

@@ -204,6 +204,20 @@ async function ollamaChat({
         bodyPreview: text.slice(0, 600),
       });
     }
+    if (res.status === 404 && /model.*not found/i.test(text)) {
+      let missing = body.model;
+      try {
+        const parsed = JSON.parse(text);
+        const m = String(parsed?.error || '').match(/model ['"]([^'"]+)['"]/i);
+        if (m) missing = m[1];
+      } catch {
+        /* use body.model */
+      }
+      throw new Error(
+        `Ollama vision model "${missing}" is not installed. ` +
+          'Run `ollama pull moondream` or `ollama pull llava`, or set OLLAMA_VISION_MODEL in .env.'
+      );
+    }
     throw new Error(
       `Ollama request failed (${res.status}): ${text.slice(0, 400)}`
     );
@@ -251,8 +265,30 @@ async function ollamaChat({
   return { content, model: data.model };
 }
 
+/** @returns {Promise<string[]>} installed model names */
+async function listOllamaModels() {
+  const runtime = getOllamaRuntimeConfig();
+  if (!runtime.configured) {
+    throw new Error('Ollama is not configured');
+  }
+  const url = `${runtime.baseUrl}/api/tags`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { ...runtime.headers },
+    signal: createFetchSignal(30_000),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Ollama list models failed (${res.status}): ${text.slice(0, 200)}`);
+  }
+  const data = JSON.parse(text);
+  const models = Array.isArray(data?.models) ? data.models : [];
+  return models.map((m) => String(m.name || '').trim()).filter(Boolean);
+}
+
 module.exports = {
   ollamaChat,
+  listOllamaModels,
   getOllamaBaseUrl,
   getOllamaModel,
   getOllamaMode,

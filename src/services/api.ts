@@ -220,11 +220,17 @@ export const learningBotApi = {
   sendMessage: async (params: {
     conversationId: string | null;
     text: string;
-  }): Promise<{ conversationId: string; content: string; model?: string }> => {
+  }): Promise<{
+    conversationId: string;
+    content: string;
+    structured?: Record<string, unknown> | null;
+    model?: string;
+  }> => {
     const response = await apiClient.post<{
       success: boolean;
       conversationId?: string;
       content?: string;
+      structured?: Record<string, unknown> | null;
       model?: string;
       message?: string;
     }>('/learning-bot/message', params);
@@ -234,6 +240,7 @@ export const learningBotApi = {
     return {
       conversationId: response.data.conversationId,
       content: response.data.content,
+      structured: response.data.structured ?? null,
       model: response.data.model,
     };
   },

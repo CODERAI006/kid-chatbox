@@ -6,15 +6,11 @@ const express = require('express');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { ollamaChat, isLlmConfigured } = require('../utils/ollamaClient');
+const { SYSTEM_PROMPT } = require('../utils/learningBotPrompt');
+const { parseLearningWorkspace } = require('../utils/learningWorkspaceParse');
 
 const router = express.Router();
 router.use(authenticateToken);
-
-const SYSTEM_PROMPT =
-  'You are a friendly, knowledgeable learning assistant. You help with any subject or everyday question—not only programming or AI. ' +
-  'Answer in a structured, easy-to-follow way: a short orientation line, then clear sections (short paragraphs or bullet lists), ' +
-  'and end with a brief recap or one suggested next step when it helps. Stay accurate; admit uncertainty. Match the user\'s level. ' +
-  'Be conversational; default to concise replies unless the user asks for depth.';
 
 const MAX_USER_TEXT = 16000;
 /** User+assistant pairs sent to Ollama (system added separately). */
@@ -150,10 +146,12 @@ router.post('/message', async (req, res, next) => {
 
       const { content, model } = await ollamaChat({
         messages,
-        temperature: 0.65,
-        num_predict: 2048,
+        temperature: 0.55,
+        num_predict: 8192,
         logContext: `api.learning-bot userId=${userId}`,
       });
+
+      const structured = parseLearningWorkspace(content);
 
       await client.query(
         `INSERT INTO learning_bot_messages (conversation_id, role, content)
@@ -171,6 +169,7 @@ router.post('/message', async (req, res, next) => {
         success: true,
         conversationId,
         content,
+        structured,
         model,
       });
     } catch (err) {

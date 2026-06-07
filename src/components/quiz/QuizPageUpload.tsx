@@ -62,7 +62,8 @@ export const QuizPageUpload: React.FC<QuizPageUploadProps> = ({
             </Text>
             <Text fontSize="xs" color="gray.600" mt={1}>
               Upload up to {QUIZ_PAGE_IMAGE_MAX} photos of textbook pages, notes, or worksheets.
-              Questions will be based on the text in your images.
+              Questions will be based on the text in your images. Requires a vision model in Ollama
+              (e.g. run <Text as="code" fontSize="2xs">ollama pull moondream</Text> once on the server).
             </Text>
           </Box>
           <Button size="sm" colorScheme="purple" borderRadius="full" onClick={handlePick}
