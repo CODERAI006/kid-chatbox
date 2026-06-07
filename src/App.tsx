@@ -27,10 +27,12 @@ import { QuizHistoryManagement } from '@/components/admin/QuizHistoryManagement'
 import { StudyLibraryContentManagement } from '@/components/admin/StudyLibraryContentManagement';
 import { QuizResultsAnalytics } from '@/components/admin/QuizResultsAnalytics';
 import { QuizSchedulerManagement } from '@/components/admin/QuizSchedulerManagement';
+import { OllamaCloudSettingsPage } from '@/components/admin/OllamaCloudSettings';
 import NewsFeed from '@/components/NewsFeed';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { QuizTimerProvider } from '@/contexts/QuizTimerContext';
+import { QuizAttemptPage } from '@/components/QuizAttemptPage';
 
 /**
  * Theme configuration with dark mode support and responsive font sizes
@@ -275,6 +277,18 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/quiz/attempt/:attemptId"
+            element={
+              <AuthGuard>
+                <ModuleAccessGuard module="quiz">
+                  <StudentLayout user={user}>
+                    <QuizAttemptPage />
+                  </StudentLayout>
+                </ModuleAccessGuard>
+              </AuthGuard>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <AuthGuard>
@@ -417,6 +431,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <QuizSchedulerManagement />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/ollama-cloud"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <OllamaCloudSettingsPage />
                 </AdminLayout>
               </AdminGuard>
             }

@@ -940,5 +940,97 @@ router.delete('/quiz-history/:id', checkPermission('manage_quizzes'), async (req
   }
 });
 
+/**
+ * Get Ollama Cloud settings (masked API key)
+ * GET /api/admin/ollama-cloud
+ */
+router.get('/ollama-cloud', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const {
+      getOllamaCloudSettingsForAdmin,
+      loadOllamaCloudSettings,
+    } = require('../utils/ollamaCloudSettings');
+    await loadOllamaCloudSettings();
+    const settings = await getOllamaCloudSettingsForAdmin();
+    res.json({ success: true, settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Update Ollama Cloud settings
+ * PUT /api/admin/ollama-cloud
+ * Body: { enabled?, apiKey?, cloudModel? }
+ */
+router.put('/ollama-cloud', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { enabled, apiKey, cloudModel } = req.body || {};
+    const { saveOllamaCloudSettings } = require('../utils/ollamaCloudSettings');
+
+    if (enabled === true && typeof apiKey === 'string' && !apiKey.trim()) {
+      const current = await require('../utils/ollamaCloudSettings').getOllamaCloudSettingsForAdmin();
+      if (!current.hasApiKey) {
+        return res.status(400).json({
+          success: false,
+          message: 'API key is required when enabling Ollama Cloud.',
+        });
+      }
+    }
+
+    const settings = await saveOllamaCloudSettings({
+      enabled: typeof enabled === 'boolean' ? enabled : undefined,
+      apiKey: typeof apiKey === 'string' ? apiKey : undefined,
+      cloudModel: typeof cloudModel === 'string' ? cloudModel : undefined,
+      updatedBy: req.user?.id,
+    });
+
+    res.json({ success: true, settings, message: 'Ollama Cloud settings saved.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Test Ollama Cloud / local connection with current settings
+ * POST /api/admin/ollama-cloud/test
+ */
+router.post('/ollama-cloud/test', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { ollamaChat, getOllamaRuntimeConfig, isLlmConfigured } = require('../utils/ollamaClient');
+    const { loadOllamaCloudSettings } = require('../utils/ollamaCloudSettings');
+    await loadOllamaCloudSettings();
+
+    if (!isLlmConfigured()) {
+      const runtime = getOllamaRuntimeConfig();
+      return res.status(400).json({
+        success: false,
+        message:
+          runtime.mode === 'cloud'
+            ? 'Ollama Cloud is enabled but no API key is configured.'
+            : 'AI is disabled (OLLAMA_DISABLED).',
+      });
+    }
+
+    const runtime = getOllamaRuntimeConfig();
+    const { content, model } = await ollamaChat({
+      messages: [{ role: 'user', content: 'Reply with exactly: OK' }],
+      temperature: 0,
+      num_predict: 16,
+      logContext: 'admin.ollama-cloud.test',
+      requestTimeoutMs: 120_000,
+    });
+
+    res.json({
+      success: true,
+      mode: runtime.mode,
+      model: model || runtime.model,
+      preview: content.slice(0, 120),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 

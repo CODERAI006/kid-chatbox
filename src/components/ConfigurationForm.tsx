@@ -8,6 +8,7 @@ import {
   Box, VStack, HStack, Text, Button, Card, CardBody, Heading,
   SimpleGrid, Textarea, Input, FormControl, FormLabel, Divider, Spinner,
 } from '@/shared/design-system';
+import { ProfileQuizHint } from '@/components/quiz/ProfileQuizHint';
 import {
   SUBJECTS, DIFFICULTY_LEVELS,
   HINDI_SUBTOPICS, ENGLISH_SUBTOPICS, MATHS_SUBTOPICS,
@@ -80,6 +81,10 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   const [examStyle, setExamStyle] = useState('');
   const [questionType, setQuestionType] = useState('');
   const [customSubtopicInput, setCustomSubtopicInput] = useState('');
+  const [profileReady, setProfileReady] = useState(false);
+  const handleProfileReady = useCallback((ready: boolean) => {
+    setProfileReady(ready);
+  }, []);
 
   const toggleSubtopic = useCallback((st: string) =>
     setSelectedSubtopics(prev => prev.includes(st) ? prev.filter(x => x !== st) : [...prev, st]), []);
@@ -125,7 +130,7 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
     instructions, timeLimit, gradeLevel, examStyle, questionType, onConfigComplete, isFormValid]);
 
   const subtopics = subject && subject !== SUBJECTS.OTHER ? (SUBTOPIC_MAP[subject] ?? []) : [];
-  const isFormValidWithLimits = isFormValid && canTakeQuiz;
+  const isFormValidWithLimits = isFormValid && canTakeQuiz && profileReady;
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.35 }}>
@@ -134,6 +139,8 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
           <VStack spacing={5} align="stretch">
 
             <Heading size="lg" color="blue.600" textAlign="center">{MESSAGES.GREETING}</Heading>
+
+            <ProfileQuizHint onReadyChange={handleProfileReady} />
 
             {/* ── Class + Exam Type ─────────────────────────────────── */}
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
@@ -321,6 +328,7 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
                 _hover={isFormValidWithLimits && !isGenerating ? { boxShadow: 'xl', transform: 'translateY(-2px)' } : {}}
                 _disabled={{ opacity: 0.5, cursor: 'not-allowed' }} transition="all 0.3s">
                 {!canTakeQuiz ? '🚫 Limit Reached'
+                  : !profileReady ? 'Complete Profile First'
                   : isGenerating
                     ? <HStack spacing={2} justify="center">
                         <Spinner size="sm" color="white" />

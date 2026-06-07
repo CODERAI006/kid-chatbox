@@ -15,6 +15,7 @@ const { checkPlanAiQuiz } = require('../middleware/plan-ai-features');
 const { generateQuizQuestions } = require('../utils/openai');
 const { trackQuizStart, trackQuizComplete, trackQuestionAnswer, trackQuizCreated } = require('../utils/eventTracker');
 const { runQuizAiGenerationJob } = require('../services/quizAiGenerationJob');
+const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
 
 const router = express.Router();
 
@@ -382,15 +383,48 @@ router.post(
         return res.status(400).json({ success: false, message: 'difficulty is required' });
       }
 
+      const profileAge =
+        req.user?.age != null && Number.isFinite(Number(req.user.age))
+          ? Number(req.user.age)
+          : null;
+      const profileLanguage =
+        typeof req.user?.preferred_language === 'string' && req.user.preferred_language.trim()
+          ? req.user.preferred_language.trim()
+          : null;
+
+      if (!profileAge || profileAge <= 0) {
+        return res.status(400).json({
+          success: false,
+          code: 'PROFILE_INCOMPLETE',
+          message: 'Please update your Profile with your age before generating a quiz.',
+        });
+      }
+      if (!profileLanguage) {
+        return res.status(400).json({
+          success: false,
+          code: 'PROFILE_INCOMPLETE',
+          message: 'Please set your preferred language in Profile before generating a quiz.',
+        });
+      }
+
       const n = Math.min(50, Math.max(1, Number(numberOfQuestions) || 10));
       const payload = {
         subject: subject.trim(),
         subtopics: Array.isArray(subtopics) ? subtopics : [],
         difficulty,
         numberOfQuestions: n,
-        language: typeof language === 'string' && language.trim() ? language.trim() : 'English',
-        age: age != null && Number.isFinite(Number(age)) ? Number(age) : undefined,
-        ageGroup: ageGroup != null ? String(ageGroup) : undefined,
+        language: profileLanguage,
+        age: profileAge,
+        userAgeGroup:
+          req.user?.age_group != null && String(req.user.age_group).trim()
+            ? String(req.user.age_group).trim()
+            : undefined,
+        ageGroup:
+          ageGroup != null && String(ageGroup).trim()
+            ? String(ageGroup).trim()
+            : gradeLevel != null && String(gradeLevel).trim()
+              ? String(gradeLevel).trim()
+              : undefined,
         gradeLevel: gradeLevel != null ? String(gradeLevel) : undefined,
         timeLimit: timeLimit != null ? Number(timeLimit) : undefined,
         instructions: instructions != null ? String(instructions) : undefined,
@@ -1087,6 +1121,12 @@ router.post('/generate', checkPermission('manage_quizzes'), async (req, res, nex
     });
 
     // Create quiz
+    const resolvedAgeGroup = await resolveQuizAgeGroup({
+      ageGroup,
+      gradeLevel,
+      subtopicId,
+    });
+
     const quizResult = await pool.query(
       `INSERT INTO quizzes (
         subtopic_id, name, description, age_group, grade_level, subject, difficulty,
@@ -1098,7 +1138,7 @@ router.post('/generate', checkPermission('manage_quizzes'), async (req, res, nex
         subtopicId || null,
         name,
         description || null,
-        ageGroup || null,
+        resolvedAgeGroup,
         gradeLevel || null,
         req.body.subject || null,
         difficulty,

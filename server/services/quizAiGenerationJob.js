@@ -5,6 +5,7 @@
 const { pool } = require('../config/database');
 const { generateQuizQuestions } = require('../utils/openai');
 const { trackQuizCreated } = require('../utils/eventTracker');
+const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
 
 function buildTopics(payload) {
   const subject = (payload.subject || '').trim();
@@ -47,7 +48,7 @@ async function runQuizAiGenerationJob(jobId) {
     const gradeLevel = payload.gradeLevel || null;
     const sampleQuestion = payload.sampleQuestion || undefined;
     const examStyle = payload.examStyle || undefined;
-    const ageGroup = payload.ageGroup != null ? String(payload.ageGroup) : null;
+    const ageGroup = await resolveQuizAgeGroup(payload);
     const timeLimit = payload.timeLimit != null ? Number(payload.timeLimit) : null;
     const passingPercentage = Math.min(100, Math.max(1, Number(payload.passingPercentage) || 60));
 
@@ -66,6 +67,8 @@ async function runQuizAiGenerationJob(jobId) {
       difficulty,
       topics,
       language,
+      ageGroup,
+      age: payload.age != null ? Number(payload.age) : undefined,
       subtopicId: payload.subtopicId || undefined,
       description: description || undefined,
       gradeLevel: gradeLevel || undefined,

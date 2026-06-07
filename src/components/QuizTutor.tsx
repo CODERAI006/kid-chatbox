@@ -30,7 +30,7 @@ import { Timer } from './Timer';
 import { ResultsView } from './ResultsView';
 import { ConfigurationForm } from './ConfigurationForm';
 import { QuizLoading } from './QuizLoading';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { isQuizGenerationAbort } from '@/services/openai';
 import {
   quizApi,
@@ -49,16 +49,27 @@ import { useQuizTimer } from '@/contexts/QuizTimerContext';
 type QuizPhase = 'config' | 'loading' | 'checking' | 'quiz' | 'results';
 type QuizLayoutMode = 'steps' | 'overview';
 
+interface QuizTutorProps {
+  /** When set, loads an in-progress library attempt from /quiz/attempt/:attemptId */
+  mode?: 'default' | 'library-attempt';
+}
+
+const isQuizSessionPath = (path: string): boolean =>
+  path === '/quiz' || path.startsWith('/quiz/attempt/');
+
 /**
  * Main quiz tutor component that manages the entire quiz flow
  * Handles configuration, question display, answer tracking, and results
  */
-export const QuizTutor: React.FC = () => {
+export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { attemptId: routeAttemptId } = useParams<{ attemptId?: string }>();
   const { setTimer } = useQuizTimer();
   const toast = useToast();
-  const [phase, setPhase] = useState<QuizPhase>('config');
+  const [phase, setPhase] = useState<QuizPhase>(() =>
+    mode === 'library-attempt' ? 'loading' : 'config'
+  );
   const [config, setConfig] = useState<QuizConfig | null>(() => {
     try {
       return (location.state as { config?: QuizConfig })?.config || null;
@@ -77,6 +88,8 @@ export const QuizTutor: React.FC = () => {
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [resultSaved, setResultSaved] = useState(false);
   const [scheduledTestId, setScheduledTestId] = useState<string | null>(null);
+  const [libraryAttemptId, setLibraryAttemptId] = useState<string | null>(null);
+  const questionIdByNumberRef = useRef<Map<number, string>>(new Map());
   const [quizLayoutMode, setQuizLayoutMode] = useState<QuizLayoutMode>('steps');
   const [currentQuestionStep, setCurrentQuestionStep] = useState(0);
   const [genBatchProgress, setGenBatchProgress] = useState<{ current: number; total: number } | null>(
@@ -93,6 +106,7 @@ export const QuizTutor: React.FC = () => {
   const [generationStartedAt, setGenerationStartedAt] = useState(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedScheduledTestRef = useRef(false);
+  const hasLoadedLibraryAttemptRef = useRef(false);
   const beepPlayedRef = useRef(false);
   const totalTimeRef = useRef<number>(0);
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
@@ -277,6 +291,135 @@ export const QuizTutor: React.FC = () => {
     }
   }, [scheduledTestId, navigate, toast]);
 
+  /**
+   * Loads an in-progress library / on-demand quiz attempt (Quiz Library, Today's Quizzes).
+   */
+  const loadLibraryAttempt = useCallback(async (attemptId: string) => {
+    if (hasLoadedLibraryAttemptRef.current) {
+      return;
+    }
+    hasLoadedLibraryAttemptRef.current = true;
+
+    try {
+      setPhase('loading');
+      setError(null);
+
+      const attemptData = await quizApi.getQuizAttempt(attemptId);
+      const quiz = attemptData.quiz;
+      const quizRecord = quiz as Record<string, unknown>;
+      const idMap = new Map<number, string>();
+      let timeElapsed = 0;
+
+      if (attemptData.attempt.started_at) {
+        const startTime = new Date(attemptData.attempt.started_at).getTime();
+        timeElapsed = Math.floor((Date.now() - startTime) / 1000);
+      }
+
+      const restoredAnswers = new Map<number, 'A' | 'B' | 'C' | 'D'>();
+      if (attemptData.attempt.answers && Array.isArray(attemptData.attempt.answers)) {
+        attemptData.attempt.answers.forEach((answer: { question_id: string; user_answer: string }) => {
+          const questionIndex = quiz.questions.findIndex((q) => q.id === answer.question_id);
+          if (questionIndex !== -1) {
+            try {
+              const userAnswer = JSON.parse(answer.user_answer);
+              const answerKey = typeof userAnswer === 'string' ? userAnswer.toUpperCase() : String(userAnswer).toUpperCase();
+              if (['A', 'B', 'C', 'D'].includes(answerKey)) {
+                restoredAnswers.set(questionIndex + 1, answerKey as 'A' | 'B' | 'C' | 'D');
+              }
+            } catch {
+              const answerKey = answer.user_answer.toUpperCase();
+              if (['A', 'B', 'C', 'D'].includes(answerKey)) {
+                restoredAnswers.set(questionIndex + 1, answerKey as 'A' | 'B' | 'C' | 'D');
+              }
+            }
+          }
+        });
+      }
+
+      const mappedQuestions: Question[] = quiz.questions.map((q, index: number) => {
+        idMap.set(index + 1, q.id);
+        const options = q.options as Record<string, string>;
+        const questionOptions: { A: string; B: string; C: string; D: string } = {
+          A: options.A || '',
+          B: options.B || '',
+          C: options.C || '',
+          D: options.D || '',
+        };
+
+        let correctAnswer: 'A' | 'B' | 'C' | 'D' = 'A';
+        if (q.correct_answer) {
+          try {
+            const parsed = JSON.parse(q.correct_answer);
+            const answerStr = typeof parsed === 'string' ? parsed : String(parsed);
+            correctAnswer = answerStr.toUpperCase() as 'A' | 'B' | 'C' | 'D';
+          } catch {
+            correctAnswer = q.correct_answer.toUpperCase() as 'A' | 'B' | 'C' | 'D';
+          }
+        }
+
+        return {
+          number: index + 1,
+          question: q.question_text,
+          options: questionOptions,
+          correctAnswer,
+          explanation: q.explanation || '',
+        };
+      });
+
+      const ageGroup = String(quizRecord.age_group || quizRecord.grade_level || '');
+      const ageMatch = ageGroup.match(/^(\d+)/);
+      const age = ageMatch ? parseInt(ageMatch[1], 10) : 8;
+
+      const libraryConfig: QuizConfig = {
+        age,
+        language: 'English',
+        subject: SUBJECTS.OTHER,
+        subtopics: [String(quizRecord.name || quizRecord.subtopic || 'Quiz Library')],
+        questionCount: quiz.number_of_questions,
+        difficulty: (String(quizRecord.difficulty || 'Medium') as QuizConfig['difficulty']),
+      };
+
+      if (!mappedQuestions.length) {
+        setError('This quiz has no questions. Ask your teacher to check the quiz content.');
+        setPhase('config');
+        hasLoadedLibraryAttemptRef.current = false;
+        return;
+      }
+
+      questionIdByNumberRef.current = idMap;
+      setLibraryAttemptId(attemptId);
+      setConfig(libraryConfig);
+      setQuestions(mappedQuestions);
+      setAnswers(restoredAnswers);
+      setCurrentQuestionStep(0);
+      setQuizLayoutMode('steps');
+      setPhase('quiz');
+
+      const timeLimitMinutes =
+        quiz.time_limit ||
+        Math.ceil(quiz.number_of_questions * QUIZ_CONSTANTS.TIME_PER_QUESTION_SECONDS / 60);
+      const totalTimeSeconds = timeLimitMinutes * 60;
+      const remainingTime = Math.max(0, totalTimeSeconds - timeElapsed);
+      totalTimeRef.current = totalTimeSeconds;
+      const twentyPercentThreshold = Math.ceil(totalTimeSeconds * 0.2);
+      beepPlayedRef.current = remainingTime <= twentyPercentThreshold;
+      setTimeRemaining(remainingTime);
+      setQuizStartTime(Date.now() - timeElapsed * 1000);
+      setAllAnswerResults([]);
+      setImprovementTips([]);
+      setResultSaved(false);
+    } catch (err) {
+      console.error('Failed to load library quiz attempt:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load quiz. Please try again from the Quiz Library.'
+      );
+      setPhase('config');
+      hasLoadedLibraryAttemptRef.current = false;
+    }
+  }, []);
+
   const handleCancelQuizGeneration = useCallback(() => {
     quizGenAbortRef.current?.abort();
   }, []);
@@ -288,12 +431,17 @@ export const QuizTutor: React.FC = () => {
   useEffect(() => {
     if (
       phase === 'quiz' &&
-      previousPathnameRef.current === '/quiz' &&
-      location.pathname !== '/quiz' &&
+      isQuizSessionPath(previousPathnameRef.current) &&
+      !isQuizSessionPath(location.pathname) &&
       !isSubmittingRef.current
     ) {
       // User navigated away from quiz page - navigate back and show confirmation
-      navigate('/quiz', { replace: true });
+      navigate(
+        previousPathnameRef.current.startsWith('/quiz/attempt/')
+          ? previousPathnameRef.current
+          : '/quiz',
+        { replace: true }
+      );
       // Show confirmation modal
       onConfirmOpen();
     }
@@ -367,29 +515,49 @@ export const QuizTutor: React.FC = () => {
 
     // Save quiz result to backend
     try {
-      const { user } = authApi.getCurrentUser();
-      if (user && config) {
-        const explanations = answerResults
-          .filter((r) => !r.isCorrect)
-          .map((r) => `Q${r.questionNumber}: ${r.explanation}`)
-          .join(' | ');
+      if (libraryAttemptId) {
+        const submitAnswers = questions
+          .map((question) => {
+            const questionId = questionIdByNumberRef.current.get(question.number);
+            if (!questionId) return null;
+            return {
+              questionId,
+              answer: answers.get(question.number) || '',
+              timeSpent: 0,
+            };
+          })
+          .filter((a): a is { questionId: string; answer: string; timeSpent: number } => a !== null);
 
-        await quizApi.saveQuizResult({
-          user_id: (user as { id: string }).id,
-          timestamp: new Date().toISOString(),
-          subject: config.subject,
-          subtopic: config.subtopics.join(', '),
-          age: config.age,
-          language: config.language,
-          answers: answerResults,
-          correct_count: correctCount,
-          wrong_count: wrongCount,
-          explanation_of_mistakes: explanations,
-          time_taken: timeTaken,
-          score_percentage: scorePercentage,
-          isLibraryQuiz: false,
+        await quizApi.submitQuizAttempt(libraryAttemptId, {
+          answers: submitAnswers,
+          timeTaken,
         });
         setResultSaved(true);
+      } else {
+        const { user } = authApi.getCurrentUser();
+        if (user && config) {
+          const explanations = answerResults
+            .filter((r) => !r.isCorrect)
+            .map((r) => `Q${r.questionNumber}: ${r.explanation}`)
+            .join(' | ');
+
+          await quizApi.saveQuizResult({
+            user_id: (user as { id: string }).id,
+            timestamp: new Date().toISOString(),
+            subject: config.subject,
+            subtopic: config.subtopics.join(', '),
+            age: config.age,
+            language: config.language,
+            answers: answerResults,
+            correct_count: correctCount,
+            wrong_count: wrongCount,
+            explanation_of_mistakes: explanations,
+            time_taken: timeTaken,
+            score_percentage: scorePercentage,
+            isLibraryQuiz: Boolean(scheduledTestId),
+          });
+          setResultSaved(true);
+        }
       }
     } catch (err) {
       // Continue even if save fails
@@ -403,7 +571,7 @@ export const QuizTutor: React.FC = () => {
     setTimeout(() => {
       isSubmittingRef.current = false;
     }, 1000);
-  }, [phase, questions, answers, config, quizStartTime, scheduledTestId]);
+  }, [phase, questions, answers, config, quizStartTime, scheduledTestId, libraryAttemptId]);
 
   /**
    * Handle confirmation to submit quiz and navigate
@@ -592,8 +760,8 @@ export const QuizTutor: React.FC = () => {
   );
 
   const handleStartNewQuiz = useCallback(() => {
-    navigate('/quiz');
-  }, [navigate]);
+    navigate(libraryAttemptId ? '/quiz#library' : '/quiz');
+  }, [navigate, libraryAttemptId]);
 
   const handleBackToDashboard = useCallback(() => {
     navigate('/dashboard');
@@ -793,8 +961,19 @@ export const QuizTutor: React.FC = () => {
     }
   }, []);
 
+  // Library / on-demand attempt from /quiz/attempt/:attemptId
+  useEffect(() => {
+    if (mode !== 'library-attempt' || !routeAttemptId || hasLoadedLibraryAttemptRef.current) {
+      return;
+    }
+    void loadLibraryAttempt(routeAttemptId);
+  }, [mode, routeAttemptId, loadLibraryAttempt]);
+
   // Check for scheduled test in URL
   useEffect(() => {
+    if (mode === 'library-attempt') {
+      return;
+    }
     const searchParams = new URLSearchParams(location.search);
     const testId = searchParams.get('scheduledTestId');
     const attemptId = searchParams.get('attemptId');
@@ -804,10 +983,13 @@ export const QuizTutor: React.FC = () => {
       setScheduledTestId(testId);
       loadScheduledTest(testId, attemptId || null, resume);
     }
-  }, [location.search, phase, loadScheduledTest]);
+  }, [location.search, phase, loadScheduledTest, mode]);
 
   // Auto-start quiz if config is passed from Study mode (only for AI-generated quizzes, not scheduled tests)
   useEffect(() => {
+    if (mode === 'library-attempt') {
+      return;
+    }
     const searchParams = new URLSearchParams(location.search);
     const testId = searchParams.get('scheduledTestId');
     const routeKey = `${location.key}|${location.pathname}|${location.search}`;
@@ -841,10 +1023,30 @@ export const QuizTutor: React.FC = () => {
     location.search,
     location.pathname,
     location.key,
+    mode,
   ]);
 
   const score = allAnswerResults.filter((r) => r.isCorrect).length;
   const answeredCount = answers.size;
+
+  if (phase === 'config' && mode === 'library-attempt') {
+    return (
+      <Box padding={{ base: 4, md: 6 }} maxWidth="640px" marginX="auto">
+        {error ? (
+          <Alert status="error" borderRadius="xl">
+            <AlertIcon />
+            <AlertTitle>Could not start quiz</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <Text color="gray.600">Loading quiz…</Text>
+        )}
+        <Button mt={4} onClick={() => navigate('/quiz#library')}>
+          Back to Quiz Library
+        </Button>
+      </Box>
+    );
+  }
 
   if (phase === 'config') {
     // During AI generation show the skeleton screen instead of the form

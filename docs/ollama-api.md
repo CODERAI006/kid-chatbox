@@ -146,3 +146,18 @@ If that works, the daemon and model are fine; your API only needs to hit the sam
 | Embeddings | `POST /api/embed` | `model`, `input` |
 
 For most app integrations, start with **`POST /api/chat`**, **`stream: false`**, until you need streaming UX.
+
+---
+
+## 8. Ollama Cloud (hosted models)
+
+Kid Chatbox can route AI to [Ollama Cloud](https://docs.ollama.com/cloud) instead of local Ollama:
+
+| Mode | Base URL | Auth |
+|------|----------|------|
+| Local (default) | `http://127.0.0.1:11434` | None |
+| Cloud | `https://ollama.com` | `Authorization: Bearer <API key>` |
+
+**Admin UI:** Admin Portal → **Ollama Cloud** — enable/disable, set API key (encrypted at rest), pick cloud model.
+
+**Env fallback:** `OLLAMA_API_KEY` can supplement the admin-stored key. Global kill switch: `OLLAMA_DISABLED=true`.

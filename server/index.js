@@ -147,9 +147,12 @@ app.use((err, req, res, next) => {
 });
 
 // Initialize database and start server
+const { loadOllamaCloudSettings } = require('./utils/ollamaCloudSettings');
+
 const startServer = async () => {
   try {
     await initializeDatabase();
+    await loadOllamaCloudSettings();
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);

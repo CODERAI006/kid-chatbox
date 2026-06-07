@@ -26,6 +26,8 @@ async function generateQuizQuestions(config) {
     difficulty = 'Basic',
     topics = [],
     language = 'English',
+    ageGroup,
+    age,
     subtopicId,
     description,
     gradeLevel,
@@ -110,6 +112,13 @@ async function generateQuizQuestions(config) {
     ? `Grade/Class Level: ${gradeLevel}\n`
     : '';
 
+  const learnerAgeContext =
+    age != null && Number.isFinite(Number(age))
+      ? `Learner age: ${Number(age)} years\n`
+      : ageGroup
+        ? `Learner age group: ${ageGroup}\n`
+        : '';
+
   const sampleQuestionContext = sampleQuestion
     ? `\nSample Question Pattern:\n${sampleQuestion}\n\nUse this as a reference for the style and format of questions to generate. Follow similar patterns, complexity, and structure.\n`
     : '';
@@ -190,7 +199,7 @@ MANDATORY INSTRUCTIONS - MUST FOLLOW STRICTLY:
 
 9. CONTEXT AND ALIGNMENT REQUIREMENTS:
    ${descriptionContext}
-   ${gradeLevelContext}
+   ${learnerAgeContext}${gradeLevelContext}
    ${examStyleContext}
    ${sampleQuestionContext}
    ${timestampContext}

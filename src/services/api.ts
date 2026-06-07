@@ -454,6 +454,17 @@ export const quizApi = {
     return response.data;
   },
 
+  submitQuizAttempt: async (
+    attemptId: string,
+    payload: {
+      answers: Array<{ questionId: string; answer: string; timeSpent?: number }>;
+      timeTaken: number;
+    }
+  ): Promise<{ success: boolean; result: Record<string, unknown> }> => {
+    const response = await apiClient.post(`/quizzes/attempts/${attemptId}/submit`, payload);
+    return response.data;
+  },
+
   /**
    * Get quizzes available in the public Quiz Library (student-accessible)
    */

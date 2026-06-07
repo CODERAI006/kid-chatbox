@@ -10,13 +10,15 @@
  * Optional requestTimeoutMs on ollamaChat() overrides one call (capped at 1 hour).
  */
 
+const { getResolvedOllamaConfig } = require('./ollamaCloudSettings');
+
 const DEFAULT_HOST = 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = 'llama3.2:latest';
 const PREVIEW_CHARS = Number(process.env.OLLAMA_LOG_PREVIEW_CHARS) || 2500;
 /** Default wait for Ollama /api/chat (ms). */
 const DEFAULT_TIMEOUT_MS = 900000;
 
-function getOllamaBaseUrl() {
+function getLocalOllamaBaseUrl() {
   const raw = (
     process.env.OLLAMA_HOST ||
     process.env.OLLAMA_BASE_URL ||
@@ -25,8 +27,24 @@ function getOllamaBaseUrl() {
   return raw.replace(/\/$/, '');
 }
 
-function getOllamaModel() {
+function getLocalOllamaModel() {
   return (process.env.OLLAMA_MODEL || DEFAULT_MODEL).trim();
+}
+
+function getOllamaRuntimeConfig() {
+  return getResolvedOllamaConfig(getLocalOllamaBaseUrl(), getLocalOllamaModel());
+}
+
+function getOllamaBaseUrl() {
+  return getOllamaRuntimeConfig().baseUrl;
+}
+
+function getOllamaModel() {
+  return getOllamaRuntimeConfig().model;
+}
+
+function getOllamaMode() {
+  return getOllamaRuntimeConfig().mode;
 }
 
 function isLlmConfigured() {
@@ -34,7 +52,7 @@ function isLlmConfigured() {
   if (disabled === '1' || String(disabled).toLowerCase() === 'true') {
     return false;
   }
-  return true;
+  return getOllamaRuntimeConfig().configured;
 }
 
 /**
@@ -97,9 +115,10 @@ async function ollamaChat({
   if (!Array.isArray(messages) || messages.length === 0) {
     throw new Error('Ollama: messages must be a non-empty array');
   }
-  const url = `${getOllamaBaseUrl()}/api/chat`;
+  const runtime = getOllamaRuntimeConfig();
+  const url = `${runtime.baseUrl}/api/chat`;
   const body = {
-    model: getOllamaModel(),
+    model: runtime.model,
     messages,
     stream: false,
     options: {
@@ -118,6 +137,7 @@ async function ollamaChat({
       event: 'request',
       context: logContext,
       url,
+      mode: runtime.mode,
       timeoutMs,
       model: body.model,
       options: body.options,
@@ -133,9 +153,10 @@ async function ollamaChat({
 
   let res;
   try {
+    const headers = { 'Content-Type': 'application/json', ...runtime.headers };
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
       signal: createFetchSignal(requestTimeoutMs),
     });
@@ -154,9 +175,11 @@ async function ollamaChat({
     const hint = /abort|timeout/i.test(msg)
       ? ` (effective timeout ${timeoutMs}ms — raise OLLAMA_TIMEOUT_MS or pass requestTimeoutMs for long runs.)`
       : '';
-    throw new Error(
-      `Cannot reach Ollama at ${url}. Is Ollama running? (${msg})${hint}`
-    );
+    const reachHint =
+      runtime.mode === 'cloud'
+        ? 'Check Ollama Cloud API key and network access.'
+        : 'Is Ollama running locally?';
+    throw new Error(`Cannot reach Ollama at ${url}. ${reachHint} (${msg})${hint}`);
   }
 
   const text = await res.text();
@@ -222,6 +245,8 @@ module.exports = {
   ollamaChat,
   getOllamaBaseUrl,
   getOllamaModel,
+  getOllamaMode,
+  getOllamaRuntimeConfig,
   isLlmConfigured,
   getOllamaLogMode,
   resolveTimeoutMs,

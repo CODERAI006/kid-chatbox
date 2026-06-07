@@ -5,15 +5,18 @@
 
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
-const { ollamaChat, isLlmConfigured } = require('../utils/ollamaClient');
+const { ollamaChat, isLlmConfigured, getOllamaRuntimeConfig } = require('../utils/ollamaClient');
 
 const router = express.Router();
 
 /** Unauthenticated health for mounts / curl (POST /chat still requires JWT). */
 router.get('/ping', (req, res) => {
+  const runtime = getOllamaRuntimeConfig();
   res.json({
     ok: true,
     llmEnabled: isLlmConfigured(),
+    ollamaMode: runtime.mode,
+    model: runtime.model,
     postChat: 'POST /api/ai/chat with Authorization: Bearer <token> and JSON { messages: [...] }',
   });
 });
@@ -60,9 +63,14 @@ router.post('/chat', async (req, res, next) => {
   console.info(`[api.ai.chat] start userId=${userId}`);
   try {
     if (!isLlmConfigured()) {
+      const runtime = getOllamaRuntimeConfig();
+      const message =
+        runtime.mode === 'cloud'
+          ? 'Ollama Cloud is enabled but not configured (missing API key).'
+          : 'AI is disabled (OLLAMA_DISABLED).';
       return res.status(503).json({
         success: false,
-        message: 'AI is disabled (OLLAMA_DISABLED).',
+        message,
       });
     }
 

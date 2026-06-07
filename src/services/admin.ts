@@ -1113,3 +1113,43 @@ export const scheduledTestsApi = {
   },
 };
 
+export interface OllamaCloudSettings {
+  enabled: boolean;
+  hasApiKey: boolean;
+  apiKeyMasked: string | null;
+  cloudModel: string;
+  cloudBaseUrl: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export const ollamaCloudApi = {
+  getSettings: async (): Promise<{
+    success: boolean;
+    settings: OllamaCloudSettings;
+  }> => {
+    const response = await apiClient.get('/admin/ollama-cloud');
+    return response.data;
+  },
+
+  updateSettings: async (payload: {
+    enabled?: boolean;
+    apiKey?: string;
+    cloudModel?: string;
+  }): Promise<{ success: boolean; settings: OllamaCloudSettings; message?: string }> => {
+    const response = await apiClient.put('/admin/ollama-cloud', payload);
+    return response.data;
+  },
+
+  testConnection: async (): Promise<{
+    success: boolean;
+    mode: 'cloud' | 'local';
+    model?: string;
+    preview?: string;
+    message?: string;
+  }> => {
+    const response = await apiClient.post('/admin/ollama-cloud/test');
+    return response.data;
+  },
+};
+
