@@ -3,7 +3,7 @@
  * Layout wrapper for admin pages with navigation
  */
 
-import { type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -31,6 +31,19 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
+/** Admin routes that use wide data tables — sidebar auto-hides for more space. */
+const TABLE_VIEW_PATHS = new Set([
+  '/admin/users',
+  '/admin/plans',
+  '/admin/topics',
+  '/admin/quizzes',
+  '/admin/quiz-history',
+  '/admin/study-library-content',
+  '/admin/quiz-scheduler',
+  '/admin/analytics',
+  '/admin/word-of-day',
+]);
+
 const navItems = [
   { path: '/admin', label: 'Dashboard', icon: '📊' },
   { path: '/admin/users', label: 'Users', icon: '👥' },
@@ -52,7 +65,15 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTableView = TABLE_VIEW_PATHS.has(location.pathname);
+  const [sidebarVisible, setSidebarVisible] = useState(() => !isTableView);
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  useEffect(() => {
+    if (!isMobile) {
+      setSidebarVisible(!TABLE_VIEW_PATHS.has(location.pathname));
+    }
+  }, [location.pathname, isMobile]);
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const headerBg = useColorModeValue('white', 'gray.800');
   const headerBorder = useColorModeValue('gray.200', 'gray.700');
@@ -98,11 +119,19 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
         <Box px={{ base: 4, md: 6 }} py={{ base: 3, md: 4 }}>
           <HStack justify="space-between">
             <HStack spacing={3}>
-              {isMobile && (
+              {isMobile ? (
                 <IconButton
                   aria-label="Open menu"
                   icon={<Text>☰</Text>}
                   onClick={onOpen}
+                  variant="ghost"
+                  size="sm"
+                />
+              ) : (
+                <IconButton
+                  aria-label={sidebarVisible ? 'Hide navigation' : 'Show navigation'}
+                  icon={<Text>{sidebarVisible ? '◀' : '☰'}</Text>}
+                  onClick={() => setSidebarVisible((visible) => !visible)}
                   variant="ghost"
                   size="sm"
                 />
@@ -123,9 +152,10 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       </Box>
 
       <HStack align="start" spacing={0}>
-        {!isMobile && (
+        {!isMobile && sidebarVisible && (
           <Box
             w="250px"
+            flexShrink={0}
             bg={sidebarBg}
             minH="calc(100vh - 73px)"
             borderRight="1px"
@@ -147,7 +177,12 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
           </Drawer>
         )}
 
-        <Box flex={1} p={{ base: 4, md: 6 }}>
+        <Box flex={1} minW={0} p={{ base: 4, md: 6 }}>
+          {!isMobile && isTableView && !sidebarVisible && (
+            <Text fontSize="xs" color="gray.500" mb={2}>
+              Sidebar hidden for table view — use ☰ in the header to show navigation.
+            </Text>
+          )}
           {children}
         </Box>
       </HStack>

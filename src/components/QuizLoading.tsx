@@ -179,17 +179,6 @@ export const QuizLoading: React.FC<QuizLoadingProps> = ({
               </Text>
             </HStack>
 
-            <Text fontSize="xs" color="gray.600" textAlign="center" px={2} maxW="28rem" lineHeight="short">
-              Your quiz is being built on the server. You can leave this page open or switch to the
-              Quiz Library tab — when generation finishes, the new quiz will appear there.
-              {elapsed >= 45 && (
-                <Text as="span" display="block" mt={2} color="orange.700" fontWeight="medium">
-                  If the browser shows a gateway error, the server may still be working — check the Quiz
-                  Library tab or server logs. Admins can raise nginx proxy_read_timeout for /api on long runs.
-                </Text>
-              )}
-            </Text>
-
             {/* Batch progress pill */}
             {batchProgress && batchProgress.total > 1 && (
               <Box

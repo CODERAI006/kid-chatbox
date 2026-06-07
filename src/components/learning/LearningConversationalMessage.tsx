@@ -1,31 +1,55 @@
-/**
- * Plain-text assistant bubble for conversational chat mode.
- */
-import { Box, Text } from '@/shared/design-system';
-
-interface Props {
-  content: string;
-}
-
-export function LearningConversationalMessage({ content }: Props) {
-  return (
-    <Box
-      alignSelf="flex-start"
-      maxW="92%"
-      px={3}
-      py={2}
-      borderRadius="lg"
-      bg="white"
-      borderWidth="1px"
-      borderColor="gray.200"
-      boxShadow="sm"
-    >
-      <Text fontSize="xs" color="gray.500" fontWeight="semibold" mb={1}>
-        💬 AI Tutor
-      </Text>
-      <Text fontSize="sm" lineHeight="tall" whiteSpace="pre-wrap">
-        {content}
-      </Text>
-    </Box>
-  );
-}
+/**
+ * Rich assistant bubble for conversational chat mode.
+ */
+import { Box, Button, HStack, Text, useColorModeValue } from '@/shared/design-system';
+import { speakText, unlockSpeechSynthesis } from '@/utils/speechSynthesis';
+import { AiRichContentView } from './AiRichContentView';
+
+interface Props {
+  content: string;
+  speakAloud?: boolean;
+  onAskPrompt?: (prompt: string) => void;
+}
+
+export function LearningConversationalMessage({ content, speakAloud, onAskPrompt }: Props) {
+  const bubbleBg = useColorModeValue('white', 'gray.800');
+  const bubbleBorder = useColorModeValue('gray.200', 'gray.600');
+
+  return (
+    <Box
+      alignSelf="flex-start"
+      maxW="92%"
+      px={3}
+      py={3}
+      borderRadius="lg"
+      bg={bubbleBg}
+      borderWidth="1px"
+      borderColor={bubbleBorder}
+      boxShadow="sm"
+    >
+      <HStack justify="space-between" mb={2}>
+        <HStack spacing={2}>
+          <Text fontSize="lg">💬</Text>
+          <Text fontSize="xs" color="gray.500" fontWeight="semibold">
+            AI Tutor
+          </Text>
+        </HStack>
+        {!speakAloud && (
+          <Button
+            size="xs"
+            variant="ghost"
+            colorScheme="purple"
+            onClick={() => {
+              unlockSpeechSynthesis();
+              void speakText(content);
+            }}
+          >
+            🔊 Listen
+          </Button>
+        )}
+      </HStack>
+      <AiRichContentView content={content} onAction={onAskPrompt} />
+    </Box>
+  );
+}
+

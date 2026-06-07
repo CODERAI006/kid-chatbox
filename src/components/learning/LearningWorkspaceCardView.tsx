@@ -15,6 +15,8 @@ import { InteractiveFlashcardDeck } from '@/components/shared/InteractiveFlashca
 import { FLASHCARD_MORE_PROMPT } from '@/constants/flashcards';
 import { flashcardsFromWorkspaceCard } from '@/utils/flashcardNormalize';
 import { ExplanationCardBody } from './ExplanationCardBody';
+import { AiRichContentView } from './AiRichContentView';
+import { speakText, unlockSpeechSynthesis } from '@/utils/speechSynthesis';
 
 interface Props {
   card: LearningWorkspaceCard;
@@ -197,9 +199,9 @@ export function LearningWorkspaceCardView({ card, onAskPrompt }: Props) {
             size="sm"
             colorScheme="purple"
             onClick={() => {
-              if (card.audioText && typeof speechSynthesis !== 'undefined') {
-                speechSynthesis.cancel();
-                speechSynthesis.speak(new SpeechSynthesisUtterance(card.audioText));
+              if (card.audioText) {
+                unlockSpeechSynthesis();
+                void speakText(card.audioText);
               }
             }}
           >
@@ -211,7 +213,7 @@ export function LearningWorkspaceCardView({ card, onAskPrompt }: Props) {
     case 'example':
       return (
         <CardShell emoji={card.exampleEmoji || '🍕'} title={card.title || 'Example'} accent="orange">
-          <Text fontSize="sm" lineHeight="tall">{card.body}</Text>
+          <AiRichContentView content={card.body || ''} onAction={onAskPrompt} compact />
         </CardShell>
       );
 

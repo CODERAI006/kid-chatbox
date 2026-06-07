@@ -309,6 +309,8 @@ export const PlanManagement: React.FC = () => {
                 <Th>Daily Quiz Limit</Th>
                 <Th>Daily Topic Limit</Th>
                 <Th>Monthly Cost</Th>
+                <Th>Hide AI Study</Th>
+                <Th>Hide AI Quiz</Th>
                 <Th>Status</Th>
                 <Th>Users</Th>
                 <Th>Actions</Th>
@@ -317,23 +319,21 @@ export const PlanManagement: React.FC = () => {
             <Tbody>
               {plans.map((plan) => (
                 <Tr key={plan.id}>
-                  <Td fontWeight="bold">
-                    {plan.name}
-                    {(plan.hide_ai_study || plan.hide_ai_quiz) && (
-                      <HStack spacing={1} mt={1} flexWrap="wrap">
-                        {plan.hide_ai_study && (
-                          <Badge colorScheme="orange" fontSize="xs">No AI Study</Badge>
-                        )}
-                        {plan.hide_ai_quiz && (
-                          <Badge colorScheme="orange" fontSize="xs">No AI Quiz</Badge>
-                        )}
-                      </HStack>
-                    )}
-                  </Td>
+                  <Td fontWeight="bold">{plan.name}</Td>
                   <Td>{plan.description || '-'}</Td>
                   <Td>{plan.daily_quiz_limit}</Td>
                   <Td>{plan.daily_topic_limit}</Td>
                   <Td>{formatPlanPrice(plan.monthly_cost)}</Td>
+                  <Td>
+                    <Badge colorScheme={plan.hide_ai_study ? 'orange' : 'green'} fontSize="xs">
+                      {plan.hide_ai_study ? 'Hidden' : 'Shown'}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <Badge colorScheme={plan.hide_ai_quiz ? 'orange' : 'green'} fontSize="xs">
+                      {plan.hide_ai_quiz ? 'Hidden' : 'Shown'}
+                    </Badge>
+                  </Td>
                   <Td>
                     <Badge colorScheme={plan.status === 'active' ? 'green' : 'gray'}>
                       {plan.status}

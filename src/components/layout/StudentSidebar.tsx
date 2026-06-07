@@ -28,6 +28,8 @@ import {
 } from '@/shared/design-system';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
+import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
+import { getUserId, isAppAdmin } from '@/utils/userAccess';
 
 interface StudentSidebarProps {
   user: User | null;
@@ -42,6 +44,11 @@ const navItems = [
   { path: '/study', label: 'Study Hub', icon: '📚' },
   { path: '/news', label: 'Education News', icon: '📰' },
   { path: '/profile', label: 'My Profile', icon: '👤' },
+];
+
+const aiNavItems = [
+  { path: '/study#ai-study', label: 'AI Study Mode', icon: '🤖', flag: 'study' as const },
+  { path: '/quiz#ai-quiz', label: 'AI Quiz Mode', icon: '✨', flag: 'quiz' as const },
 ];
 
 /**
@@ -85,6 +92,9 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
   };
 
   const isAdmin = userWithAccess?.roles?.includes('admin') || false;
+  const { showAiStudy, showAiQuiz } = usePlanAiFlags(getUserId(user as Record<string, unknown> | null));
+  const canShowAiStudy = showAiStudy || isAppAdmin(user as Record<string, unknown> | null);
+  const canShowAiQuiz = showAiQuiz || isAppAdmin(user as Record<string, unknown> | null);
   const hasStudyAccess =
     isAdmin || userWithAccess?.moduleAccess?.study === true || false;
   const hasQuizAccess =
@@ -164,6 +174,36 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
           Navigation
         </Text>
         {navItems.map((item) => renderNavItem(item))}
+
+        {(canShowAiStudy || canShowAiQuiz) && (
+          <>
+            <Text fontSize="xs" fontWeight="bold" color="gray.500" px={2} pt={2} textTransform="uppercase">
+              AI Modes
+            </Text>
+            {aiNavItems.map((item) => {
+              if (item.flag === 'study' && !canShowAiStudy) return null;
+              if (item.flag === 'quiz' && !canShowAiQuiz) return null;
+              const [basePath, hash = ''] = item.path.split('#');
+              const isActive =
+                location.pathname === basePath &&
+                (hash ? location.hash === `#${hash}` : !location.hash);
+              return (
+                <Button
+                  key={item.path}
+                  w="100%"
+                  justifyContent="flex-start"
+                  leftIcon={<Text fontSize={{ base: 'md', md: 'lg' }}>{item.icon}</Text>}
+                  variant={isActive ? 'solid' : 'ghost'}
+                  colorScheme={isActive ? 'purple' : 'gray'}
+                  onClick={() => handleNavigate(item.path)}
+                  size={{ base: 'sm', md: 'md' }}
+                >
+                  <Text fontWeight={isActive ? 'bold' : 'normal'}>{item.label}</Text>
+                </Button>
+              );
+            })}
+          </>
+        )}
       </VStack>
 
       {/* Admin Link (if admin) */}
