@@ -1,5 +1,5 @@
 /**
- * Five common daily & school-life phrases for Word of the Day.
+ * Five idiomatic phrases — expressions used inside full sentences.
  */
 
 import { Box, Card, CardBody, Heading, Text, VStack, Badge, HStack } from '@/shared/design-system';
@@ -17,10 +17,10 @@ export const CommonPhrasesSection: React.FC<CommonPhrasesSectionProps> = ({ phra
       <CardBody p={{ base: 3, md: 4 }}>
         <VStack spacing={3} align="stretch">
           <Heading size="sm" color="teal.700">
-            🗣️ 5 Phrases for Daily & School Life
+            💬 5 Idioms & Expressions
           </Heading>
           <Text fontSize="xs" color="gray.600">
-            Useful expressions you can use every day
+            Phrases you can drop into a sentence — like "steal someone's thunder"
           </Text>
           {phrases.map((item, i) => (
             <Box
@@ -33,7 +33,7 @@ export const CommonPhrasesSection: React.FC<CommonPhrasesSectionProps> = ({ phra
             >
               <HStack justify="space-between" mb={1} flexWrap="wrap" gap={1}>
                 <Text fontWeight="bold" fontSize="sm" color="teal.800">
-                  {i + 1}. "{item.phrase}"
+                  {i + 1}. {item.phrase}
                 </Text>
                 <Badge colorScheme={item.context === 'school' ? 'blue' : 'green'} fontSize="2xs">
                   {item.context === 'school' ? 'School' : 'Daily life'}
@@ -41,7 +41,7 @@ export const CommonPhrasesSection: React.FC<CommonPhrasesSectionProps> = ({ phra
               </HStack>
               <Text fontSize="xs" color="gray.700" mb={1}>{item.meaning}</Text>
               <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                Example: {item.example}
+                "{item.example}"
               </Text>
             </Box>
           ))}

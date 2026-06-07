@@ -14,13 +14,24 @@ const WORD_POOLS = {
   advanced: ADVANCED_VOCABULARY_WORDS,
 };
 
-/** Pick one word for a date + grade using deterministic rotation */
-function getWordForDate(date, grade, complexity) {
+const WORDS_PER_DAY = 3;
+
+/** Pick three words for a date + grade using deterministic rotation */
+function getWordsForDate(date, grade, complexity) {
   const pool = WORD_POOLS[complexity] || WORD_POOLS.basic;
   const epochDay = Math.floor(date.getTime() / (1000 * 60 * 60 * 24));
   const gradeSeed = grade.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
-  const index = Math.abs(epochDay + gradeSeed) % pool.length;
-  return pool[index];
+  const start = Math.abs(epochDay + gradeSeed) % pool.length;
+  const words = [];
+  for (let i = 0; i < WORDS_PER_DAY; i++) {
+    words.push(pool[(start + i) % pool.length]);
+  }
+  return words;
 }
 
-module.exports = { WORD_POOLS, getWordForDate };
+/** @deprecated Use getWordsForDate — kept for any legacy callers */
+function getWordForDate(date, grade, complexity) {
+  return getWordsForDate(date, grade, complexity)[0];
+}
+
+module.exports = { WORD_POOLS, WORDS_PER_DAY, getWordsForDate, getWordForDate };

@@ -1,5 +1,5 @@
 /**
- * WordOfTheDay — class-based daily word + 5 common phrases
+ * WordOfTheDay — 3 class-based words + 5 idiomatic phrases per day
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -46,14 +46,14 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade }) => {
     setError(false);
     try {
       const dateStr = toYMD(date);
-      const cacheKey = `wotd_v3:${gradeLabel}:${dateStr}`;
+      const cacheKey = `wotd_v4:${gradeLabel}:${dateStr}`;
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as WordOfDayResponse;
-        if (parsed?.word) { setData(parsed); setLoading(false); return; }
+        if (parsed?.words?.length) { setData(parsed); setLoading(false); return; }
       }
       const response = await publicApi.getWordsOfTheDay(dateStr, gradeLabel);
-      if (response.success && response.word) {
+      if (response.success && response.words?.length > 0) {
         setData(response);
         try { sessionStorage.setItem(cacheKey, JSON.stringify(response)); } catch { /* ignore */ }
       } else {
@@ -83,9 +83,9 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade }) => {
         <VStack spacing={4} align="stretch">
           <HStack justify="space-between" align="center" flexWrap="wrap" gap={2}>
             <VStack spacing={0} align="start">
-              <Heading size="sm" color="purple.700">📚 Word of the Day</Heading>
+              <Heading size="sm" color="purple.700">📚 Words of the Day</Heading>
               <Text fontSize="xs" color="gray.500">
-                Tailored for {gradeLabel} — tap the word for full details
+                3 words for {gradeLabel} — tap any word for full details
               </Text>
             </VStack>
             {!isToday(selectedDate) && (
@@ -122,7 +122,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade }) => {
           {loading && (
             <VStack spacing={3} py={6}>
               <Spinner size="lg" color="purple.500" />
-              <Text fontSize="sm" color="gray.500">Loading today's word…</Text>
+              <Text fontSize="sm" color="gray.500">Loading today's words…</Text>
             </VStack>
           )}
 
@@ -130,20 +130,24 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade }) => {
             <VStack spacing={3} py={4}>
               <Text fontSize="2xl">📖</Text>
               <Text fontSize="sm" color="gray.500" textAlign="center">
-                Couldn't load today's word. Check your connection and try again.
+                Couldn't load today's words. Check your connection and try again.
               </Text>
               <Button size="sm" colorScheme="purple" onClick={() => loadWords(selectedDate)}>Retry</Button>
             </VStack>
           )}
 
-          {!loading && !error && data?.word && (
+          {!loading && !error && data && (data.words?.length ?? 0) > 0 && (
             <VStack spacing={4} align="stretch">
-              <WordOfDayCard
-                word={data.word}
-                complexity={data.complexity}
-                grade={data.grade}
-                date={data.date}
-              />
+              {data.words.map((entry, i) => (
+                <WordOfDayCard
+                  key={entry.word}
+                  entry={entry}
+                  index={i}
+                  complexity={data.complexity}
+                  grade={data.grade}
+                  date={data.date}
+                />
+              ))}
               <CommonPhrasesSection phrases={data.phrases} />
             </VStack>
           )}

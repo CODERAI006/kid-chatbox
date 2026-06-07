@@ -1,5 +1,5 @@
 /**
- * Summary card for today's Word of the Day with link to detail page.
+ * Summary card for one of today's three words, with link to detail page.
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -8,81 +8,89 @@ import {
 } from '@/shared/design-system';
 import type { WordEntry, WordComplexity } from '@/types/wordOfDay';
 
-const COMPLEXITY_LABELS: Record<WordComplexity, string> = {
-  basic: 'Basic',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
-};
+const CARD_COLORS = [
+  { bg: 'purple.50', border: 'purple.300', badge: 'purple', num: 'purple.700' },
+  { bg: 'blue.50', border: 'blue.300', badge: 'blue', num: 'blue.700' },
+  { bg: 'teal.50', border: 'teal.300', badge: 'teal', num: 'teal.700' },
+];
 
 interface WordOfDayCardProps {
-  word: WordEntry;
+  entry: WordEntry;
+  index: number;
   complexity: WordComplexity;
   grade: string;
   date: string;
 }
 
 export const WordOfDayCard: React.FC<WordOfDayCardProps> = ({
-  word, complexity, grade, date,
+  entry, index, complexity, grade, date,
 }) => {
   const navigate = useNavigate();
-  const firstMeaning = word.meanings[0];
-  const synonyms = word.meanings.flatMap((m) => m.synonyms).slice(0, 4);
-  const antonyms = word.meanings.flatMap((m) => m.antonyms).slice(0, 3);
+  const color = CARD_COLORS[index % CARD_COLORS.length];
+  const firstMeaning = entry.meanings[0];
+  const synonyms = entry.meanings.flatMap((m) => m.synonyms).slice(0, 4);
+  const antonyms = entry.meanings.flatMap((m) => m.antonyms).slice(0, 3);
 
   const goToDetail = () => {
     const params = new URLSearchParams({ date, grade });
-    navigate(`/word-of-day/${encodeURIComponent(word.word)}?${params}`);
+    navigate(`/word-of-day/${encodeURIComponent(entry.word)}?${params}`);
   };
 
   const playAudio = () => {
-    if (word.audioUrl) new Audio(word.audioUrl).play().catch(() => null);
+    if (entry.audioUrl) new Audio(entry.audioUrl).play().catch(() => null);
   };
 
   return (
     <Card
-      bg="purple.50" borderColor="purple.300" borderWidth={2}
+      bg={color.bg} borderColor={color.border} borderWidth={1.5}
       cursor="pointer" onClick={goToDetail}
-      _hover={{ boxShadow: 'md', borderColor: 'purple.400' }}
-      transition="all 0.2s"
+      _hover={{ boxShadow: 'md' }} transition="all 0.2s"
     >
       <CardBody p={{ base: 3, md: 4 }}>
-        <VStack spacing={3} align="stretch">
+        <VStack spacing={2} align="stretch">
           <HStack justify="space-between" flexWrap="wrap" gap={2}>
             <HStack spacing={2} flexWrap="wrap">
-              <Text fontSize={{ base: '2xl', md: '3xl' }} fontWeight="extrabold" color="purple.700" textTransform="capitalize">
-                {word.word}
+              <Box
+                bg={color.border} color="white" borderRadius="full"
+                w={7} h={7} display="flex" alignItems="center" justifyContent="center"
+                fontSize="sm" fontWeight="bold" flexShrink={0}
+              >
+                {index + 1}
+              </Box>
+              <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="extrabold" color={color.num} textTransform="capitalize">
+                {entry.word}
               </Text>
-              {word.phonetic && (
-                <Text fontSize="sm" color="gray.500" fontStyle="italic">{word.phonetic}</Text>
+              {entry.phonetic && (
+                <Text fontSize="sm" color="gray.500" fontStyle="italic">{entry.phonetic}</Text>
               )}
-              {word.audioUrl && (
+              {entry.audioUrl && (
                 <IconButton
                   aria-label="Play pronunciation"
                   icon={<Text fontSize="md">🔊</Text>}
-                  size="xs" variant="ghost" colorScheme="purple"
+                  size="xs" variant="ghost" colorScheme={color.badge}
                   onClick={(e) => { e.stopPropagation(); playAudio(); }}
                 />
               )}
             </HStack>
-            <Badge colorScheme="purple">{COMPLEXITY_LABELS[complexity]}</Badge>
+            {index === 0 && (
+              <Badge colorScheme={color.badge} fontSize="xs">{complexity}</Badge>
+            )}
           </HStack>
 
           {firstMeaning && (
-            <HStack spacing={2} flexWrap="wrap">
-              <Badge colorScheme="purple" variant="outline" textTransform="capitalize">
-                {firstMeaning.partOfSpeech}
-              </Badge>
-            </HStack>
+            <Badge colorScheme={color.badge} fontSize="2xs" alignSelf="flex-start" textTransform="capitalize">
+              {firstMeaning.partOfSpeech}
+            </Badge>
           )}
 
           {firstMeaning?.definitions[0] && (
-            <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.700" lineHeight="tall">
+            <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.700" lineHeight="tall" pl={9}>
               {firstMeaning.definitions[0].definition}
             </Text>
           )}
 
           {(synonyms.length > 0 || antonyms.length > 0) && (
-            <Box>
+            <Box pl={9}>
               {synonyms.length > 0 && (
                 <HStack spacing={1} flexWrap="wrap" mb={1}>
                   <Text fontSize="xs" fontWeight="bold" color="green.700">Synonyms:</Text>
@@ -103,10 +111,10 @@ export const WordOfDayCard: React.FC<WordOfDayCardProps> = ({
           )}
 
           <Button
-            size="sm" colorScheme="purple" alignSelf="flex-start"
+            size="xs" variant="ghost" colorScheme={color.badge} alignSelf="flex-start" ml={9}
             onClick={(e) => { e.stopPropagation(); goToDetail(); }}
           >
-            Read full explanation →
+            Full explanation →
           </Button>
         </VStack>
       </CardBody>

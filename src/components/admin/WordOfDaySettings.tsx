@@ -75,8 +75,8 @@ export const WordOfDaySettingsPage: React.FC = () => {
       <Box>
         <Heading size="md" mb={2}>Word of the Day Settings</Heading>
         <Text color="gray.600" fontSize="sm">
-          Set vocabulary complexity per class. Each grade gets a different word each day,
-          plus 5 common phrases matched to the same level.
+          Set vocabulary complexity per class. Each grade gets 3 words per day
+          plus 5 idiomatic expressions matched to the same level.
         </Text>
       </Box>
 

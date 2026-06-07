@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import {
   Box,
   Text,
-  Badge,
   Button,
   HStack,
   VStack,

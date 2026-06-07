@@ -974,7 +974,7 @@ export const publicApi = {
         date: date || '',
         grade: grade || '',
         complexity: 'basic',
-        word: { word: '', phonetic: '', audioUrl: null, meanings: [] },
+        words: [],
         phrases: [],
       };
     }
@@ -1001,6 +1001,7 @@ export const publicApi = {
         date: date || '',
         grade: grade || '',
         complexity: 'basic',
+        words: [],
         word: { word: '', phonetic: '', audioUrl: null, meanings: [] },
         phrases: [],
       };

@@ -34,7 +34,10 @@ export interface WordOfDayResponse {
   date: string;
   grade: string;
   complexity: WordComplexity;
-  word: WordEntry;
+  /** Three words for the daily list view */
+  words: WordEntry[];
+  /** Single enriched word on the detail page */
+  word?: WordEntry;
   phrases: DailyPhrase[];
 }
 

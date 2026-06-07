@@ -1,12 +1,12 @@
 /**
- * Words of the Day — class-based word + 5 daily phrases
+ * Words of the Day — 3 class-based words + 5 idiomatic phrases per day
  * GET /api/public/words-of-day?date=YYYY-MM-DD&grade=Class+5
  * GET /api/public/words-of-day/detail?word=happy&date=...&grade=...
  */
 
 const express = require('express');
 const { pool } = require('../config/database');
-const { getWordForDate } = require('../data/grade-vocabulary');
+const { getWordsForDate } = require('../data/grade-vocabulary');
 const { getPhrasesForDate } = require('../data/daily-phrases');
 const { getComplexityForGrade, defaultComplexityForGrade } = require('../utils/wordOfDaySettings');
 const { enrichWord } = require('../utils/wordOfDayEnrich');
@@ -27,9 +27,9 @@ function formatDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-function cacheKey(grade, cacheDate) {
+function cacheKey(grade) {
   const g = String(grade || 'default').replace(/\s+/g, '_').toLowerCase();
-  return `wotd_v3_${g}`;
+  return `wotd_v4_${g}`;
 }
 
 async function readCache(key, cacheDate) {
@@ -59,15 +59,17 @@ async function writeCache(key, cacheDate, payload) {
   }
 }
 
-async function buildDailyPayload(date, grade, includeDetail = false) {
+async function buildDailyPayload(date, grade) {
   const cacheDate = formatDate(date);
   const gradeLabel = String(grade || 'Class 5 / Grade 5').trim();
   const complexity =
     (await getComplexityForGrade(gradeLabel)) ||
     defaultComplexityForGrade(gradeLabel);
 
-  const wordText = getWordForDate(date, gradeLabel, complexity);
-  const word = await enrichWord(wordText, complexity, includeDetail);
+  const wordTexts = getWordsForDate(date, gradeLabel, complexity);
+  const words = await Promise.all(
+    wordTexts.map((w) => enrichWord(w, complexity, false))
+  );
   const phrases = getPhrasesForDate(date, gradeLabel, complexity);
 
   return {
@@ -75,32 +77,32 @@ async function buildDailyPayload(date, grade, includeDetail = false) {
     date: cacheDate,
     grade: gradeLabel,
     complexity,
-    word,
+    words,
     phrases,
   };
 }
 
-/** GET / — daily word + 5 phrases */
+/** GET / — 3 daily words + 5 idiomatic phrases */
 router.get('/', async (req, res) => {
   try {
     const date = parseDateParam(req.query.date);
     const grade = req.query.grade || 'Class 5 / Grade 5';
     const cacheDate = formatDate(date);
-    const key = cacheKey(grade, cacheDate);
+    const key = cacheKey(grade);
 
     const cached = await readCache(key, cacheDate);
-    if (cached) return res.json(cached);
+    if (cached?.words?.length) return res.json(cached);
 
-    const body = await buildDailyPayload(date, grade, false);
+    const body = await buildDailyPayload(date, grade);
     await writeCache(key, cacheDate, body);
     res.json(body);
   } catch (error) {
     console.error('[words-of-day] error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to load word of the day' });
+    res.status(500).json({ success: false, message: 'Failed to load words of the day' });
   }
 });
 
-/** GET /detail — full word explanation page */
+/** GET /detail — full explanation for one of today's three words */
 router.get('/detail', async (req, res) => {
   try {
     const date = parseDateParam(req.query.date);
@@ -112,20 +114,21 @@ router.get('/detail', async (req, res) => {
       defaultComplexityForGrade(gradeLabel);
 
     const wordParam = String(req.query.word || '').trim().toLowerCase();
-    const expectedWord = getWordForDate(date, gradeLabel, complexity).toLowerCase();
+    const todaysWords = getWordsForDate(date, gradeLabel, complexity)
+      .map((w) => w.toLowerCase());
 
-    if (!wordParam || wordParam !== expectedWord) {
+    if (!wordParam || !todaysWords.includes(wordParam)) {
       return res.status(404).json({
         success: false,
         message: 'Word not found for this date and class',
       });
     }
 
-    const detailKey = `${cacheKey(grade, cacheDate)}_detail`;
+    const detailKey = `${cacheKey(grade)}_detail_${wordParam}`;
     const cached = await readCache(detailKey, cacheDate);
-    if (cached) return res.json(cached);
+    if (cached?.word) return res.json(cached);
 
-    const word = await enrichWord(expectedWord, complexity, true);
+    const word = await enrichWord(wordParam, complexity, true);
     const phrases = getPhrasesForDate(date, gradeLabel, complexity);
     const body = {
       success: true,
