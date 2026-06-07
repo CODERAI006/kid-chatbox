@@ -6,7 +6,7 @@ const express = require('express');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { ollamaChat, isLlmConfigured } = require('../utils/ollamaClient');
-const { SYSTEM_PROMPT } = require('../utils/learningBotPrompt');
+const { resolveSystemPrompt } = require('../utils/learningBotPrompt');
 const { parseLearningWorkspace } = require('../utils/learningWorkspaceParse');
 
 const router = express.Router();
@@ -184,7 +184,9 @@ router.post('/message', async (req, res, next) => {
       });
     }
 
-    let { conversationId, text } = req.body || {};
+    let { conversationId, text, mode, format } = req.body || {};
+    const chatMode = mode === 'chat' ? 'chat' : 'workspace';
+    const studyFormat = typeof format === 'string' ? format.trim() : '';
     if (typeof text !== 'string') {
       return res.status(400).json({ success: false, message: 'text is required' });
     }
@@ -238,16 +240,18 @@ router.post('/message', async (req, res, next) => {
         content: r.content,
       }));
 
-      const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...tail];
+      const systemPrompt = resolveSystemPrompt(chatMode, studyFormat);
+      const messages = [{ role: 'system', content: systemPrompt }, ...tail];
 
+      const isChat = chatMode === 'chat';
       const { content, model } = await ollamaChat({
         messages,
-        temperature: 0.55,
-        num_predict: 8192,
-        logContext: `api.learning-bot userId=${userId}`,
+        temperature: isChat ? 0.65 : 0.55,
+        num_predict: isChat ? 2048 : 8192,
+        logContext: `api.learning-bot userId=${userId} mode=${chatMode}`,
       });
 
-      const structured = parseLearningWorkspace(content);
+      const structured = isChat ? null : parseLearningWorkspace(content);
 
       await client.query(
         `INSERT INTO learning_bot_messages (conversation_id, role, content)

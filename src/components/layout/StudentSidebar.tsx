@@ -37,6 +37,7 @@ interface StudentSidebarProps {
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+  { path: '/pricing-plans', label: 'Pricing Plans', icon: '💳' },
   { path: '/quiz', label: 'Quiz Hub', icon: '🎯' },
   { path: '/quiz-rankings', label: 'Quiz Rankings', icon: '🏆' },
   { path: '/study', label: 'Study Hub', icon: '📚' },

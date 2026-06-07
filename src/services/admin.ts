@@ -1113,11 +1113,40 @@ export const scheduledTestsApi = {
   },
 };
 
+export interface OllamaCloudVisionOption {
+  id: string;
+  label: string;
+  note: string;
+}
+
+export interface OllamaModelPreset {
+  id: string;
+  label: string;
+}
+
+export interface OllamaModelCatalogEntry {
+  id: string;
+  label: string;
+  description: string;
+  emoji: string;
+  envVar: string;
+  implemented: boolean;
+  defaultCloud: string;
+  defaultLocal: string;
+  presets: OllamaModelPreset[];
+}
+
 export interface OllamaCloudSettings {
   enabled: boolean;
   hasApiKey: boolean;
   apiKeyMasked: string | null;
+  /** @deprecated use models.text */
   cloudModel: string;
+  /** @deprecated use models.ocr */
+  cloudVisionModel: string;
+  models: Record<string, string>;
+  modelCatalog?: OllamaModelCatalogEntry[];
+  cloudVisionModelOptions?: OllamaCloudVisionOption[];
   cloudBaseUrl: string;
   updatedAt: string | null;
   updatedBy: string | null;
@@ -1154,6 +1183,8 @@ export const ollamaCloudApi = {
     enabled?: boolean;
     apiKey?: string;
     cloudModel?: string;
+    cloudVisionModel?: string;
+    models?: Record<string, string>;
   }): Promise<{ success: boolean; settings: OllamaCloudSettings; message?: string }> => {
     const response = await apiClient.put('/admin/ollama-cloud', payload);
     return response.data;

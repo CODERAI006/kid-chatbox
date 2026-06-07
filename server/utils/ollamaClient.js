@@ -213,10 +213,11 @@ async function ollamaChat({
       } catch {
         /* use body.model */
       }
-      throw new Error(
-        `Ollama vision model "${missing}" is not installed. ` +
-          'Run `ollama pull moondream` or `ollama pull llava`, or set OLLAMA_VISION_MODEL in .env.'
-      );
+      const visionHint =
+        runtime.mode === 'cloud'
+          ? 'Check Admin → Ollama Cloud → OCR model or set OLLAMA_VISION_MODEL.'
+          : 'Run `ollama pull qwen3-vl` or set OLLAMA_VISION_MODEL in .env.';
+      throw new Error(`Ollama vision model "${missing}" is not available. ${visionHint}`);
     }
     throw new Error(
       `Ollama request failed (${res.status}): ${text.slice(0, 400)}`

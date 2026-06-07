@@ -30,4 +30,31 @@ const SYSTEM_PROMPT =
   'Include 4-8 cards per reply. Always include hook + explanation (with readMore) + flashcard (20+ pairs) when teaching a new topic. ' +
   'For follow-up answers, use fewer cards but keep JSON format.';
 
-module.exports = { SYSTEM_PROMPT, MIN_FLASHCARDS };
+const CONVERSATIONAL_PROMPT =
+  'You are a friendly AI study tutor for school learners. Have a natural back-and-forth conversation. ' +
+  'Reply in plain text only — no JSON, no markdown code fences, no card structures. ' +
+  'Use short paragraphs, simple language, and ask a helpful follow-up question when it fits. ' +
+  'Stay accurate; say when you are unsure. Match the student\'s level.';
+
+const FORMAT_FOCUS = {
+  detail:
+    '\nFOCUS: Prioritize explanation card with rich readMore (3-6 paragraphs). Include hook + 20+ flashcards.',
+  flashcards:
+    `\nFOCUS: Prioritize one flashcard card with at least ${MIN_FLASHCARDS} question/answer pairs. Include a brief hook.`,
+  visualize: '\nFOCUS: Prioritize diagram card with 4+ hotspots. Include a short explanation.',
+  watch: '\nFOCUS: Include video + audio cards plus a brief explanation.',
+  quiz: '\nFOCUS: Include an engaging quiz card with 3-4 options and clear feedback.',
+  learn: '\nFOCUS: Keep it light — hook + short explanation. Optional 1-2 extra cards.',
+};
+
+/**
+ * @param {'workspace'|'chat'} mode
+ * @param {string} [format]
+ */
+function resolveSystemPrompt(mode, format) {
+  if (mode === 'chat') return CONVERSATIONAL_PROMPT;
+  const focus = format && FORMAT_FOCUS[format] ? FORMAT_FOCUS[format] : '';
+  return SYSTEM_PROMPT + focus;
+}
+
+module.exports = { SYSTEM_PROMPT, CONVERSATIONAL_PROMPT, MIN_FLASHCARDS, resolveSystemPrompt };

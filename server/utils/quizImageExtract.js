@@ -1,7 +1,7 @@
 /**
  * Extract readable text from quiz page photos via Ollama vision models.
  */
-const { ollamaChat, isLlmConfigured } = require('./ollamaClient');
+const { ollamaChat, isLlmConfigured, getOllamaRuntimeConfig } = require('./ollamaClient');
 const { resolveVisionModel } = require('./ollamaVisionModel');
 
 const MAX_PAGES = 5;
@@ -43,7 +43,8 @@ async function extractTextFromQuizPages(base64Images) {
 
   const images = normalizeBase64Images(base64Images);
   const model = await resolveVisionModel();
-  console.info('[quiz-image] using vision model', { model, pages: images.length });
+  const runtime = getOllamaRuntimeConfig();
+  console.info('[quiz-image] using vision model', { model, mode: runtime.mode, pages: images.length });
 
   const { content } = await ollamaChat({
     model,

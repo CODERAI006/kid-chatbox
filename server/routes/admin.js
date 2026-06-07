@@ -961,11 +961,11 @@ router.get('/ollama-cloud', checkPermission('manage_users'), async (req, res, ne
 /**
  * Update Ollama Cloud settings
  * PUT /api/admin/ollama-cloud
- * Body: { enabled?, apiKey?, cloudModel? }
+ * Body: { enabled?, apiKey?, cloudModel?, cloudVisionModel?, models? }
  */
 router.put('/ollama-cloud', checkPermission('manage_users'), async (req, res, next) => {
   try {
-    const { enabled, apiKey, cloudModel } = req.body || {};
+    const { enabled, apiKey, cloudModel, cloudVisionModel, models } = req.body || {};
     const { saveOllamaCloudSettings } = require('../utils/ollamaCloudSettings');
 
     if (enabled === true && typeof apiKey === 'string' && !apiKey.trim()) {
@@ -982,6 +982,8 @@ router.put('/ollama-cloud', checkPermission('manage_users'), async (req, res, ne
       enabled: typeof enabled === 'boolean' ? enabled : undefined,
       apiKey: typeof apiKey === 'string' ? apiKey : undefined,
       cloudModel: typeof cloudModel === 'string' ? cloudModel : undefined,
+      cloudVisionModel: typeof cloudVisionModel === 'string' ? cloudVisionModel : undefined,
+      models: models && typeof models === 'object' ? models : undefined,
       updatedBy: req.user?.id,
     });
 

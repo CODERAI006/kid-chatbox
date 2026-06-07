@@ -43,6 +43,7 @@ import {
   FormHelperText,
 } from '@/shared/design-system';
 import { apiClient } from '@/services/api';
+import { formatPlanPrice } from '@/utils/planPricing';
 
 interface Plan {
   id: string;
@@ -332,9 +333,7 @@ export const PlanManagement: React.FC = () => {
                   <Td>{plan.description || '-'}</Td>
                   <Td>{plan.daily_quiz_limit}</Td>
                   <Td>{plan.daily_topic_limit}</Td>
-                  <Td>
-                    ${typeof plan.monthly_cost === 'number' ? plan.monthly_cost.toFixed(2) : Number(plan.monthly_cost || 0).toFixed(2)}
-                  </Td>
+                  <Td>{formatPlanPrice(plan.monthly_cost)}</Td>
                   <Td>
                     <Badge colorScheme={plan.status === 'active' ? 'green' : 'gray'}>
                       {plan.status}
@@ -428,7 +427,7 @@ export const PlanManagement: React.FC = () => {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Monthly Cost ($)</FormLabel>
+                  <FormLabel>Monthly Cost (₹)</FormLabel>
                   <NumberInput
                     value={formData.monthlyCost}
                     onChange={(_: string, value: number) =>

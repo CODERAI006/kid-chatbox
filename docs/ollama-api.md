@@ -158,6 +158,16 @@ Kid Chatbox can route AI to [Ollama Cloud](https://docs.ollama.com/cloud) instea
 | Local (default) | `http://127.0.0.1:11434` | None |
 | Cloud | `https://ollama.com` | `Authorization: Bearer <API key>` |
 
-**Admin UI:** Admin Portal → **Ollama Cloud** — enable/disable, set API key (encrypted at rest), pick cloud model.
+**Admin UI:** Admin Portal → **Ollama Cloud** — enable cloud, API key, and **per-type models** (text, OCR, image, voice, PDF).
 
-**Env fallback:** `OLLAMA_API_KEY` can supplement the admin-stored key. Global kill switch: `OLLAMA_DISABLED=true`.
+**Model types:**
+
+| Type | Used for | Default (cloud) |
+|------|----------|-----------------|
+| `text` | Quiz, study, learning bot | `gpt-oss:120b` |
+| `ocr` | Page photo reading | `qwen3-vl:235b-cloud` |
+| `image` | Illustrations (planned) | `flux:cloud` |
+| `voice` | TTS narration (planned) | — |
+| `pdf` | Document export (planned) | — |
+
+Override any type via env (`OLLAMA_MODEL`, `OLLAMA_VISION_MODEL`, `OLLAMA_IMAGE_MODEL`, etc.) or Admin settings.

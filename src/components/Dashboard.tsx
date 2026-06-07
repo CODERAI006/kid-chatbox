@@ -26,6 +26,7 @@ import { PullToRefresh } from './PullToRefresh';
 import { WordOfTheDay } from './WordOfTheDay';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { isAppAdmin } from '@/utils/userAccess';
+import { formatPlanPrice } from '@/utils/planPricing';
 
 interface DashboardProps {
   user: User;
@@ -424,8 +425,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   borderWidth={2}
                   borderColor="blue.200"
                   boxShadow="lg"
-                  height={{ base: 'auto', md: '200px' }}
-                  minH={{ base: '160px', md: '200px' }}
+                  height={{ base: 'auto', md: 'auto' }}
+                  minH={{ base: '180px', md: '220px' }}
                   width="100%"
                 >
                   <CardBody p={{ base: 3, sm: 3.5, md: 4, lg: 5 }}>
@@ -437,7 +438,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                           </Heading>
                           {typeof planInfo.plan.monthly_cost === 'number' && planInfo.plan.monthly_cost > 0 ? (
                             <Badge colorScheme="green" fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}>
-                              ${typeof planInfo.plan.monthly_cost === 'number' ? planInfo.plan.monthly_cost.toFixed(2) : '0.00'}/mo
+                              {formatPlanPrice(planInfo.plan.monthly_cost)}
                             </Badge>
                           ) : (
                             <Badge colorScheme="blue" fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}>
@@ -507,6 +508,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                           />
                         </Box>
                       </VStack>
+                      <Button
+                        size="sm"
+                        colorScheme="blue"
+                        variant="outline"
+                        onClick={() => navigate('/pricing-plans')}
+                        w="100%"
+                      >
+                        View pricing plans
+                      </Button>
                     </VStack>
                   </CardBody>
                 </Card>

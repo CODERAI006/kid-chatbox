@@ -62,8 +62,11 @@ export const QuizPageUpload: React.FC<QuizPageUploadProps> = ({
             </Text>
             <Text fontSize="xs" color="gray.600" mt={1}>
               Upload up to {QUIZ_PAGE_IMAGE_MAX} photos of textbook pages, notes, or worksheets.
-              Questions will be based on the text in your images. Requires a vision model in Ollama
-              (e.g. run <Text as="code" fontSize="2xs">ollama pull moondream</Text> once on the server).
+              Questions are generated from text read in your images via a vision model.
+              With <strong>Ollama Cloud</strong> (Admin → Ollama Cloud), use{' '}
+              <Text as="code" fontSize="2xs">qwen3-vl:235b-cloud</Text> (recommended).
+              Locally, run <Text as="code" fontSize="2xs">ollama pull qwen3-vl</Text> or{' '}
+              <Text as="code" fontSize="2xs">ollama pull qwen2.5vl</Text>.
             </Text>
           </Box>
           <Button size="sm" colorScheme="purple" borderRadius="full" onClick={handlePick}

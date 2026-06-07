@@ -266,6 +266,8 @@ export const learningBotApi = {
   sendMessage: async (params: {
     conversationId: string | null;
     text: string;
+    mode?: 'workspace' | 'chat';
+    format?: string;
   }): Promise<{
     conversationId: string;
     content: string;
@@ -833,6 +835,43 @@ export const scheduledTestsApi = {
 };
 
 export const planApi = {
+  /**
+   * Get active plans for student pricing portal
+   */
+  getCatalogPlans: async (): Promise<{
+    success: boolean;
+    plans: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      daily_quiz_limit: number;
+      daily_topic_limit: number;
+      monthly_cost: number;
+      hide_ai_study?: boolean;
+      hide_ai_quiz?: boolean;
+      status: string;
+    }>;
+  }> => {
+    const response = await apiClient.get('/plans/catalog');
+    return response.data;
+  },
+
+  /**
+   * Select a plan for the current user
+   */
+  selectPlan: async (planId: string): Promise<{
+    success: boolean;
+    message: string;
+    plan: {
+      id: string;
+      name: string;
+      monthly_cost: number;
+    };
+  }> => {
+    const response = await apiClient.post(`/plans/select/${planId}`);
+    return response.data;
+  },
+
   /**
    * Get all plans
    */

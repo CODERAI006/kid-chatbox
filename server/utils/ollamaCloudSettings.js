@@ -5,12 +5,19 @@
 
 const crypto = require('crypto');
 const { pool } = require('../config/database');
+const {
+  normalizeProfiles,
+  resolveModelForType,
+  getAdminModelCatalog,
+  buildDefaultProfiles,
+} = require('./ollamaModelRegistry');
 
 const CLOUD_BASE_URL = 'https://ollama.com';
 const DEFAULT_CLOUD_MODEL = 'gpt-oss:120b';
+const DEFAULT_CLOUD_VISION_MODEL = 'qwen3-vl:235b-cloud';
 const ALGO = 'aes-256-gcm';
 
-/** @type {{ enabled: boolean, hasApiKey: boolean, cloudModel: string, apiKey: string | null } | null} */
+/** @type {{ enabled: boolean, hasApiKey: boolean, profiles: Record<string, string>, apiKey: string | null } | null} */
 let cache = null;
 
 function deriveKey() {
@@ -51,20 +58,44 @@ function maskApiKey(key) {
   return `${key.slice(0, 4)}••••${key.slice(-4)}`;
 }
 
+function profilesFromRow(row) {
+  let jsonProfiles = {};
+  if (row?.model_profiles) {
+    try {
+      jsonProfiles =
+        typeof row.model_profiles === 'string'
+          ? JSON.parse(row.model_profiles)
+          : row.model_profiles;
+    } catch {
+      jsonProfiles = {};
+    }
+  }
+  return normalizeProfiles(jsonProfiles, {
+    text: row?.cloud_model,
+    ocr: row?.cloud_vision_model,
+  });
+}
+
 async function loadOllamaCloudSettings() {
   const result = await pool.query(
-    `SELECT enabled, api_key_encrypted, cloud_model FROM ollama_cloud_settings WHERE id = 1`
+    `SELECT enabled, api_key_encrypted, cloud_model, cloud_vision_model, model_profiles
+     FROM ollama_cloud_settings WHERE id = 1`
   );
   const row = result.rows[0];
   if (!row) {
-    cache = { enabled: false, hasApiKey: false, cloudModel: DEFAULT_CLOUD_MODEL, apiKey: null };
+    cache = {
+      enabled: false,
+      hasApiKey: false,
+      profiles: buildDefaultProfiles('cloud'),
+      apiKey: null,
+    };
     return cache;
   }
   const apiKey = decryptApiKey(row.api_key_encrypted);
   cache = {
     enabled: Boolean(row.enabled),
     hasApiKey: Boolean(apiKey),
-    cloudModel: (row.cloud_model || DEFAULT_CLOUD_MODEL).trim() || DEFAULT_CLOUD_MODEL,
+    profiles: profilesFromRow(row),
     apiKey,
   };
   return cache;
@@ -75,7 +106,7 @@ function getCachedOllamaCloudSettings() {
     cache || {
       enabled: false,
       hasApiKey: false,
-      cloudModel: DEFAULT_CLOUD_MODEL,
+      profiles: buildDefaultProfiles('cloud'),
       apiKey: null,
     }
   );
@@ -85,73 +116,111 @@ function invalidateOllamaCloudCache() {
   cache = null;
 }
 
-/**
- * Resolve runtime Ollama target: cloud (when enabled + key) or local env defaults.
- * @returns {{ mode: 'cloud' | 'local', baseUrl: string, model: string, headers: Record<string, string>, configured: boolean }}
- */
-function getResolvedOllamaConfig(localBaseUrl, localModel) {
+function getOllamaRuntimeMode(localConfigured = true) {
   const envDisabled = process.env.OLLAMA_DISABLED;
   if (envDisabled === '1' || String(envDisabled).toLowerCase() === 'true') {
-    return { mode: 'local', baseUrl: localBaseUrl, model: localModel, headers: {}, configured: false };
+    return { mode: 'local', configured: false };
   }
+  const cloud = getCachedOllamaCloudSettings();
+  const envCloudKey = (process.env.OLLAMA_API_KEY || '').trim();
+  if (cloud.enabled) {
+    const apiKey = cloud.apiKey || envCloudKey || null;
+    return { mode: 'cloud', configured: Boolean(apiKey) };
+  }
+  return { mode: 'local', configured: localConfigured };
+}
 
+/**
+ * @returns {{ mode: 'cloud' | 'local', baseUrl: string, model: string, headers: Record<string, string>, configured: boolean, profiles: Record<string, string> }}
+ */
+function getResolvedOllamaConfig(localBaseUrl, localModel) {
+  const runtime = getOllamaRuntimeMode(true);
   const cloud = getCachedOllamaCloudSettings();
   const envCloudKey = (process.env.OLLAMA_API_KEY || '').trim();
 
-  if (cloud.enabled) {
+  if (runtime.mode === 'cloud') {
     const apiKey = cloud.apiKey || envCloudKey || null;
-    if (!apiKey) {
-      return { mode: 'cloud', baseUrl: CLOUD_BASE_URL, model: cloud.cloudModel, headers: {}, configured: false };
-    }
+    const textModel = resolveModelForType('text', { mode: 'cloud', profiles: cloud.profiles });
     return {
       mode: 'cloud',
       baseUrl: CLOUD_BASE_URL,
-      model: cloud.cloudModel,
-      headers: { Authorization: `Bearer ${apiKey}` },
-      configured: true,
+      model: textModel || DEFAULT_CLOUD_MODEL,
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      configured: Boolean(apiKey),
+      profiles: cloud.profiles,
     };
   }
 
+  const localProfiles = buildDefaultProfiles('local');
   return {
     mode: 'local',
     baseUrl: localBaseUrl,
-    model: localModel,
+    model: resolveModelForType('text', { mode: 'local', profiles: localProfiles }) || localModel,
     headers: {},
-    configured: true,
+    configured: runtime.configured,
+    profiles: localProfiles,
   };
+}
+
+/** @param {'text'|'ocr'|'image'|'voice'|'pdf'} typeId */
+function getConfiguredModel(typeId) {
+  const localBase = (process.env.OLLAMA_HOST || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
+  const localModel = (process.env.OLLAMA_MODEL || 'llama3.2:latest').trim();
+  const runtime = getResolvedOllamaConfig(localBase, localModel);
+  return resolveModelForType(typeId, { mode: runtime.mode, profiles: runtime.profiles });
 }
 
 async function getOllamaCloudSettingsForAdmin() {
   const result = await pool.query(
-    `SELECT enabled, api_key_encrypted, cloud_model, updated_at, updated_by
+    `SELECT enabled, api_key_encrypted, cloud_model, cloud_vision_model, model_profiles, updated_at, updated_by
      FROM ollama_cloud_settings WHERE id = 1`
   );
   const row = result.rows[0];
   const apiKey = decryptApiKey(row?.api_key_encrypted);
+  const models = profilesFromRow(row);
   return {
     enabled: Boolean(row?.enabled),
     hasApiKey: Boolean(apiKey),
     apiKeyMasked: maskApiKey(apiKey),
-    cloudModel: (row?.cloud_model || DEFAULT_CLOUD_MODEL).trim(),
+    cloudModel: models.text || DEFAULT_CLOUD_MODEL,
+    cloudVisionModel: models.ocr || DEFAULT_CLOUD_VISION_MODEL,
+    models,
+    modelCatalog: getAdminModelCatalog(),
     updatedAt: row?.updated_at || null,
     updatedBy: row?.updated_by || null,
     cloudBaseUrl: CLOUD_BASE_URL,
   };
 }
 
+function mergeModelsInput(input, row) {
+  const existing = profilesFromRow(row);
+  const next = { ...existing };
+
+  if (input.models && typeof input.models === 'object') {
+    for (const [key, val] of Object.entries(input.models)) {
+      if (typeof val === 'string') next[key] = val.trim();
+    }
+  }
+  if (typeof input.cloudModel === 'string' && input.cloudModel.trim()) {
+    next.text = input.cloudModel.trim();
+  }
+  if (typeof input.cloudVisionModel === 'string' && input.cloudVisionModel.trim()) {
+    next.ocr = input.cloudVisionModel.trim();
+  }
+  return normalizeProfiles(next, {});
+}
+
 /**
- * @param {{ enabled?: boolean, apiKey?: string | null, cloudModel?: string, updatedBy?: string }} input
+ * @param {{ enabled?: boolean, apiKey?: string | null, cloudModel?: string, cloudVisionModel?: string, models?: Record<string, string>, updatedBy?: string }} input
  */
 async function saveOllamaCloudSettings(input) {
   const current = await pool.query(
-    `SELECT enabled, api_key_encrypted, cloud_model FROM ollama_cloud_settings WHERE id = 1`
+    `SELECT enabled, api_key_encrypted, cloud_model, cloud_vision_model, model_profiles
+     FROM ollama_cloud_settings WHERE id = 1`
   );
   const row = current.rows[0];
   const enabled = typeof input.enabled === 'boolean' ? input.enabled : Boolean(row?.enabled);
-  const cloudModel =
-    typeof input.cloudModel === 'string' && input.cloudModel.trim()
-      ? input.cloudModel.trim()
-      : (row?.cloud_model || DEFAULT_CLOUD_MODEL);
+  const models = mergeModelsInput(input, row);
 
   let apiKeyEncrypted = row?.api_key_encrypted || null;
   if (typeof input.apiKey === 'string' && input.apiKey.trim()) {
@@ -159,15 +228,26 @@ async function saveOllamaCloudSettings(input) {
   }
 
   await pool.query(
-    `INSERT INTO ollama_cloud_settings (id, enabled, api_key_encrypted, cloud_model, updated_at, updated_by)
-     VALUES (1, $1, $2, $3, CURRENT_TIMESTAMP, $4)
+    `INSERT INTO ollama_cloud_settings (
+       id, enabled, api_key_encrypted, cloud_model, cloud_vision_model, model_profiles, updated_at, updated_by
+     )
+     VALUES (1, $1, $2, $3, $4, $5::jsonb, CURRENT_TIMESTAMP, $6)
      ON CONFLICT (id) DO UPDATE SET
        enabled = EXCLUDED.enabled,
        api_key_encrypted = COALESCE(EXCLUDED.api_key_encrypted, ollama_cloud_settings.api_key_encrypted),
        cloud_model = EXCLUDED.cloud_model,
+       cloud_vision_model = EXCLUDED.cloud_vision_model,
+       model_profiles = EXCLUDED.model_profiles,
        updated_at = CURRENT_TIMESTAMP,
        updated_by = EXCLUDED.updated_by`,
-    [enabled, apiKeyEncrypted, cloudModel, input.updatedBy || null]
+    [
+      enabled,
+      apiKeyEncrypted,
+      models.text || DEFAULT_CLOUD_MODEL,
+      models.ocr || DEFAULT_CLOUD_VISION_MODEL,
+      JSON.stringify(models),
+      input.updatedBy || null,
+    ]
   );
 
   invalidateOllamaCloudCache();
@@ -178,10 +258,12 @@ async function saveOllamaCloudSettings(input) {
 module.exports = {
   CLOUD_BASE_URL,
   DEFAULT_CLOUD_MODEL,
+  DEFAULT_CLOUD_VISION_MODEL,
   loadOllamaCloudSettings,
   getCachedOllamaCloudSettings,
   invalidateOllamaCloudCache,
   getResolvedOllamaConfig,
+  getConfiguredModel,
   getOllamaCloudSettingsForAdmin,
   saveOllamaCloudSettings,
   maskApiKey,

@@ -20,6 +20,77 @@ const router = express.Router();
 router.use(authenticateToken);
 
 /**
+ * Get active plans for student pricing portal
+ * GET /api/plans/catalog
+ */
+router.get('/catalog', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+        id,
+        name,
+        description,
+        daily_quiz_limit,
+        daily_topic_limit,
+        monthly_cost,
+        hide_ai_study,
+        hide_ai_quiz,
+        status
+      FROM plans
+      WHERE status = 'active'
+      ORDER BY monthly_cost ASC, name ASC`
+    );
+
+    res.json({
+      success: true,
+      plans: result.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Student self-selects a plan
+ * POST /api/plans/select/:planId
+ */
+router.post('/select/:planId', async (req, res, next) => {
+  try {
+    const { planId } = req.params;
+
+    const planResult = await pool.query(
+      'SELECT * FROM plans WHERE id = $1',
+      [planId]
+    );
+
+    if (planResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Plan not found',
+      });
+    }
+
+    if (planResult.rows[0].status !== 'active') {
+      return res.status(400).json({
+        success: false,
+        message: 'This plan is not available',
+      });
+    }
+
+    await assignPlanToUser(req.user.id, planId, req.user.id);
+    const userPlan = await getUserPlan(req.user.id);
+
+    res.json({
+      success: true,
+      message: 'Plan selected successfully',
+      plan: userPlan,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Get all plans
  * GET /api/plans
  */
@@ -32,7 +103,7 @@ router.get('/', checkPermission('manage_users'), async (req, res, next) => {
       FROM plans p
       LEFT JOIN user_plans up ON p.id = up.plan_id
       GROUP BY p.id
-      ORDER BY p.created_at DESC`
+      ORDER BY p.monthly_cost ASC, p.name ASC`
     );
 
     res.json({

@@ -35,6 +35,7 @@ import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { QuizTimerProvider } from '@/contexts/QuizTimerContext';
 import { QuizAttemptPage } from '@/components/QuizAttemptPage';
+import { PricingPlansPage } from '@/components/pricing/PricingPlansPage';
 
 /**
  * Theme configuration with dark mode support and responsive font sizes
@@ -296,6 +297,16 @@ export const App: React.FC = () => {
               <AuthGuard>
                 <StudentLayout user={user}>
                   {user && <Profile user={user} />}
+                </StudentLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/pricing-plans"
+            element={
+              <AuthGuard>
+                <StudentLayout user={user}>
+                  {user && <PricingPlansPage user={user} />}
                 </StudentLayout>
               </AuthGuard>
             }
