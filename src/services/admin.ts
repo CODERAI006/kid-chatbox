@@ -1152,6 +1152,15 @@ export interface OllamaCloudSettings {
   updatedBy: string | null;
 }
 
+/** @deprecated use OllamaCloudVisionOption */
+export type AiCloudVisionOption = OllamaCloudVisionOption;
+/** @deprecated use OllamaModelPreset */
+export type AiModelPreset = OllamaModelPreset;
+/** @deprecated use OllamaModelCatalogEntry */
+export type AiModelCatalogEntry = OllamaModelCatalogEntry;
+/** @deprecated use OllamaCloudSettings */
+export type AiCloudSettings = OllamaCloudSettings;
+
 export const wordOfDayApi = {
   getSettings: async (): Promise<{
     success: boolean;
@@ -1201,4 +1210,7 @@ export const ollamaCloudApi = {
     return response.data;
   },
 };
+
+/** @deprecated use ollamaCloudApi */
+export const aiSettingsApi = ollamaCloudApi;
 

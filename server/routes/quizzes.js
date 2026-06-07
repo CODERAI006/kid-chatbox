@@ -31,6 +31,18 @@ function isUuidParam(value) {
   );
 }
 
+/** Parse JSONB/TEXT answer fields (plain "C" or already-parsed values from pg). */
+function parseStoredAnswer(value) {
+  if (value == null) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
 /** Shared handler for GET /library (also used if GET /:id incorrectly matches "library"). */
 async function sendPublicQuizLibrary(req, res) {
   const { difficulty, subject, gradeLevel } = req.query;
@@ -792,13 +804,7 @@ router.post('/attempts/:attemptId/submit', checkModuleAccess('quiz'), async (req
       if (questionResult.rows.length === 0) continue;
 
       const question = questionResult.rows[0];
-      let correctAnswer;
-      try {
-        correctAnswer = JSON.parse(question.correct_answer);
-      } catch {
-        // If parsing fails, use as string
-        correctAnswer = question.correct_answer;
-      }
+      let correctAnswer = parseStoredAnswer(question.correct_answer);
       
       const userAnswer = answer.answer;
 
@@ -894,7 +900,10 @@ router.post('/attempts/:attemptId/submit', checkModuleAccess('quiz'), async (req
         [req.user.id]
       );
       const quizResult = await pool.query(
-        'SELECT subject, subtopic FROM quizzes WHERE id = $1',
+        `SELECT q.subject, s.title AS subtopic
+         FROM quizzes q
+         LEFT JOIN subtopics s ON q.subtopic_id = s.id
+         WHERE q.id = $1`,
         [attempt.quiz_id]
       );
 
@@ -947,8 +956,8 @@ router.post('/attempts/:attemptId/submit', checkModuleAccess('quiz'), async (req
         passed: scorePercentage >= (attempt.passing_percentage || 60),
         answers: answersResult.rows.map((row) => ({
           ...row,
-          correctAnswer: JSON.parse(row.correct_answer),
-          userAnswer: JSON.parse(row.user_answer),
+          correctAnswer: parseStoredAnswer(row.correct_answer),
+          userAnswer: parseStoredAnswer(row.user_answer),
         })),
       },
     });
@@ -1086,8 +1095,8 @@ router.get('/attempts/:attemptId/result', async (req, res, next) => {
         ...attemptResult.rows[0],
         answers: answersResult.rows.map((row) => ({
           ...row,
-          correctAnswer: JSON.parse(row.correct_answer),
-          userAnswer: JSON.parse(row.user_answer),
+          correctAnswer: parseStoredAnswer(row.correct_answer),
+          userAnswer: parseStoredAnswer(row.user_answer),
         })),
       },
     });

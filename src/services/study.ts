@@ -1,5 +1,5 @@
 /**
- * Study mode: lessons via backend → local Ollama (see docs/ollama-api.md).
+ * Study mode: lessons via backend AI proxy.
  */
 
 import { QuizConfig } from '@/types/quiz';

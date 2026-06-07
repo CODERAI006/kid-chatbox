@@ -457,6 +457,7 @@ export const App: React.FC = () => {
               </AdminGuard>
             }
           />
+          <Route path="/admin/ai-settings" element={<Navigate to="/admin/ollama-cloud" replace />} />
           <Route
             path="/admin/word-of-day"
             element={

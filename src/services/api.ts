@@ -25,7 +25,7 @@ import { QuizConfig } from '@/types/quiz';
  *
  * In local dev, prefer the Express origin directly (same host, port 3001) instead of `/api` on the Vite
  * port: the Vite HTTP proxy has been observed to stall or drop very large JSON responses from `/ai/chat`
- * even after the backend finishes and logs the Ollama payload — the UI then stays on “STEP n of …” forever.
+ * even after the backend finishes — the UI then stays on “STEP n of …” forever.
  * Set `VITE_USE_VITE_PROXY=1` to force `/api` through the proxy, or `VITE_API_BASE_URL` to point elsewhere.
  */
 function resolveApiBaseUrl(): string {
@@ -108,7 +108,7 @@ export const getErrorMessage = (error: unknown): string => {
     }
     // Network error or no response (includes connection refused when API is down)
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
-      return 'The AI request timed out. Check that Ollama is running and try fewer questions or Basic difficulty.';
+      return 'The AI request timed out. Try fewer questions or Basic difficulty, then try again.';
     }
     if (
       error.code === 'ERR_NETWORK' ||
@@ -127,7 +127,7 @@ export const getErrorMessage = (error: unknown): string => {
         'Gateway timed out before the AI response reached your browser. The server may still finish ' +
         'in the background (check PM2 logs). Fix: increase reverse-proxy timeouts for /api ' +
         '(e.g. nginx proxy_read_timeout 600s; proxy_connect_timeout 600s; proxy_send_timeout 600s), ' +
-        'or try fewer questions / a smaller Ollama model. Then try again.'
+        'or try fewer questions / a faster model. Then try again.'
       );
     }
     if (status === 503) {
@@ -155,9 +155,9 @@ export type AiChatMessage = {
 };
 
 /**
- * Proxied local Ollama chat (server → Ollama). Requires auth token.
+ * Proxied AI chat (server-side model routing). Requires auth token.
  */
-/** Per-request cap for Ollama-backed chat (quiz batches can be slow on CPU). */
+/** Per-request cap for AI chat (quiz batches can be slow on CPU). */
 const AI_CHAT_DEFAULT_TIMEOUT_MS = 480_000;
 
 export const aiApi = {
@@ -165,7 +165,7 @@ export const aiApi = {
     messages: AiChatMessage[];
     temperature?: number;
     num_predict?: number;
-    /** Override axios wait (ms). Default 8m so the UI does not hang forever without Ollama. */
+    /** Override axios wait (ms). Default 8m so the UI does not hang forever on slow AI runs. */
     timeoutMs?: number;
     /** Cancel in-flight request when user leaves or starts a new quiz (axios ERR_CANCELED). */
     signal?: AbortSignal;
@@ -187,7 +187,7 @@ export const aiApi = {
     const content = response.data.content;
     if (typeof content !== 'string' || !content.trim()) {
       throw new Error(
-        'AI returned an empty message. If Ollama is running, try a smaller model or lower num_predict in server logs.'
+        'AI returned an empty message. Try again with fewer questions or Basic difficulty.'
       );
     }
     return { content, model: response.data.model };
@@ -210,7 +210,7 @@ export type LearningBotSavedChat = {
 };
 
 /**
- * Persisted learning chat (Ollama). Same API for students and admins.
+ * Persisted learning chat. Same API for students and admins.
  */
 export const learningBotApi = {
   getConversation: async (): Promise<{
@@ -546,7 +546,7 @@ export const quizApi = {
   },
 
   /**
-   * Queue server-side AI quiz generation (Ollama). Returns 202 quickly — poll getAiQuizGenerationJob.
+   * Queue server-side AI quiz generation. Returns 202 quickly — poll getAiQuizGenerationJob.
    */
   enqueueAiQuizGeneration: async (
     body: Record<string, unknown>,

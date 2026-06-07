@@ -180,7 +180,7 @@ export const QuizLoading: React.FC<QuizLoadingProps> = ({
             </HStack>
 
             <Text fontSize="xs" color="gray.600" textAlign="center" px={2} maxW="28rem" lineHeight="short">
-              Your quiz is being built on the server (Ollama). You can leave this page open or switch to the
+              Your quiz is being built on the server. You can leave this page open or switch to the
               Quiz Library tab — when generation finishes, the new quiz will appear there.
               {elapsed >= 45 && (
                 <Text as="span" display="block" mt={2} color="orange.700" fontWeight="medium">

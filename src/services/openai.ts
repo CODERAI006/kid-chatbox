@@ -1,5 +1,5 @@
 /**
- * Quiz AI via backend → local Ollama (see docs/ollama-api.md).
+ * Quiz AI via backend proxy (server handles model routing).
  */
 
 import axios from 'axios';
@@ -20,9 +20,9 @@ export function isQuizGenerationAbort(err: unknown): boolean {
 /**
  * Retry on:
  *  - SyntaxError (model returned malformed JSON)
- *  - empty_ai_response (Ollama returned blank — common on first cold call)
+ *  - empty_ai_response (model returned blank — common on first cold call)
  *
- * Do NOT retry on network errors (Ollama down) — that surfaces a clear "not running" message.
+ * Do NOT retry on network errors (AI service down) — that surfaces a clear message.
  * Do NOT retry on axios cancellations.
  */
 function isRetryableBatchFailure(err: unknown): boolean {
@@ -33,14 +33,14 @@ function isRetryableBatchFailure(err: unknown): boolean {
   return false;
 }
 
-/** True when Ollama is simply not reachable (not a model/parsing problem). */
-export function isOllamaUnreachable(err: unknown): boolean {
+/** True when the AI service is not reachable (not a model/parsing problem). */
+export function isAiServiceUnreachable(err: unknown): boolean {
   if (axios.isAxiosError(err)) {
     return !err.response; // no HTTP response = network failure
   }
   if (err instanceof Error) {
     return (
-      err.message.includes('Cannot reach Ollama') ||
+      err.message.includes('Cannot reach') ||
       err.message.includes('fetch failed') ||
       err.message.includes('ECONNREFUSED') ||
       err.message.includes('Network Error')
@@ -72,7 +72,7 @@ async function chatCompletion(
 }
 
 /**
- * Ollama sometimes emits `["number":1,...` instead of `[{"number":1,...` (missing `{` after `[`),
+ * Some models emit `["number":1,...` instead of `[{"number":1,...` (missing `{` after `[`),
  * which makes JSON.parse fail — user stays on loading with no questions until retry succeeds.
  */
 function repairMalformedQuizArrayJson(json: string): string {
@@ -353,7 +353,7 @@ export async function generateQuizQuestions(
     const parsedCount = Array.isArray(arr) ? arr.length : 0;
     console.info('[QuizAI] Parsed batch response', { expectedInBatch, parsedCount });
     if (!Array.isArray(arr) || parsedCount === 0) {
-      // Retryable — Ollama sometimes returns empty on first cold call
+      // Retryable — model sometimes returns empty on first cold call
       throw new Error('empty_ai_response');
     }
     if (parsedCount < expectedInBatch) {
@@ -367,7 +367,7 @@ export async function generateQuizQuestions(
     return slice as Question[];
   };
 
-  /** Accept at least 80 % of the requested count so one short Ollama response doesn't kill the quiz. */
+  /** Accept at least 80 % of the requested count so one short AI response doesn't kill the quiz. */
   const MIN_ACCEPT_RATIO = 0.8;
 
   const validateAndNormalize = (raw: Question[], expected: number): Question[] => {
@@ -375,7 +375,7 @@ export async function generateQuizQuestions(
 
     if (!Array.isArray(questions) || questions.length === 0) {
       throw new Error(
-        'No questions were generated. Make sure Ollama is running and try again.'
+        'No questions were generated. Make sure the AI service is available and try again.'
       );
     }
 
@@ -485,17 +485,17 @@ export async function generateQuizQuestions(
     console.error('[QuizAI] generateQuizQuestions caught error', {
       type: error instanceof Error ? error.constructor.name : typeof error,
       message: error instanceof Error ? error.message : String(error),
-      isOllamaDown: isOllamaUnreachable(error),
+      isAiDown: isAiServiceUnreachable(error),
       isSyntax: error instanceof SyntaxError,
     });
-    if (isOllamaUnreachable(error)) {
+    if (isAiServiceUnreachable(error)) {
       throw new Error(
-        'Ollama is not reachable. Please start Ollama (run: ollama serve) and try again.'
+        'The AI service is not reachable. Please try again in a moment or contact your administrator.'
       );
     }
     if (error instanceof SyntaxError) {
       throw new Error(
-        'Failed to parse quiz questions (model did not return valid JSON). Try again or switch the Ollama model.'
+        'Failed to parse quiz questions (model did not return valid JSON). Try again or use Basic difficulty.'
       );
     }
     if (error instanceof Error) {
