@@ -12,6 +12,7 @@ import {
   unlockSpeechSynthesis,
   warmUpSpeechSynthesis,
 } from '@/utils/speechSynthesis';
+import { preloadPiperVoice } from '@/utils/piperSpeech';
 
 export type VoicePhase = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -225,6 +226,7 @@ export function useVoiceConversation(
       } else if (voiceSupported) {
         unlockSpeechSynthesis();
         warmUpSpeechSynthesis();
+        void preloadPiperVoice();
         lastSpokenCountRef.current = assistantMessageCount;
         beginListening();
       }

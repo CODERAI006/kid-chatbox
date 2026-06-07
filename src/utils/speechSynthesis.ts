@@ -1,8 +1,16 @@
 /**
- * Text-to-speech with Indian English female voice preference.
+ * Text-to-speech — Piper (open-source neural) → server Piper → browser fallback.
  */
 
 import { resolveWorkspace } from '@/utils/learningWorkspaceParser';
+import {
+  isPiperBrowserSupported,
+  preloadPiperVoice,
+  speakWithPiper,
+  stopPiperSpeech,
+} from '@/utils/piperSpeech';
+import { speakWithServerPiper, stopServerPiperSpeech } from '@/utils/serverPiperSpeech';
+import { stopAudioPlayback } from '@/utils/audioPlayback';
 
 const INDIAN_VOICE_HINTS = [
   'neerja',
@@ -27,6 +35,10 @@ let cachedVoice: SpeechSynthesisVoice | null | undefined;
 let voicesReadyPromise: Promise<SpeechSynthesisVoice[]> | null = null;
 
 export function isTtsSupported(): boolean {
+  return isPiperBrowserSupported() || isBrowserTtsSupported();
+}
+
+export function isBrowserTtsSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
 }
 
@@ -70,7 +82,7 @@ function delay(ms: number): Promise<void> {
 }
 
 export function loadVoices(timeoutMs = 3000): Promise<SpeechSynthesisVoice[]> {
-  if (!isTtsSupported()) return Promise.resolve([]);
+  if (!isBrowserTtsSupported()) return Promise.resolve([]);
 
   const existing = speechSynthesis.getVoices();
   if (existing.length > 0) return Promise.resolve(existing);
@@ -99,7 +111,7 @@ export function loadVoices(timeoutMs = 3000): Promise<SpeechSynthesisVoice[]> {
 export function getIndianFemaleVoice(
   voices = speechSynthesis.getVoices()
 ): SpeechSynthesisVoice | null {
-  if (!isTtsSupported()) return null;
+  if (!isBrowserTtsSupported()) return null;
 
   const picked = pickIndianFemaleVoice(voices);
   if (picked) {
@@ -113,16 +125,18 @@ export function getIndianFemaleVoice(
 }
 
 export function preloadVoices(): void {
-  if (!isTtsSupported()) return;
-  void loadVoices();
-  speechSynthesis.onvoiceschanged = () => {
-    cachedVoice = undefined;
-    getIndianFemaleVoice();
-  };
+  if (isBrowserTtsSupported()) {
+    void loadVoices();
+    speechSynthesis.onvoiceschanged = () => {
+      cachedVoice = undefined;
+      getIndianFemaleVoice();
+    };
+  }
+  void preloadPiperVoice();
 }
 
 export function unlockSpeechSynthesis(): void {
-  if (!isTtsSupported()) return;
+  if (!isBrowserTtsSupported()) return;
   try {
     if (speechSynthesis.paused) speechSynthesis.resume();
   } catch {
@@ -132,7 +146,7 @@ export function unlockSpeechSynthesis(): void {
 
 /** Prime TTS engine on user gesture (Voice chat tap). */
 export function warmUpSpeechSynthesis(): void {
-  if (!isTtsSupported()) return;
+  if (!isBrowserTtsSupported()) return;
   unlockSpeechSynthesis();
   try {
     const warm = new SpeechSynthesisUtterance(' ');
@@ -354,7 +368,24 @@ export async function speakText(
   options: SpeakOptions = {}
 ): Promise<SpeakResult> {
   const cleaned = textForSpeech(text);
-  if (!cleaned || !isTtsSupported()) return { ok: false, voiceUsed: null };
+  if (!cleaned) return { ok: false, voiceUsed: null };
+
+  const chunks = splitForSpeech(cleaned);
+
+  const piperResult = await speakWithPiper(chunks, options);
+  if (piperResult.ok) return piperResult;
+
+  const serverResult = await speakWithServerPiper(chunks, options);
+  if (serverResult.ok) return serverResult;
+
+  return speakWithBrowser(cleaned, options);
+}
+
+async function speakWithBrowser(
+  cleaned: string,
+  options: SpeakOptions
+): Promise<SpeakResult> {
+  if (!isBrowserTtsSupported()) return { ok: false, voiceUsed: null };
 
   unlockSpeechSynthesis();
   speechSynthesis.cancel();
@@ -405,5 +436,8 @@ export async function speakText(
 }
 
 export function stopSpeaking(): void {
-  if (isTtsSupported()) speechSynthesis.cancel();
+  stopPiperSpeech();
+  stopServerPiperSpeech();
+  stopAudioPlayback();
+  if (isBrowserTtsSupported()) speechSynthesis.cancel();
 }

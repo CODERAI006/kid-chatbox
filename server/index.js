@@ -36,6 +36,7 @@ const publicRoutes = require('./routes/public');
 const wordsOfDayRoutes = require('./routes/words-of-day');
 const aiRoutes = require('./routes/ai');
 const learningBotRoutes = require('./routes/learning-bot');
+const ttsRoutes = require('./routes/tts');
 const quizSchedulerRoutes = require('./routes/quiz-scheduler');
 const bulkExamUploadRoutes = require('./routes/bulk-exam-upload');
 const { startScheduler } = require('./services/schedulerEngine');
@@ -110,6 +111,7 @@ app.use('/api/public/words-of-day', wordsOfDayRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/learning-bot', learningBotRoutes);
+app.use('/api/tts', ttsRoutes);
 app.use('/api/quiz-scheduler', quizSchedulerRoutes);
 app.use('/api/bulk-exam-upload', bulkExamUploadRoutes);
 

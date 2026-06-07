@@ -26,6 +26,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['gl-matrix', 'react-reconciler'],
+    exclude: ['@the-vedantic-coder/piper-tts-web'],
     esbuildOptions: {
       target: 'esnext',
     },
