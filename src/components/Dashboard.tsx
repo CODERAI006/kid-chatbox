@@ -2,7 +2,7 @@
  * Dashboard component - Main landing page after login
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -27,6 +27,7 @@ import { WordOfTheDay } from './WordOfTheDay';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { isAppAdmin } from '@/utils/userAccess';
 import { formatPlanPrice } from '@/utils/planPricing';
+import { SuggestedTopicsCard, type SuggestedTopicItem } from '@/components/dashboard/SuggestedTopicsCard';
 
 interface DashboardProps {
   user: User;
@@ -132,6 +133,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
 
   const userName = user.name || 'Friend';
+
+  const suggestedTopicItems = useMemo((): SuggestedTopicItem[] => {
+    if (!analytics) return [];
+    if (analytics.recommended_topics.length > 0) {
+      return analytics.recommended_topics.slice(0, 5).map((name, index) => ({
+        name,
+        score: analytics.per_subtopic_accuracy[name],
+        rank: index + 1,
+      }));
+    }
+    return analytics.weaknesses.slice(0, 5).map((name, index) => ({
+      name,
+      score: analytics.per_subject_accuracy[name],
+      rank: index + 1,
+    }));
+  }, [analytics]);
 
   const handleRefresh = async () => {
     await Promise.all([loadAnalytics(), loadPlanInfo()]);
@@ -342,6 +359,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </Card>
               )}
 
+              {analytics && (
+                <SuggestedTopicsCard
+                  items={suggestedTopicItems}
+                  hasQuizHistory={analytics.total_quizzes > 0}
+                />
+              )}
+
               {/* Study History Card */}
               <Card>
                 <CardBody p={{ base: 3, md: 4 }}>
@@ -514,77 +538,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </Box>
             )}
 
-            {/* Word of the Day */}
-            <WordOfTheDay grade={user.grade} />
+            {/* Word of the Day — scrollable in sidebar so page stays shorter */}
+            <WordOfTheDay grade={user.grade} variant="dashboard" />
 
             {/* Upcoming Tests Sidebar */}
             <UpcomingTestsSidebar planInfo={planInfo} />
           </VStack>
         </Box>
 
-        {/* Recommended Topics */}
-        {analytics && analytics.recommended_topics.length > 0 && (
-          <Box
-            display={{ base: 'block', lg: 'flex' }}
-            gap={{ base: 4, md: 5, lg: 6 }}
-            width="100%"
-            flexDirection={{ base: 'column', lg: 'row' }}
-          >
-            <Box flex={{ base: 'none', lg: 1 }} width={{ base: '100%', lg: 'auto' }} minW={{ base: '100%', lg: 0 }}>
-              <Card>
-                <CardBody p={{ base: 3, md: 4 }}>
-                  <VStack spacing={{ base: 3, md: 4 }} align="stretch">
-                    <Heading size={{ base: 'xs', sm: 'sm', md: 'md' }} color="blue.600">
-                      {MESSAGES.SUGGESTED_TOPICS}
-                    </Heading>
-                    <VStack spacing={{ base: 2, md: 3 }} align="stretch">
-                      {analytics.recommended_topics.map((topic, index) => (
-                        <Box
-                          key={index}
-                          padding={{ base: 2, md: 3 }}
-                          borderRadius="md"
-                          bg="blue.50"
-                          borderWidth={1}
-                          borderColor="blue.200"
-                        >
-                          <Text fontSize={{ base: 'xs', md: 'sm' }}>{topic}</Text>
-                        </Box>
-                      ))}
-                    </VStack>
-                  </VStack>
-                </CardBody>
-              </Card>
-            </Box>
-            {/* Right Sidebar Spacer */}
-            <Box w={{ base: '0', lg: '350px' }} display={{ base: 'none', lg: 'block' }} flexShrink={0} />
-          </Box>
-        )}
-
         {/* Motivational Message */}
-        <Box
-          display={{ base: 'block', lg: 'flex' }}
-          gap={{ base: 4, md: 5, lg: 6 }}
-          width="100%"
-          flexDirection={{ base: 'column', lg: 'row' }}
-        >
-          <Box flex={{ base: 'none', lg: 1 }} width={{ base: '100%', lg: 'auto' }} minW={{ base: '100%', lg: 0 }}>
-            <Card bg="green.50" borderColor="green.200">
-              <CardBody p={{ base: 3, md: 4 }}>
-                <Text
-                  fontSize={{ base: 'xs', sm: 'sm', md: 'md' }}
-                  color="green.700"
-                  textAlign="center"
-                  fontWeight="semibold"
-                  px={{ base: 2, md: 0 }}
-                >
-                  {MESSAGES.MOTIVATIONAL}
-                </Text>
-              </CardBody>
-            </Card>
-          </Box>
-          {/* Right Sidebar Spacer */}
-          <Box w={{ base: '0', lg: '350px' }} display={{ base: 'none', lg: 'block' }} flexShrink={0} />
-        </Box>
+        <Card bg="green.50" borderColor="green.200" w="100%">
+          <CardBody p={{ base: 3, md: 4 }}>
+            <Text
+              fontSize={{ base: 'xs', sm: 'sm', md: 'md' }}
+              color="green.700"
+              textAlign="center"
+              fontWeight="semibold"
+              px={{ base: 2, md: 0 }}
+            >
+              {MESSAGES.MOTIVATIONAL}
+            </Text>
+          </CardBody>
+        </Card>
       </VStack>
     </Box>
     </PullToRefresh>

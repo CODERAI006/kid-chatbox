@@ -76,6 +76,11 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
 
   const saved = enriched.filter((q) => q.imageUrl).length;
   console.info('[quiz-images] complete', { requested: indices.length, saved });
+  if (indices.length > 0 && saved === 0) {
+    console.warn(
+      '[quiz-images] no illustrations saved — set GEMINI_API_KEY on the server for cloud image generation'
+    );
+  }
 
   return enriched;
 }

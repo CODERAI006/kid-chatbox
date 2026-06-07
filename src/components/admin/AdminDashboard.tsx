@@ -1,6 +1,5 @@
 /**
- * Admin Dashboard Component
- * Main dashboard for admin with KPIs and overview
+ * Admin Dashboard — KPI overview with professional layout and typography.
  */
 
 import { useState, useEffect } from 'react';
@@ -14,27 +13,41 @@ import {
   SimpleGrid,
   Card,
   CardBody,
-  CardHeader,
-  Spinner,
   Alert,
   AlertIcon,
   Badge,
+  Button,
+  Skeleton,
+  useColorModeValue,
 } from '@/shared/design-system';
+import {
+  FiUsers,
+  FiUserCheck,
+  FiClock,
+  FiBook,
+  FiFileText,
+  FiTarget,
+  FiTrendingUp,
+  FiArrowRight,
+} from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { adminApi, AnalyticsSummary } from '@/services/admin';
 import { PullToRefresh } from '../PullToRefresh';
+import { AdminStatCard } from './AdminStatCard';
+import { adminColors } from './adminTokens';
 
-// Use motion.div wrapper instead of motion(Card) to avoid TypeScript complexity issues
-const MotionCardWrapper = motion.div;
+const MotionCard = motion(Card);
 
-/**
- * Admin Dashboard component
- */
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const titleColor = useColorModeValue(adminColors.title.light, adminColors.title.dark);
+  const subtitleColor = useColorModeValue(adminColors.subtitle.light, adminColors.subtitle.dark);
+  const alertBg = useColorModeValue('orange.50', 'orange.900');
+  const alertBorder = useColorModeValue('orange.200', 'orange.700');
 
   useEffect(() => {
     loadSummary();
@@ -43,6 +56,7 @@ export const AdminDashboard: React.FC = () => {
   const loadSummary = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await adminApi.getAnalyticsSummary();
       setSummary(data.summary);
     } catch (err) {
@@ -53,152 +67,144 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleRefresh = async () => {
-    await loadSummary();
-  };
+  const stats = summary
+    ? [
+        { label: 'Total Users', value: summary.totalUsers, accent: 'blue' as const, icon: <FiUsers />, route: '/admin/users' },
+        { label: 'Active Users', value: summary.activeUsers, accent: 'emerald' as const, icon: <FiUserCheck />, route: '/admin/users?status=approved' },
+        { label: 'Pending Approval', value: summary.pendingUsers, accent: 'amber' as const, icon: <FiClock />, route: '/admin/users?status=pending' },
+        { label: 'Total Topics', value: summary.totalTopics, accent: 'violet' as const, icon: <FiBook />, route: '/admin/topics' },
+        { label: 'Total Quizzes', value: summary.totalQuizzes, accent: 'cyan' as const, icon: <FiFileText />, route: '/admin/quizzes' },
+        { label: 'Quiz Attempts', value: summary.totalAttempts, accent: 'indigo' as const, icon: <FiTarget />, route: '/admin/quiz-history' },
+        { label: 'Avg Score', value: `${summary.avgScore.toFixed(1)}%`, accent: 'rose' as const, icon: <FiTrendingUp />, route: '/admin/analytics' },
+      ]
+    : [];
 
   if (loading) {
     return (
-      <Box textAlign="center" py={10}>
-        <Spinner size="xl" />
+      <Box>
+        <Skeleton height="32px" width="220px" mb={2} borderRadius="md" />
+        <Skeleton height="16px" width="320px" mb={6} borderRadius="md" />
+        <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={i} height="108px" borderRadius="lg" />
+          ))}
+        </SimpleGrid>
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Alert status="error">
+      <Alert status="error" borderRadius="lg">
         <AlertIcon />
         {error}
       </Alert>
     );
   }
 
-  const stats = [
-    {
-      label: 'Total Users',
-      value: summary?.totalUsers || 0,
-      color: 'blue',
-      icon: '👥',
-      route: '/admin/users',
-    },
-    {
-      label: 'Active Users',
-      value: summary?.activeUsers || 0,
-      color: 'green',
-      icon: '✅',
-      route: '/admin/users?status=approved',
-    },
-    {
-      label: 'Pending Approval',
-      value: summary?.pendingUsers || 0,
-      color: 'orange',
-      icon: '⏳',
-      route: '/admin/users?status=pending',
-    },
-    {
-      label: 'Total Topics',
-      value: summary?.totalTopics || 0,
-      color: 'purple',
-      icon: '📚',
-      route: '/admin/topics',
-    },
-    {
-      label: 'Total Quizzes',
-      value: summary?.totalQuizzes || 0,
-      color: 'teal',
-      icon: '📝',
-      route: '/admin/quizzes',
-    },
-    {
-      label: 'Quiz Attempts',
-      value: summary?.totalAttempts || 0,
-      color: 'cyan',
-      icon: '🎯',
-      route: '/admin/quiz-history',
-    },
-    {
-      label: 'Avg Score',
-      value: `${summary?.avgScore.toFixed(1) || 0}%`,
-      color: 'pink',
-      icon: '⭐',
-      route: '/admin/analytics',
-    },
-  ];
-
-  const handleCardClick = (route: string) => {
-    navigate(route);
-  };
-
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
-      <Box p={{ base: 4, md: 6 }}>
-      <VStack spacing={{ base: 4, md: 6 }} align="stretch">
-        <Heading size={{ base: 'md', md: 'lg' }} color="gray.700">
-          Admin Dashboard
-        </Heading>
+    <PullToRefresh onRefresh={loadSummary}>
+      <Box maxW="1400px">
+        <VStack spacing={{ base: 5, md: 8 }} align="stretch">
+          <Box>
+            <Heading
+              size={{ base: 'lg', md: 'xl' }}
+              color={titleColor}
+              fontWeight="700"
+              letterSpacing="-0.02em"
+              mb={1}
+            >
+              Dashboard
+            </Heading>
+            <Text fontSize={{ base: 'sm', md: 'md' }} color={subtitleColor}>
+              Platform overview — users, content, and learning activity at a glance.
+            </Text>
+          </Box>
 
-        <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={{ base: 3, md: 4 }}>
-          {stats.map((stat, index) => (
-            <MotionCardWrapper
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={{ base: 3, md: 4 }}>
+            {stats.map((stat, index) => (
+              <AdminStatCard
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                accent={stat.accent}
+                icon={stat.icon}
+                index={index}
+                onClick={() => navigate(stat.route)}
+              />
+            ))}
+          </SimpleGrid>
+
+          {summary && summary.pendingUsers > 0 && (
+            <MotionCard
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.05 }}
-            >
-              <Card
-                cursor="pointer"
-                onClick={() => handleCardClick(stat.route)}
-                _hover={{ shadow: 'lg' }}
-              >
-                <CardBody p={{ base: 4, md: 6 }}>
-                  <HStack justify="space-between" align="center">
-                    <VStack align="start" spacing={1}>
-                      <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.600">
-                        {stat.label}
-                      </Text>
-                      <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold" color={`${stat.color}.600`}>
-                        {stat.value}
-                      </Text>
-                    </VStack>
-                    <Text fontSize={{ base: '2xl', md: '3xl' }}>{stat.icon}</Text>
-                  </HStack>
-                </CardBody>
-              </Card>
-            </MotionCardWrapper>
-          ))}
-        </SimpleGrid>
-
-        {summary && summary.pendingUsers > 0 && (
-          <MotionCardWrapper
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-          >
-            <Card
+              bg={alertBg}
+              borderWidth="1px"
+              borderColor={alertBorder}
+              boxShadow="sm"
               cursor="pointer"
-              onClick={() => handleCardClick('/admin/users?status=pending')}
-              _hover={{ shadow: 'lg' }}
+              onClick={() => navigate('/admin/users?status=pending')}
+              _hover={{ boxShadow: 'md' }}
             >
-              <CardHeader>
-                <HStack>
-                  <Text fontWeight="bold">Action Required</Text>
-                  <Badge colorScheme="orange">{summary.pendingUsers}</Badge>
+              <CardBody p={{ base: 4, md: 5 }}>
+                <HStack justify="space-between" align="center" flexWrap="wrap" gap={3}>
+                  <VStack align="start" spacing={1} flex={1}>
+                    <HStack>
+                      <Text fontWeight="semibold" color={titleColor}>
+                        Action required
+                      </Text>
+                      <Badge colorScheme="orange" borderRadius="full" px={2}>
+                        {summary.pendingUsers}
+                      </Badge>
+                    </HStack>
+                    <Text fontSize="sm" color={subtitleColor}>
+                      {summary.pendingUsers} user{summary.pendingUsers > 1 ? 's' : ''} awaiting approval.
+                      Review in User Management.
+                    </Text>
+                  </VStack>
+                  <Button
+                    size="sm"
+                    colorScheme="orange"
+                    rightIcon={<FiArrowRight />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/admin/users?status=pending');
+                    }}
+                  >
+                    Review
+                  </Button>
                 </HStack>
-              </CardHeader>
-              <CardBody>
-                <Text>
-                  You have {summary.pendingUsers} user{summary.pendingUsers > 1 ? 's' : ''} waiting
-                  for approval. Review them in the User Management section.
-                </Text>
               </CardBody>
-            </Card>
-          </MotionCardWrapper>
-        )}
-      </VStack>
-    </Box>
+            </MotionCard>
+          )}
+
+          <Box>
+            <Text fontSize="xs" fontWeight="semibold" letterSpacing="0.06em" textTransform="uppercase" color={subtitleColor} mb={3}>
+              Quick links
+            </Text>
+            <HStack flexWrap="wrap" gap={2}>
+              {[
+                { label: 'Analytics', route: '/admin/analytics' },
+                { label: 'Quiz Scheduler', route: '/admin/quiz-scheduler' },
+                { label: 'Study Library', route: '/admin/study-library-content' },
+                { label: 'Plans', route: '/admin/plans' },
+              ].map((link) => (
+                <Button
+                  key={link.route}
+                  size="sm"
+                  variant="outline"
+                  colorScheme="blue"
+                  fontWeight="medium"
+                  onClick={() => navigate(link.route)}
+                >
+                  {link.label}
+                </Button>
+              ))}
+            </HStack>
+          </Box>
+        </VStack>
+      </Box>
     </PullToRefresh>
   );
 };
-

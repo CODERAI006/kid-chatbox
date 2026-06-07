@@ -10,6 +10,7 @@ import {
 import { publicApi } from '@/services/api';
 import type { WordOfDayResponse } from '@/types/wordOfDay';
 import { WordOfDayCard } from './wordOfDay/WordOfDayCard';
+import { WordOfDayDashboardList } from './wordOfDay/WordOfDayDashboardList';
 import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
 
 const toYMD = (d: Date): string => {
@@ -32,9 +33,12 @@ const isToday = (d: Date): boolean => toYMD(d) === toYMD(new Date());
 
 interface WordOfTheDayProps {
   grade?: string;
+  /** Shorter cards on dashboard — no scroll, tap for full detail page. */
+  variant?: 'full' | 'dashboard';
 }
 
-export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade }) => {
+export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'full' }) => {
+  const isDashboard = variant === 'dashboard';
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [data, setData] = useState<WordOfDayResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,7 +89,9 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade }) => {
             <VStack spacing={0} align="start">
               <Heading size="sm" color="purple.700">📚 Words of the Day</Heading>
               <Text fontSize="xs" color="gray.500">
-                3 words for {gradeLabel} — tap any word for full details
+                {isDashboard
+                  ? `Today's 3 words for ${gradeLabel}`
+                  : `3 words for ${gradeLabel} — tap any word for full details`}
               </Text>
             </VStack>
             {!isToday(selectedDate) && (
@@ -137,19 +143,31 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade }) => {
           )}
 
           {!loading && !error && data && (data.words?.length ?? 0) > 0 && (
-            <VStack spacing={4} align="stretch">
-              {data.words.map((entry, i) => (
-                <WordOfDayCard
-                  key={entry.word}
-                  entry={entry}
-                  index={i}
+            isDashboard ? (
+              <VStack spacing={3} align="stretch">
+                <WordOfDayDashboardList
+                  words={data.words}
                   complexity={data.complexity}
                   grade={data.grade}
                   date={data.date}
                 />
-              ))}
-              <CommonPhrasesSection phrases={data.phrases} />
-            </VStack>
+                <CommonPhrasesSection phrases={data.phrases ?? []} compact />
+              </VStack>
+            ) : (
+              <VStack spacing={4} align="stretch">
+                {data.words.map((entry, i) => (
+                  <WordOfDayCard
+                    key={entry.word}
+                    entry={entry}
+                    index={i}
+                    complexity={data.complexity}
+                    grade={data.grade}
+                    date={data.date}
+                  />
+                ))}
+                <CommonPhrasesSection phrases={data.phrases} />
+              </VStack>
+            )
           )}
         </VStack>
       </CardBody>

@@ -166,8 +166,10 @@ Kid Chatbox can route AI to [Ollama Cloud](https://docs.ollama.com/cloud) instea
 |------|----------|-----------------|
 | `text` | Quiz, study, learning bot | `gpt-oss:120b` |
 | `ocr` | Page photo reading | `qwen3-vl:235b-cloud` |
-| `image` | Quiz illustrations (~20% of questions) | `flux:cloud` |
+| `image` | Quiz illustrations (~20% of questions, **Gemini cloud API**) | `gemini-2.5-flash-image` |
 | `voice` | TTS narration (planned) | — |
 | `pdf` | Document export (planned) | — |
 
 Override any type via env (`OLLAMA_MODEL`, `OLLAMA_VISION_MODEL`, `OLLAMA_IMAGE_MODEL`, etc.) or Admin settings.
+
+**Quiz images (cloud only):** Illustrations use the Google Gemini Image API — not local Ollama Flux. Set `GEMINI_API_KEY` in server env ([Google AI Studio](https://aistudio.google.com/apikey)). Optional `QUIZ_IMAGE_PROVIDER=pollinations` for Pollinations (paid tier). Disable with `QUIZ_IMAGES_DISABLED=true`.

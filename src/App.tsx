@@ -44,6 +44,10 @@ const theme = extendTheme({
     initialColorMode: 'light',
     useSystemColorMode: false,
   },
+  fonts: {
+    heading: `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`,
+    body: `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`,
+  },
   styles: {
     global: (props: { colorMode: string }) => ({
       body: {

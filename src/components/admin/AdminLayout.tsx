@@ -1,6 +1,5 @@
 /**
- * Admin Layout Component
- * Layout wrapper for admin pages with navigation
+ * Admin Layout — shell with navigation for admin pages.
  */
 
 import { type FC, type ReactNode, useEffect, useState } from 'react';
@@ -23,15 +22,29 @@ import {
   useDisclosure,
   useColorModeValue,
 } from '@/shared/design-system';
-import { motion } from 'framer-motion';
+import {
+  FiGrid,
+  FiUsers,
+  FiCreditCard,
+  FiBook,
+  FiFileText,
+  FiClipboard,
+  FiBookOpen,
+  FiClock,
+  FiBarChart2,
+  FiCloud,
+  FiSun,
+  FiMenu,
+  FiChevronLeft,
+} from 'react-icons/fi';
 import { UpcomingTestsMarquee } from './UpcomingTestsMarquee';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
+import { adminColors } from './adminTokens';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
-/** Admin routes that use wide data tables — sidebar auto-hides for more space. */
 const TABLE_VIEW_PATHS = new Set([
   '/admin/users',
   '/admin/plans',
@@ -45,22 +58,19 @@ const TABLE_VIEW_PATHS = new Set([
 ]);
 
 const navItems = [
-  { path: '/admin', label: 'Dashboard', icon: '📊' },
-  { path: '/admin/users', label: 'Users', icon: '👥' },
-  { path: '/admin/plans', label: 'Plans', icon: '💳' },
-  { path: '/admin/topics', label: 'Topics', icon: '📚' },
-  { path: '/admin/quizzes', label: 'Quizzes', icon: '📝' },
-  { path: '/admin/quiz-history', label: 'Quiz History', icon: '📋' },
-  { path: '/admin/study-library-content', label: 'Study Library', icon: '📖' },
-  { path: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: '⏰' },
-  { path: '/admin/analytics', label: 'Analytics', icon: '📈' },
-  { path: '/admin/ollama-cloud', label: 'Ollama Cloud', icon: '☁️' },
-  { path: '/admin/word-of-day', label: 'Word of Day', icon: '📖' },
+  { path: '/admin', label: 'Dashboard', icon: FiGrid },
+  { path: '/admin/users', label: 'Users', icon: FiUsers },
+  { path: '/admin/plans', label: 'Plans', icon: FiCreditCard },
+  { path: '/admin/topics', label: 'Topics', icon: FiBook },
+  { path: '/admin/quizzes', label: 'Quizzes', icon: FiFileText },
+  { path: '/admin/quiz-history', label: 'Quiz History', icon: FiClipboard },
+  { path: '/admin/study-library-content', label: 'Study Library', icon: FiBookOpen },
+  { path: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: FiClock },
+  { path: '/admin/analytics', label: 'Analytics', icon: FiBarChart2 },
+  { path: '/admin/ollama-cloud', label: 'Ollama Cloud', icon: FiCloud },
+  { path: '/admin/word-of-day', label: 'Word of Day', icon: FiSun },
 ];
 
-/**
- * Admin Layout component
- */
 export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,55 +84,59 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       setSidebarVisible(!TABLE_VIEW_PATHS.has(location.pathname));
     }
   }, [location.pathname, isMobile]);
-  const bgColor = useColorModeValue('gray.50', 'gray.900');
-  const headerBg = useColorModeValue('white', 'gray.800');
-  const headerBorder = useColorModeValue('gray.200', 'gray.700');
-  const sidebarBg = useColorModeValue('white', 'gray.800');
-  const sidebarBorder = useColorModeValue('gray.200', 'gray.700');
-  const headingColor = useColorModeValue('blue.600', 'blue.400');
+
+  const bgColor = useColorModeValue(adminColors.pageBg.light, adminColors.pageBg.dark);
+  const headerBg = useColorModeValue(adminColors.surface.light, adminColors.surface.dark);
+  const headerBorder = useColorModeValue(adminColors.border.light, adminColors.border.dark);
+  const sidebarBg = useColorModeValue(adminColors.surface.light, adminColors.surface.dark);
+  const sidebarBorder = useColorModeValue(adminColors.border.light, adminColors.border.dark);
+  const brandColor = useColorModeValue(adminColors.brand.light, adminColors.brand.dark);
+  const navText = useColorModeValue('gray.600', 'gray.300');
+  const navActiveBg = useColorModeValue(adminColors.brandMuted.light, 'blue.900');
+  const navHoverBg = useColorModeValue('gray.50', 'whiteAlpha.50');
 
   const sidebarContent = (
-    <VStack align="stretch" spacing={2}>
+    <VStack align="stretch" spacing={1} px={2}>
       {navItems.map((item) => {
         const isActive = location.pathname === item.path;
+        const Icon = item.icon;
         return (
-          <motion.div
+          <Button
             key={item.path}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            w="100%"
+            justifyContent="flex-start"
+            leftIcon={<Icon size={16} />}
+            variant="ghost"
+            fontWeight={isActive ? 'semibold' : 'medium'}
+            fontSize="sm"
+            color={isActive ? brandColor : navText}
+            bg={isActive ? navActiveBg : 'transparent'}
+            _hover={{ bg: isActive ? navActiveBg : navHoverBg }}
+            borderRadius="md"
+            onClick={() => {
+              navigate(item.path);
+              if (isMobile) onClose();
+            }}
+            size={{ base: 'sm', md: 'md' }}
+            h={{ base: 9, md: 10 }}
           >
-            <Button
-              w="100%"
-              justifyContent="flex-start"
-              leftIcon={<Text>{item.icon}</Text>}
-              variant={isActive ? 'solid' : 'ghost'}
-              colorScheme={isActive ? 'blue' : 'gray'}
-              onClick={() => {
-                navigate(item.path);
-                if (isMobile) {
-                  onClose();
-                }
-              }}
-              size={{ base: 'sm', md: 'md' }}
-            >
-              {item.label}
-            </Button>
-          </motion.div>
+            {item.label}
+          </Button>
         );
       })}
     </VStack>
   );
 
   return (
-    <Box minH="100vh" bg={bgColor}>
-      <Box bg={headerBg} borderBottom="1px" borderColor={headerBorder}>
-        <Box px={{ base: 4, md: 6 }} py={{ base: 3, md: 4 }}>
+    <Box minH="100vh" bg={bgColor} fontFamily="body">
+      <Box bg={headerBg} borderBottom="1px" borderColor={headerBorder} boxShadow="sm">
+        <Box px={{ base: 4, md: 6 }} py={{ base: 3, md: 3.5 }}>
           <HStack justify="space-between">
             <HStack spacing={3}>
               {isMobile ? (
                 <IconButton
                   aria-label="Open menu"
-                  icon={<Text>☰</Text>}
+                  icon={<FiMenu size={18} />}
                   onClick={onOpen}
                   variant="ghost"
                   size="sm"
@@ -130,22 +144,24 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
               ) : (
                 <IconButton
                   aria-label={sidebarVisible ? 'Hide navigation' : 'Show navigation'}
-                  icon={<Text>{sidebarVisible ? '◀' : '☰'}</Text>}
+                  icon={sidebarVisible ? <FiChevronLeft size={18} /> : <FiMenu size={18} />}
                   onClick={() => setSidebarVisible((visible) => !visible)}
                   variant="ghost"
                   size="sm"
                 />
               )}
-              <Heading size={{ base: 'sm', md: 'md' }} color={headingColor}>
-                Admin Portal
-              </Heading>
+              <Box>
+                <Heading size="sm" color={brandColor} fontWeight="700" letterSpacing="-0.02em">
+                  Admin Portal
+                </Heading>
+                <Text fontSize="xs" color={navText} display={{ base: 'none', sm: 'block' }}>
+                  Guru AI management
+                </Text>
+              </Box>
             </HStack>
-            <HStack spacing={2}>
-              <Button size={{ base: 'xs', md: 'sm' }} variant="ghost" onClick={() => navigate('/')}>
-                <Text display={{ base: 'none', sm: 'block' }}>Back to App</Text>
-                <Text display={{ base: 'block', sm: 'none' }}>Back</Text>
-              </Button>
-            </HStack>
+            <Button size="sm" variant="outline" colorScheme="blue" onClick={() => navigate('/')}>
+              Back to App
+            </Button>
           </HStack>
         </Box>
         <UpcomingTestsMarquee />
@@ -154,13 +170,13 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
       <HStack align="start" spacing={0}>
         {!isMobile && sidebarVisible && (
           <Box
-            w="250px"
+            w="240px"
             flexShrink={0}
             bg={sidebarBg}
             minH="calc(100vh - 73px)"
             borderRight="1px"
             borderColor={sidebarBorder}
-            p={4}
+            py={4}
           >
             {sidebarContent}
           </Box>
@@ -171,16 +187,16 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
             <DrawerOverlay />
             <DrawerContent>
               <DrawerCloseButton />
-              <DrawerHeader>Admin Navigation</DrawerHeader>
-              <DrawerBody p={0}>{sidebarContent}</DrawerBody>
+              <DrawerHeader fontWeight="semibold">Navigation</DrawerHeader>
+              <DrawerBody px={2}>{sidebarContent}</DrawerBody>
             </DrawerContent>
           </Drawer>
         )}
 
         <Box flex={1} minW={0} p={{ base: 4, md: 6 }}>
           {!isMobile && isTableView && !sidebarVisible && (
-            <Text fontSize="xs" color="gray.500" mb={2}>
-              Sidebar hidden for table view — use ☰ in the header to show navigation.
+            <Text fontSize="xs" color="gray.500" mb={3}>
+              Sidebar hidden for table view — use the menu toggle to show navigation.
             </Text>
           )}
           {children}

@@ -369,7 +369,7 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
 
             <Box bg="blue.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="blue.100">
               <Text fontSize="xs" color="blue.800">
-                About 20% of AI-generated questions include a child-friendly illustration (requires Image model in Admin → Ollama settings).
+                About 20% of AI-generated questions include a cloud-generated illustration (set GEMINI_API_KEY on the server).
               </Text>
             </Box>
 
