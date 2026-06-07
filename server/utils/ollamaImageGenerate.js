@@ -1,5 +1,5 @@
 /**
- * Quiz image entry point — delegates to cloud-only generation (no local Ollama image models).
+ * Quiz image entry point — Ollama Cloud only via /api/generate.
  */
 const {
   generateQuizQuestionImage,

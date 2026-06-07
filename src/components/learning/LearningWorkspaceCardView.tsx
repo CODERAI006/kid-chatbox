@@ -1,16 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import {
-  Box,
-  Text,
-  Button,
-  HStack,
-  VStack,
-  Progress,
-  Link,
-  SimpleGrid,
-  Image,
-} from '@/shared/design-system';
+import { Box, Image, Text, Button, HStack, VStack, Progress, Link, SimpleGrid } from '@/shared/design-system';
 import type { LearningWorkspaceCard } from '@/types/learningWorkspace';
+import { resolveOllamaImageUrl } from '@/utils/ollamaImageUrl';
 import { InteractiveFlashcardDeck } from '@/components/shared/InteractiveFlashcardDeck';
 import { FLASHCARD_MORE_PROMPT } from '@/constants/flashcards';
 import { flashcardsFromWorkspaceCard } from '@/utils/flashcardNormalize';
@@ -83,11 +74,12 @@ function DiagramHotspots({ card }: { card: LearningWorkspaceCard }) {
   const [active, setActive] = useState<string | null>(null);
   const hotspots = card.hotspots || [];
   const activeSpot = hotspots.find((h) => h.id === active);
+  const diagramSrc = resolveOllamaImageUrl(card.imageUrl);
 
   return (
     <VStack align="stretch" spacing={2}>
-      {card.imageUrl && (
-        <Image src={card.imageUrl} alt={card.imageAlt || card.title || 'Diagram'} borderRadius="md" />
+      {diagramSrc && (
+        <Image src={diagramSrc} alt={card.imageAlt || card.title || 'Diagram'} borderRadius="md" />
       )}
       <SimpleGrid columns={2} spacing={2}>
         {hotspots.map((hs) => (

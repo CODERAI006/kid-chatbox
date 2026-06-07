@@ -166,10 +166,10 @@ Kid Chatbox can route AI to [Ollama Cloud](https://docs.ollama.com/cloud) instea
 |------|----------|-----------------|
 | `text` | Quiz, study, learning bot | `gpt-oss:120b` |
 | `ocr` | Page photo reading | `qwen3-vl:235b-cloud` |
-| `image` | Quiz illustrations (~20% of questions, **Gemini cloud API**) | `gemini-2.5-flash-image` |
+| `image` | Quiz illustrations (~20% of questions, **Ollama Cloud only**) | `flux:cloud` |
 | `voice` | TTS narration (planned) | — |
 | `pdf` | Document export (planned) | — |
 
 Override any type via env (`OLLAMA_MODEL`, `OLLAMA_VISION_MODEL`, `OLLAMA_IMAGE_MODEL`, etc.) or Admin settings.
 
-**Quiz images (cloud only):** Illustrations use the Google Gemini Image API — not local Ollama Flux. Set `GEMINI_API_KEY` in server env ([Google AI Studio](https://aistudio.google.com/apikey)). Optional `QUIZ_IMAGE_PROVIDER=pollinations` for Pollinations (paid tier). Disable with `QUIZ_IMAGES_DISABLED=true`.
+**Quiz images (Ollama Cloud only):** ~20% of AI-generated quiz questions get illustrations via `POST https://ollama.com/api/generate`. Study mode uses the same pipeline for hero and gallery images. Only `/uploads/quiz-images/*` URLs are shown in the UI. Configure the image model in Admin → Ollama Cloud (default `flux:cloud`) or set `OLLAMA_IMAGE_MODEL`. Override fraction with `QUIZ_IMAGE_FRACTION=0.2`. Disable quiz images with `QUIZ_IMAGES_DISABLED=true`.

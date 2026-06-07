@@ -1,19 +1,20 @@
 /**
- * Topic image component with fallback
+ * Topic hero image — Ollama Cloud URL only (no stock/placeholder images).
  */
-
 import { Box, Image, Text } from '@/shared/design-system';
 import { motion } from 'framer-motion';
-
-import { resolveStudyImage } from '@/utils/studyImageUrls';
+import { resolveOllamaImageUrl } from '@/utils/ollamaImageUrl';
 
 interface TopicImageProps {
+  imageUrl?: string | null;
+  label: string;
   subject: string;
   topic: string;
 }
 
-export const TopicImage: React.FC<TopicImageProps> = ({ subject, topic }) => {
-  const { url, label } = resolveStudyImage(topic, subject, topic);
+export const TopicImage: React.FC<TopicImageProps> = ({ imageUrl, label, subject, topic }) => {
+  const src = resolveOllamaImageUrl(imageUrl);
+  if (!src) return null;
 
   return (
     <motion.div
@@ -31,24 +32,11 @@ export const TopicImage: React.FC<TopicImageProps> = ({ subject, topic }) => {
         mb={6}
       >
         <Image
-          src={url}
+          src={src}
           alt={`${label} — ${topic}`}
           width="100%"
           height="100%"
           objectFit="cover"
-          fallback={
-            <Box
-              width="100%"
-              height="100%"
-              bg="gradient-to-r"
-              bgGradient="linear(to-r, blue.400, purple.500)"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Text fontSize="6xl">{subject.charAt(0)}</Text>
-            </Box>
-          }
         />
         <Box
           position="absolute"
@@ -66,4 +54,3 @@ export const TopicImage: React.FC<TopicImageProps> = ({ subject, topic }) => {
     </motion.div>
   );
 };
-

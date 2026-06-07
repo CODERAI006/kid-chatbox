@@ -10,10 +10,9 @@ import { QuizConfig } from '@/types/quiz';
 import {
   Lesson,
   getIntroductionText,
-  getIntroductionImageKeyword,
   getIntroductionCaption,
 } from '@/services/study';
-import { resolveStudyImage } from '@/utils/studyImageUrls';
+import { resolveOllamaImageUrl } from '@/utils/ollamaImageUrl';
 import { AnimatedCard } from './AnimatedCard';
 import { StudyImageGallery } from './StudyImageGallery';
 import { StudyLessonSectionNav } from './StudyLessonSectionNav';
@@ -46,12 +45,8 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
   const topic = config.subtopics[0] || config.subtopics.join(', ');
   const showGallery = studyMeta?.contentFocus?.includes('Diagrams & Images') ?? true;
   const introText = getIntroductionText(lesson.introduction);
-  const introImg = resolveStudyImage(
-    getIntroductionImageKeyword(lesson.introduction),
-    config.subject,
-    topic
-  );
-  const introCaption = getIntroductionCaption(lesson.introduction) || introImg.label;
+  const introSrc = resolveOllamaImageUrl(lesson.introImageUrl);
+  const introCaption = getIntroductionCaption(lesson.introduction) || topic;
 
   return (
     <Box padding={{ base: 4, md: 6 }} bg="gray.50" minHeight="100vh" style={{ fontSize }}>
@@ -75,19 +70,21 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
                 <Text textAlign="center" color="gray.600">
                   Topic: <strong>{topic}</strong>
                 </Text>
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5} alignItems="start">
-                  <Box borderRadius="xl" overflow="hidden" boxShadow="lg" borderWidth={2} borderColor="blue.100">
-                    <Image
-                      src={introImg.url}
-                      alt={introCaption}
-                      w="100%"
-                      h={{ base: '200px', md: '260px' }}
-                      objectFit="cover"
-                    />
-                    <Box px={3} py={2} bg="blue.600">
-                      <Text color="white" fontSize="sm" fontWeight="semibold">{introCaption}</Text>
+                <SimpleGrid columns={{ base: 1, md: introSrc ? 2 : 1 }} spacing={5} alignItems="start">
+                  {introSrc && (
+                    <Box borderRadius="xl" overflow="hidden" boxShadow="lg" borderWidth={2} borderColor="blue.100">
+                      <Image
+                        src={introSrc}
+                        alt={introCaption}
+                        w="100%"
+                        h={{ base: '200px', md: '260px' }}
+                        objectFit="cover"
+                      />
+                      <Box px={3} py={2} bg="blue.600">
+                        <Text color="white" fontSize="sm" fontWeight="semibold">{introCaption}</Text>
+                      </Box>
                     </Box>
-                  </Box>
+                  )}
                   <Box>
                     {introText.split('\n\n').map((p, i) => (
                       <Text key={i} lineHeight="tall" color="gray.700" mb={3}>{p.trim()}</Text>
@@ -98,9 +95,9 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
             </AnimatedCard>
           </Box>
 
-          {showGallery && (
+          {showGallery && lesson.galleryImages && lesson.galleryImages.length > 0 && (
             <AnimatedCard delay={0.12}>
-              <StudyImageGallery subject={config.subject} topic={topic} keywords={lesson.imageKeywords} />
+              <StudyImageGallery images={lesson.galleryImages} />
             </AnimatedCard>
           )}
 

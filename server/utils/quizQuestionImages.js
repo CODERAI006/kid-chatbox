@@ -2,6 +2,7 @@
  * Attach AI-generated illustrations to ~20% of quiz questions.
  */
 const { generateQuizQuestionImage } = require('./ollamaImageGenerate');
+const { sanitizeOllamaImageUrl } = require('./ollamaImageUrl');
 
 const DEFAULT_FRACTION = 0.2;
 const IMAGE_CONCURRENCY = Math.min(3, Math.max(1, Number(process.env.QUIZ_IMAGE_CONCURRENCY) || 2));
@@ -54,7 +55,8 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
     const q = questions[idx];
     try {
       const prompt = buildImagePrompt(q, ctx);
-      const imageUrl = await generateQuizQuestionImage(prompt);
+      const imageUrl = sanitizeOllamaImageUrl(await generateQuizQuestionImage(prompt));
+      if (!imageUrl) return false;
       enriched[idx] = { ...enriched[idx], imageUrl };
       console.info('[quiz-images] saved', { question: idx + 1, imageUrl });
       return true;
@@ -78,7 +80,7 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
   console.info('[quiz-images] complete', { requested: indices.length, saved });
   if (indices.length > 0 && saved === 0) {
     console.warn(
-      '[quiz-images] no illustrations saved — set GEMINI_API_KEY on the server for cloud image generation'
+      '[quiz-images] no illustrations saved — enable Ollama Cloud and set an image model in Admin → Ollama Cloud'
     );
   }
 

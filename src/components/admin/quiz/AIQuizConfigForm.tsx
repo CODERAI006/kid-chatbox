@@ -214,7 +214,7 @@ export const AIQuizConfigForm: React.FC<Props> = ({ value, onChange, showErrors 
 
       <Box bg="blue.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="blue.100">
         <Text fontSize="xs" color="blue.800">
-          About 20% of generated questions will include cloud AI illustrations (Gemini image API; GEMINI_API_KEY on server).
+          About 20% of generated questions will include Ollama Cloud illustrations (enable Ollama Cloud in Admin).
         </Text>
       </Box>
 

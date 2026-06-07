@@ -3,6 +3,7 @@
  */
 
 import { Quiz, QuizQuestion } from '@/services/admin';
+import { isOllamaGeneratedImageUrl } from '@/utils/ollamaImageUrl';
 
 /**
  * Parse and map question data from database format to frontend format
@@ -18,9 +19,12 @@ export const parseQuestions = (questions: unknown[]): QuizQuestion[] => {
     const questionType = (q.question_type !== undefined && q.question_type !== null)
       ? q.question_type
       : ((q.questionType !== undefined && q.questionType !== null) ? q.questionType : 'multiple_choice');
-    const questionImageUrl = (q.question_image_url !== undefined && q.question_image_url !== null)
+    const rawImageUrl = (q.question_image_url !== undefined && q.question_image_url !== null)
       ? q.question_image_url
       : ((q.questionImageUrl !== undefined && q.questionImageUrl !== null) ? q.questionImageUrl : null);
+    const questionImageUrl = isOllamaGeneratedImageUrl(rawImageUrl)
+      ? String(rawImageUrl).trim()
+      : undefined;
     const orderIndex = (q.order_index !== undefined && q.order_index !== null)
       ? q.order_index
       : ((q.orderIndex !== undefined && q.orderIndex !== null) ? q.orderIndex : 0);

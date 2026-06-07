@@ -165,5 +165,35 @@ router.get('/history/:userId', authenticateToken, checkModuleAccess('study'), as
   }
 });
 
+/**
+ * Generate Ollama Cloud illustrations for a study lesson (hero + gallery).
+ * POST /api/study/lesson-images
+ */
+router.post(
+  '/lesson-images',
+  authenticateToken,
+  checkModuleAccess('study'),
+  checkPlanAiStudy,
+  async (req, res, next) => {
+    try {
+      const { subject, topic, introductionImageKeyword, imageKeywords } = req.body || {};
+      if (!subject || !topic) {
+        return res.status(400).json({ success: false, message: 'subject and topic are required' });
+      }
+      const { enrichLessonWithImages } = require('../utils/studyLessonImages');
+      const images = await enrichLessonWithImages(
+        {
+          introductionImageKeyword,
+          imageKeywords: Array.isArray(imageKeywords) ? imageKeywords : [],
+        },
+        { subject: String(subject), topic: String(topic) }
+      );
+      res.json({ success: true, ...images });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 module.exports = router;
 

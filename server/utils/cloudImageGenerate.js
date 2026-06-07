@@ -1,15 +1,15 @@
 /**
- * Cloud-only quiz illustration generation (no local Ollama image pulls).
- * Primary: Google Gemini Image API. Fallback: Pollinations (cloud, no API key).
+ * Quiz illustrations via Ollama Cloud only (POST /api/generate → base64 image field).
+ * Requires Admin → Ollama Cloud enabled with a valid API key.
  */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { getConfiguredModel } = require('./ollamaCloudSettings');
+const { CLOUD_BASE_URL, getConfiguredModel } = require('./ollamaCloudSettings');
+const { getOllamaRuntimeConfig } = require('./ollamaClient');
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-image';
-const LEGACY_OLLAMA_IMAGE_MODELS = new Set(['flux', 'flux:cloud', 'gemma4:31b-cloud']);
+const DEFAULT_CLOUD_IMAGE_MODEL = 'flux:cloud';
+const DEPRECATED_IMAGE_MODELS = new Set(['gemini-2.5-flash-image', 'gemini-3.1-flash-image']);
 const UPLOAD_DIR = path.join(__dirname, '../../uploads/quiz-images');
 const IMAGE_TIMEOUT_MS = Number(process.env.QUIZ_IMAGE_TIMEOUT_MS) || 180_000;
 
@@ -31,66 +31,61 @@ function createTimeoutSignal(ms) {
 function resolveImageModel() {
   const fromEnv = (process.env.OLLAMA_IMAGE_MODEL || '').trim();
   const fromAdmin = (getConfiguredModel('image') || '').trim();
-  const raw = fromEnv || fromAdmin;
-  if (!raw || LEGACY_OLLAMA_IMAGE_MODELS.has(raw)) {
-    return DEFAULT_GEMINI_MODEL;
+  const raw = fromEnv || fromAdmin || DEFAULT_CLOUD_IMAGE_MODEL;
+  if (DEPRECATED_IMAGE_MODELS.has(raw) || raw.startsWith('gemini-')) {
+    console.warn('[quiz-images] deprecated image model; using Ollama Cloud default', {
+      requested: raw,
+      using: DEFAULT_CLOUD_IMAGE_MODEL,
+    });
+    return DEFAULT_CLOUD_IMAGE_MODEL;
   }
-  if (raw.startsWith('gemini-')) return raw;
-  return DEFAULT_GEMINI_MODEL;
+  return raw;
 }
 
-function getProvider() {
-  const mode = (process.env.QUIZ_IMAGE_PROVIDER || 'auto').trim().toLowerCase();
-  if (mode === 'pollinations') return 'pollinations';
-  return 'gemini';
+function assertOllamaCloudReady() {
+  const runtime = getOllamaRuntimeConfig();
+  if (runtime.mode !== 'cloud' || !runtime.configured) {
+    throw new Error(
+      'Quiz images require Ollama Cloud. Enable it and set an API key in Admin → Ollama Cloud.'
+    );
+  }
+  return runtime;
 }
 
-async function generateViaGemini(prompt, model) {
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not set (required for Gemini cloud image generation).');
-  }
+async function generateViaOllamaCloud(prompt, model) {
+  const runtime = assertOllamaCloudReady();
+  const url = `${CLOUD_BASE_URL}/api/generate`;
 
-  const res = await fetch(`${GEMINI_API_BASE}/${model}:generateContent`, {
+  const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-    }),
+    headers: { 'Content-Type': 'application/json', ...runtime.headers },
+    body: JSON.stringify({ model, prompt, stream: false }),
     signal: createTimeoutSignal(IMAGE_TIMEOUT_MS),
   });
 
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Gemini image API ${res.status}: ${text.slice(0, 280)}`);
+    throw new Error(`Ollama Cloud image API ${res.status}: ${text.slice(0, 280)}`);
   }
 
-  const data = await res.json();
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  for (const part of parts) {
-    if (part.inlineData?.data) return part.inlineData.data;
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('Ollama Cloud returned non-JSON image response');
   }
-  throw new Error('Gemini returned no image data');
-}
 
-async function generateViaPollinations(prompt) {
-  const url =
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
-    '?width=512&height=512&nologo=true&enhance=false';
-  const res = await fetch(url, { signal: createTimeoutSignal(IMAGE_TIMEOUT_MS) });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Pollinations image ${res.status}: ${text.slice(0, 200)}`);
+  const imageB64 = data?.image;
+  if (!imageB64 || typeof imageB64 !== 'string') {
+    throw new Error(`Ollama Cloud model "${model}" returned no image data`);
   }
-  const buffer = Buffer.from(await res.arrayBuffer());
+
+  const buffer = Buffer.from(imageB64, 'base64');
   if (buffer.length < 500) {
-    throw new Error('Pollinations returned an empty or invalid image');
+    throw new Error('Ollama Cloud returned an empty or invalid image');
   }
-  return buffer;
+
+  return { buffer, provider: 'ollama-cloud', model: data.model || model };
 }
 
 function saveQuizImageBuffer(buffer) {
@@ -105,23 +100,15 @@ function saveQuizImageBase64(base64) {
 }
 
 async function cloudGenerateImage(prompt) {
-  const provider = getProvider();
   const model = resolveImageModel();
-
-  if (provider === 'gemini') {
-    const base64 = await generateViaGemini(prompt, model);
-    return { buffer: Buffer.from(base64, 'base64'), provider: 'gemini', model };
-  }
-
-  const buffer = await generateViaPollinations(prompt);
-  return { buffer, provider: 'pollinations', model: 'pollinations' };
+  return generateViaOllamaCloud(prompt, model);
 }
 
 /** @param {string} prompt */
 async function generateQuizQuestionImage(prompt) {
   const { buffer, provider, model } = await cloudGenerateImage(prompt);
   const imageUrl = saveQuizImageBuffer(buffer);
-  console.info('[quiz-images] cloud save', { provider, model, imageUrl });
+  console.info('[quiz-images] ollama cloud save', { provider, model, imageUrl });
   return imageUrl;
 }
 
@@ -130,5 +117,4 @@ module.exports = {
   cloudGenerateImage,
   saveQuizImageBase64,
   resolveImageModel,
-  getProvider,
 };

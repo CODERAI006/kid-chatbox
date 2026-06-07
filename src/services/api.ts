@@ -666,6 +666,21 @@ export const studyApi = {
     return response.data;
   },
 
+  /** Ollama Cloud illustrations for study lessons (hero + gallery). */
+  enrichLessonImages: async (payload: {
+    subject: string;
+    topic: string;
+    introductionImageKeyword?: string;
+    imageKeywords?: string[];
+  }): Promise<{
+    success: boolean;
+    introImageUrl: string | null;
+    galleryImages: Array<{ url: string; label: string; keyword: string }>;
+  }> => {
+    const response = await apiClient.post('/study/lesson-images', payload);
+    return response.data;
+  },
+
   /**
    * Get shared study library with search
    */

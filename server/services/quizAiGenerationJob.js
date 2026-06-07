@@ -7,6 +7,7 @@ const { generateQuizQuestions } = require('../utils/openai');
 const { trackQuizCreated } = require('../utils/eventTracker');
 const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
 const { extractTextFromQuizPages, normalizeBase64Images } = require('../utils/quizImageExtract');
+const { sanitizeOllamaImageUrl } = require('../utils/ollamaImageUrl');
 
 function buildTopics(payload) {
   const subject = (payload.subject || '').trim();
@@ -124,7 +125,7 @@ async function runQuizAiGenerationJob(jobId) {
 
     for (let i = 0; i < generatedQuestions.length; i++) {
       const q = generatedQuestions[i];
-      const imageUrl = q.imageUrl || null;
+      const imageUrl = sanitizeOllamaImageUrl(q.imageUrl || null);
       await pool.query(
         `INSERT INTO quiz_questions (
           quiz_id, question_type, question_text, question_image_url, options,

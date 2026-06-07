@@ -18,6 +18,7 @@ const { runQuizAiGenerationJob } = require('../services/quizAiGenerationJob');
 const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
 const { normalizeBase64Images } = require('../utils/quizImageExtract');
 const { syncQuizAttemptToHistory } = require('../utils/syncQuizAttemptToHistory');
+const { sanitizeOllamaImageUrl } = require('../utils/ollamaImageUrl');
 
 const router = express.Router();
 
@@ -756,7 +757,10 @@ router.post(
       attempt: attemptResult.rows[0],
       quiz: {
         ...quiz,
-        questions: questionsResult.rows,
+        questions: questionsResult.rows.map((q) => ({
+          ...q,
+          question_image_url: sanitizeOllamaImageUrl(q.question_image_url),
+        })),
       },
     });
   } catch (error) {
@@ -1202,7 +1206,7 @@ router.post('/generate', checkPermission('manage_quizzes'), async (req, res, nex
     const questions = [];
     for (let i = 0; i < generatedQuestions.length; i++) {
       const q = generatedQuestions[i];
-      const imageUrl = q.imageUrl || null;
+      const imageUrl = sanitizeOllamaImageUrl(q.imageUrl || null);
       const questionResult = await pool.query(
         `INSERT INTO quiz_questions (
           quiz_id, question_type, question_text, question_image_url, options,

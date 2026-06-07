@@ -3,6 +3,7 @@
  */
 
 const { pool } = require('../config/database');
+const { sanitizeOllamaImageUrl } = require('./ollamaImageUrl');
 
 /**
  * @param {string} libraryId
@@ -79,7 +80,7 @@ async function copyLibraryToQuiz(libraryId, userId) {
     const text = q.question || q.question_text || '';
     const options = q.options || [];
     const correct = q.correctAnswer ?? q.correct_answer ?? '';
-    const imageUrl = q.imageUrl || q.question_image_url || null;
+    const imageUrl = sanitizeOllamaImageUrl(q.imageUrl || q.question_image_url || null);
     await pool.query(
       `INSERT INTO quiz_questions (
         quiz_id, question_type, question_text, question_image_url, options,

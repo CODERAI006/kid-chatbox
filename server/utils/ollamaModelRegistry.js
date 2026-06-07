@@ -37,15 +37,16 @@ const OLLAMA_MODEL_TYPES = [
   {
     id: 'image',
     label: 'Image generation',
-    description: 'Quiz illustrations via Gemini cloud API (~20% of questions). Set GEMINI_API_KEY.',
+    description: 'Quiz illustrations via Ollama Cloud only (~20% of questions). Requires Ollama Cloud enabled.',
     emoji: '🖼️',
-    defaultCloud: 'gemini-2.5-flash-image',
+    defaultCloud: 'flux:cloud',
     defaultLocal: '',
     envVar: 'OLLAMA_IMAGE_MODEL',
     implemented: true,
     presets: [
-      { id: 'gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image (recommended)' },
-      { id: 'gemini-3.1-flash-image', label: 'Gemini 3.1 Flash Image' },
+      { id: 'flux:cloud', label: 'Flux Cloud (recommended)' },
+      { id: 'x/flux2-klein:4b', label: 'FLUX.2 Klein 4B' },
+      { id: 'x/z-image-turbo', label: 'Z-Image Turbo' },
     ],
   },
   {

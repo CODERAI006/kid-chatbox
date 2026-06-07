@@ -12,7 +12,7 @@ import { OllamaModelTypeField } from './OllamaModelTypeField';
 const DEFAULT_MODELS: Record<string, string> = {
   text: 'gpt-oss:120b',
   ocr: 'qwen3-vl:235b-cloud',
-  image: 'gemini-2.5-flash-image',
+  image: 'flux:cloud',
   voice: '',
   pdf: '',
 };

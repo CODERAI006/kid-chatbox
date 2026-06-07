@@ -4,7 +4,7 @@
 
 import { QuizConfig } from '@/types/quiz';
 import { User } from '@/types';
-import { aiApi } from '@/services/api';
+import { aiApi, studyApi } from '@/services/api';
 import { buildStudyLessonPrompt } from '@/services/studyPrompt';
 import { normalizeFlashcardList } from '@/utils/flashcardNormalize';
 
@@ -36,6 +36,12 @@ export interface LessonIntroduction {
   imageCaption?: string;
 }
 
+export interface StudyGalleryImage {
+  url: string;
+  label: string;
+  keyword: string;
+}
+
 export interface Lesson {
   title: string;
   whyLearnThis?: string;
@@ -56,6 +62,10 @@ export interface Lesson {
   askAiTeacherPrompts?: string[];
   practiceQuestions?: PracticeQuestion[];
   imageKeywords?: string[];
+  /** Ollama Cloud hero image for introduction */
+  introImageUrl?: string | null;
+  /** Ollama Cloud gallery images */
+  galleryImages?: StudyGalleryImage[];
   funFacts?: string[];
   visualLearningSuggestions?: string[];
   visualLearningDescription?: string[];
@@ -240,6 +250,21 @@ export async function generateLesson(
 
     if (!lesson.title || !getIntroductionText(lesson.introduction) || !lesson.summary) {
       throw new Error('Invalid lesson structure received');
+    }
+
+    try {
+      const images = await studyApi.enrichLessonImages({
+        subject: config.subject,
+        topic,
+        introductionImageKeyword: getIntroductionImageKeyword(lesson.introduction),
+        imageKeywords: lesson.imageKeywords,
+      });
+      lesson.introImageUrl = images.introImageUrl;
+      lesson.galleryImages = images.galleryImages || [];
+    } catch (imgErr) {
+      console.warn('[Study] Ollama Cloud images skipped:', imgErr);
+      lesson.introImageUrl = null;
+      lesson.galleryImages = [];
     }
 
     return lesson;
