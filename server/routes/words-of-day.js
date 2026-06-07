@@ -1,19 +1,18 @@
 /**
- * Words of the Day route - 5 advanced vocabulary words per day with date support
- * GET /api/public/words-of-day?date=YYYY-MM-DD
+ * Words of the Day — class-based word + 5 daily phrases
+ * GET /api/public/words-of-day?date=YYYY-MM-DD&grade=Class+5
+ * GET /api/public/words-of-day/detail?word=happy&date=...&grade=...
  */
 
 const express = require('express');
-const axios = require('axios');
 const { pool } = require('../config/database');
-const { ADVANCED_VOCABULARY_WORDS } = require('../data/advanced-vocabulary-words');
-const { ADVANCED_SYNONYMS_ANTONYMS } = require('../data/advanced-synonyms-antonyms');
+const { getWordForDate } = require('../data/grade-vocabulary');
+const { getPhrasesForDate } = require('../data/daily-phrases');
+const { getComplexityForGrade, defaultComplexityForGrade } = require('../utils/wordOfDaySettings');
+const { enrichWord } = require('../utils/wordOfDayEnrich');
 
 const router = express.Router();
-const WORDS_PER_DAY = 5;
-const TOTAL_BATCHES = Math.floor(ADVANCED_VOCABULARY_WORDS.length / WORDS_PER_DAY);
 
-/** Parse YYYY-MM-DD string or return today */
 function parseDateParam(dateStr) {
   if (!dateStr) return new Date();
   const parts = dateStr.split('-').map(Number);
@@ -21,7 +20,6 @@ function parseDateParam(dateStr) {
   return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
-/** Format a Date as YYYY-MM-DD */
 function formatDate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -29,21 +27,17 @@ function formatDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-/** Get the 5 words assigned to a given date */
-function getWordsForDate(d) {
-  const epochDay = Math.floor(d.getTime() / (1000 * 60 * 60 * 24));
-  const batchIndex = Math.abs(epochDay) % TOTAL_BATCHES;
-  const start = batchIndex * WORDS_PER_DAY;
-  return ADVANCED_VOCABULARY_WORDS.slice(start, start + WORDS_PER_DAY);
+function cacheKey(grade, cacheDate) {
+  const g = String(grade || 'default').replace(/\s+/g, '_').toLowerCase();
+  return `wotd_v3_${g}`;
 }
 
-/** Read cached daily batch from DB */
-async function readBatchCache(cacheDate) {
+async function readCache(key, cacheDate) {
   try {
     const r = await pool.query(
       `SELECT payload FROM word_of_the_day_cache
        WHERE word_key = $1 AND cache_date = $2::date`,
-      ['batch_v2', cacheDate]
+      [key, cacheDate]
     );
     return r.rows.length > 0 ? r.rows[0].payload : null;
   } catch {
@@ -51,105 +45,102 @@ async function readBatchCache(cacheDate) {
   }
 }
 
-/** Write daily batch to DB cache */
-async function writeBatchCache(cacheDate, payload) {
+async function writeCache(key, cacheDate, payload) {
   try {
     await pool.query(
       `INSERT INTO word_of_the_day_cache (word_key, cache_date, payload)
        VALUES ($1, $2::date, $3::jsonb)
        ON CONFLICT (word_key, cache_date) DO UPDATE
        SET payload = EXCLUDED.payload, updated_at = CURRENT_TIMESTAMP`,
-      ['batch_v2', cacheDate, JSON.stringify(payload)]
+      [key, cacheDate, JSON.stringify(payload)]
     );
   } catch (err) {
     console.error('[words-of-day] cache write failed:', err.message);
   }
 }
 
-/** Fetch one word from Free Dictionary API */
-async function fetchWordData(word) {
-  try {
-    const response = await axios.get(
-      `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`,
-      { timeout: 6000 }
-    );
-    if (!response.data || !response.data.length) return null;
+async function buildDailyPayload(date, grade, includeDetail = false) {
+  const cacheDate = formatDate(date);
+  const gradeLabel = String(grade || 'Class 5 / Grade 5').trim();
+  const complexity =
+    (await getComplexityForGrade(gradeLabel)) ||
+    defaultComplexityForGrade(gradeLabel);
 
-    const entry = response.data[0];
-    const phonetic =
-      entry.phonetic ||
-      (entry.phonetics && entry.phonetics.find((p) => p.text)?.text) ||
-      '';
-    const audioUrl = entry.phonetics?.find((p) => p.audio)?.audio || null;
+  const wordText = getWordForDate(date, gradeLabel, complexity);
+  const word = await enrichWord(wordText, complexity, includeDetail);
+  const phrases = getPhrasesForDate(date, gradeLabel, complexity);
 
-    const meanings = entry.meanings.slice(0, 2).map((m) => {
-      const apiSynonyms = m.synonyms?.slice(0, 5) || [];
-      const apiAntonyms = m.antonyms?.slice(0, 5) || [];
-      const fallback = ADVANCED_SYNONYMS_ANTONYMS[word.toLowerCase()] || {};
-
-      return {
-        partOfSpeech: m.partOfSpeech,
-        definitions: m.definitions.slice(0, 2).map((d) => ({
-          definition: d.definition,
-          example: d.example || null,
-        })),
-        synonyms: apiSynonyms.length > 0 ? apiSynonyms : (fallback.synonyms || []),
-        antonyms: apiAntonyms.length > 0 ? apiAntonyms : (fallback.antonyms || []),
-      };
-    });
-
-    return { word: entry.word, phonetic, audioUrl, meanings };
-  } catch {
-    // API not available for this word — use fallback data only
-    const fallback = ADVANCED_SYNONYMS_ANTONYMS[word.toLowerCase()];
-    return {
-      word,
-      phonetic: '',
-      audioUrl: null,
-      meanings: [{
-        partOfSpeech: 'word',
-        definitions: [{ definition: 'Look up this word to discover its meaning!', example: null }],
-        synonyms: fallback?.synonyms || [],
-        antonyms: fallback?.antonyms || [],
-      }],
-    };
-  }
+  return {
+    success: true,
+    date: cacheDate,
+    grade: gradeLabel,
+    complexity,
+    word,
+    phrases,
+  };
 }
 
-/**
- * GET /api/public/words-of-day
- * Optional query param: ?date=YYYY-MM-DD (defaults to today)
- * Returns 5 advanced vocabulary words for the given date
- */
+/** GET / — daily word + 5 phrases */
 router.get('/', async (req, res) => {
   try {
     const date = parseDateParam(req.query.date);
+    const grade = req.query.grade || 'Class 5 / Grade 5';
     const cacheDate = formatDate(date);
+    const key = cacheKey(grade, cacheDate);
 
-    // Try cache first
-    const cached = await readBatchCache(cacheDate);
-    if (cached) {
-      return res.json(cached);
-    }
+    const cached = await readCache(key, cacheDate);
+    if (cached) return res.json(cached);
 
-    const words = getWordsForDate(date);
-
-    // Fetch all 5 words in parallel
-    const wordDataArray = await Promise.all(words.map(fetchWordData));
-
-    const validWords = wordDataArray.filter(Boolean);
-
-    const body = {
-      success: true,
-      date: cacheDate,
-      words: validWords,
-    };
-
-    await writeBatchCache(cacheDate, body);
+    const body = await buildDailyPayload(date, grade, false);
+    await writeCache(key, cacheDate, body);
     res.json(body);
   } catch (error) {
     console.error('[words-of-day] error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to load words', words: [] });
+    res.status(500).json({ success: false, message: 'Failed to load word of the day' });
+  }
+});
+
+/** GET /detail — full word explanation page */
+router.get('/detail', async (req, res) => {
+  try {
+    const date = parseDateParam(req.query.date);
+    const grade = req.query.grade || 'Class 5 / Grade 5';
+    const cacheDate = formatDate(date);
+    const gradeLabel = String(grade).trim();
+    const complexity =
+      (await getComplexityForGrade(gradeLabel)) ||
+      defaultComplexityForGrade(gradeLabel);
+
+    const wordParam = String(req.query.word || '').trim().toLowerCase();
+    const expectedWord = getWordForDate(date, gradeLabel, complexity).toLowerCase();
+
+    if (!wordParam || wordParam !== expectedWord) {
+      return res.status(404).json({
+        success: false,
+        message: 'Word not found for this date and class',
+      });
+    }
+
+    const detailKey = `${cacheKey(grade, cacheDate)}_detail`;
+    const cached = await readCache(detailKey, cacheDate);
+    if (cached) return res.json(cached);
+
+    const word = await enrichWord(expectedWord, complexity, true);
+    const phrases = getPhrasesForDate(date, gradeLabel, complexity);
+    const body = {
+      success: true,
+      date: cacheDate,
+      grade: gradeLabel,
+      complexity,
+      word,
+      phrases,
+    };
+
+    await writeCache(detailKey, cacheDate, body);
+    res.json(body);
+  } catch (error) {
+    console.error('[words-of-day/detail] error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to load word details' });
   }
 });
 

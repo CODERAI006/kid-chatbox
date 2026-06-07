@@ -6,6 +6,7 @@ import {
   Box, VStack, HStack, Text, Input, Button, Spinner, Badge, useColorModeValue,
 } from '@/shared/design-system';
 import { getErrorMessage, learningBotApi } from '@/services/api';
+import { LearningWorkspaceMessage } from '@/components/learning/LearningWorkspaceMessage';
 
 interface StudyAskTeacherProps {
   topic: string;
@@ -105,12 +106,13 @@ export const StudyAskTeacher: React.FC<StudyAskTeacherProps> = ({
       )}
       {reply && (
         <Box p={4} bg={answerBg} borderRadius="xl" borderLeftWidth={4} borderLeftColor="green.400">
-          <Text fontSize="xs" fontWeight="bold" color="green.700" mb={2}>
+          <Text fontSize="xs" fontWeight="bold" color="green.700" mb={3}>
             AI TEACHER
           </Text>
-          <Text fontSize="sm" lineHeight="tall" whiteSpace="pre-wrap" color="gray.800">
-            {reply}
-          </Text>
+          <LearningWorkspaceMessage
+            content={reply}
+            onAskPrompt={(prompt) => void send(prompt)}
+          />
         </Box>
       )}
       {!reply && !pending && (

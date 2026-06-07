@@ -15,6 +15,7 @@ import type { LearningWorkspaceCard } from '@/types/learningWorkspace';
 import { InteractiveFlashcardDeck } from '@/components/shared/InteractiveFlashcardDeck';
 import { FLASHCARD_MORE_PROMPT } from '@/constants/flashcards';
 import { flashcardsFromWorkspaceCard } from '@/utils/flashcardNormalize';
+import { ExplanationCardBody } from './ExplanationCardBody';
 
 interface Props {
   card: LearningWorkspaceCard;
@@ -162,29 +163,7 @@ export function LearningWorkspaceCardView({ card, onAskPrompt }: Props) {
     case 'text':
       return (
         <CardShell emoji="📖" title={card.title || 'Explanation'}>
-          <Text fontSize="sm" lineHeight="tall">{card.body}</Text>
-          {card.readMore && (
-            <Box mt={2} p={2} bg="gray.50" borderRadius="md">
-              <Text fontSize="xs" color="gray.600">{card.readMore}</Text>
-            </Box>
-          )}
-          <HStack mt={2} spacing={2} flexWrap="wrap">
-            {card.readMore && <Badge colorScheme="blue">Read more ↑</Badge>}
-            {card.audioText && (
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => {
-                  if (typeof speechSynthesis !== 'undefined' && card.audioText) {
-                    speechSynthesis.cancel();
-                    speechSynthesis.speak(new SpeechSynthesisUtterance(card.audioText));
-                  }
-                }}
-              >
-                🔊 Listen
-              </Button>
-            )}
-          </HStack>
+          <ExplanationCardBody card={card} onAskPrompt={onAskPrompt} />
         </CardShell>
       );
 

@@ -200,6 +200,15 @@ export type LearningBotUiMessage = {
   content: string;
 };
 
+export type LearningBotSavedChat = {
+  id: string;
+  archived: boolean;
+  preview: string;
+  messageCount: number;
+  updatedAt: string;
+  createdAt: string;
+};
+
 /**
  * Persisted learning chat (Ollama). Same API for students and admins.
  */
@@ -215,6 +224,43 @@ export const learningBotApi = {
       messages: LearningBotUiMessage[];
     }>('/learning-bot/conversation');
     return response.data;
+  },
+
+  listConversations: async (): Promise<{ success: boolean; conversations: LearningBotSavedChat[] }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      conversations: LearningBotSavedChat[];
+    }>('/learning-bot/conversations');
+    return response.data;
+  },
+
+  openConversation: async (
+    conversationId: string
+  ): Promise<{ success: boolean; conversationId: string; messages: LearningBotUiMessage[] }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      conversationId: string;
+      messages: LearningBotUiMessage[];
+      message?: string;
+    }>(`/learning-bot/conversations/${conversationId}/open`, {});
+    if (!response.data.success || !response.data.conversationId) {
+      throw new Error(response.data.message || 'Could not open chat');
+    }
+    return {
+      success: true,
+      conversationId: response.data.conversationId,
+      messages: response.data.messages || [],
+    };
+  },
+
+  saveConversation: async (): Promise<void> => {
+    const response = await apiClient.post<{ success: boolean; message?: string }>(
+      '/learning-bot/conversation/save',
+      {}
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Save failed');
+    }
   },
 
   sendMessage: async (params: {
@@ -909,32 +955,55 @@ export const publicApi = {
   },
 
   /**
-   * Get 5 Words of the Day for a given date (advanced vocabulary)
+   * Get Word of the Day + 5 phrases for a class and date
    */
   getWordsOfTheDay: async (
-    date?: string
-  ): Promise<{
-    success: boolean;
-    date: string;
-    words: Array<{
-      word: string;
-      phonetic: string;
-      audioUrl: string | null;
-      meanings: Array<{
-        partOfSpeech: string;
-        definitions: Array<{ definition: string; example: string | null }>;
-        synonyms: string[];
-        antonyms: string[];
-      }>;
-    }>;
-  }> => {
+    date?: string,
+    grade?: string
+  ): Promise<import('@/types/wordOfDay').WordOfDayResponse> => {
     try {
-      const params = date ? { date } : {};
+      const params: Record<string, string> = {};
+      if (date) params.date = date;
+      if (grade) params.grade = grade;
       const response = await apiClient.get('/public/words-of-day', { params });
       return response.data;
     } catch (error) {
       console.error('Failed to get words of the day:', error);
-      return { success: false, date: date || '', words: [] };
+      return {
+        success: false,
+        date: date || '',
+        grade: grade || '',
+        complexity: 'basic',
+        word: { word: '', phonetic: '', audioUrl: null, meanings: [] },
+        phrases: [],
+      };
+    }
+  },
+
+  /**
+   * Get full Word of the Day detail page data
+   */
+  getWordOfDayDetail: async (
+    word: string,
+    date?: string,
+    grade?: string
+  ): Promise<import('@/types/wordOfDay').WordOfDayResponse> => {
+    try {
+      const params: Record<string, string> = { word };
+      if (date) params.date = date;
+      if (grade) params.grade = grade;
+      const response = await apiClient.get('/public/words-of-day/detail', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get word of the day detail:', error);
+      return {
+        success: false,
+        date: date || '',
+        grade: grade || '',
+        complexity: 'basic',
+        word: { word: '', phonetic: '', audioUrl: null, meanings: [] },
+        phrases: [],
+      };
     }
   },
 

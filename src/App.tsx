@@ -28,6 +28,8 @@ import { StudyLibraryContentManagement } from '@/components/admin/StudyLibraryCo
 import { QuizResultsAnalytics } from '@/components/admin/QuizResultsAnalytics';
 import { QuizSchedulerManagement } from '@/components/admin/QuizSchedulerManagement';
 import { OllamaCloudSettingsPage } from '@/components/admin/OllamaCloudSettings';
+import { WordOfDaySettingsPage } from '@/components/admin/WordOfDaySettings';
+import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import NewsFeed from '@/components/NewsFeed';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
@@ -299,6 +301,16 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/word-of-day/:word"
+            element={
+              <AuthGuard>
+                <StudentLayout user={user}>
+                  <WordOfDayDetailPage />
+                </StudentLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
             path="/quiz-rankings"
             element={
               <AuthGuard>
@@ -441,6 +453,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <OllamaCloudSettingsPage />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/word-of-day"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <WordOfDaySettingsPage />
                 </AdminLayout>
               </AdminGuard>
             }

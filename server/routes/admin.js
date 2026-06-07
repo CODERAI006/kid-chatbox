@@ -1032,5 +1032,38 @@ router.post('/ollama-cloud/test', checkPermission('manage_users'), async (req, r
   }
 });
 
+/**
+ * Get Word of the Day complexity settings per grade
+ * GET /api/admin/word-of-day/settings
+ */
+router.get('/word-of-day/settings', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { getAllSettings, VALID_COMPLEXITIES } = require('../utils/wordOfDaySettings');
+    const settings = await getAllSettings();
+    res.json({ success: true, settings, complexities: VALID_COMPLEXITIES });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Update Word of the Day settings per grade
+ * PUT /api/admin/word-of-day/settings
+ * Body: { settings: [{ grade, complexity, enabled? }] }
+ */
+router.put('/word-of-day/settings', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { updateSettings } = require('../utils/wordOfDaySettings');
+    const updates = Array.isArray(req.body?.settings) ? req.body.settings : [];
+    if (!updates.length) {
+      return res.status(400).json({ success: false, message: 'settings array is required' });
+    }
+    const settings = await updateSettings(updates, req.user?.id);
+    res.json({ success: true, settings, message: 'Word of the Day settings saved.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 

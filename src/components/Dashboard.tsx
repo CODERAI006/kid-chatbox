@@ -514,7 +514,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             )}
 
             {/* Word of the Day */}
-            <WordOfTheDay />
+            <WordOfTheDay grade={user.grade} />
 
             {/* Upcoming Tests Sidebar */}
             <UpcomingTestsSidebar planInfo={planInfo} />

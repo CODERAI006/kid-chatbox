@@ -1123,6 +1123,24 @@ export interface OllamaCloudSettings {
   updatedBy: string | null;
 }
 
+export const wordOfDayApi = {
+  getSettings: async (): Promise<{
+    success: boolean;
+    settings: import('@/types/wordOfDay').WordOfDayGradeSetting[];
+    complexities: string[];
+  }> => {
+    const response = await apiClient.get('/admin/word-of-day/settings');
+    return response.data;
+  },
+
+  updateSettings: async (
+    settings: import('@/types/wordOfDay').WordOfDayGradeSetting[]
+  ): Promise<{ success: boolean; settings: import('@/types/wordOfDay').WordOfDayGradeSetting[]; message?: string }> => {
+    const response = await apiClient.put('/admin/word-of-day/settings', { settings });
+    return response.data;
+  },
+};
+
 export const ollamaCloudApi = {
   getSettings: async (): Promise<{
     success: boolean;

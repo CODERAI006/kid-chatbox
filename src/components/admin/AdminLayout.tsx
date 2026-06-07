@@ -42,6 +42,7 @@ const navItems = [
   { path: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: '⏰' },
   { path: '/admin/analytics', label: 'Analytics', icon: '📈' },
   { path: '/admin/ollama-cloud', label: 'Ollama Cloud', icon: '☁️' },
+  { path: '/admin/word-of-day', label: 'Word of Day', icon: '📖' },
 ];
 
 /**

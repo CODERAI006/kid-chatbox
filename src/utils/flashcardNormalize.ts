@@ -16,11 +16,22 @@ function pickString(obj: Record<string, unknown>, keys: string[]): string | unde
   return undefined;
 }
 
+function formatQuestionFront(raw: string): string {
+  const t = raw.trim();
+  if (!t) return t;
+  if (/[?？]$/.test(t)) return t;
+  if (/^(what|why|how|when|where|which|who|can|does|do|is|are|name|define|explain|describe)\b/i.test(t)) {
+    return t.endsWith('?') ? t : `${t}?`;
+  }
+  const term = t.replace(/^(the|a|an)\s+/i, '');
+  return `What is ${term}?`;
+}
+
 export function normalizeFlashcardPair(raw: unknown): FlashcardItem | null {
   if (!raw || typeof raw !== 'object') return null;
   const obj = raw as Record<string, unknown>;
 
-  const front = pickString(obj, ['front', 'question', 'term', 'prompt', 'q', 'card']);
+  const frontRaw = pickString(obj, ['front', 'question', 'term', 'prompt', 'q', 'card']);
   const back = pickString(obj, [
     'back',
     'answer',
@@ -32,8 +43,8 @@ export function normalizeFlashcardPair(raw: unknown): FlashcardItem | null {
     'explanation',
   ]);
 
-  if (!front || !back) return null;
-  return { front, back };
+  if (!frontRaw || !back) return null;
+  return { front: formatQuestionFront(frontRaw), back };
 }
 
 export function normalizeFlashcardList(raw: unknown): FlashcardItem[] {

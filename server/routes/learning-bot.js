@@ -76,6 +76,102 @@ router.post('/conversation/reset', async (req, res, next) => {
 });
 
 /**
+ * POST /api/learning-bot/conversation/save — archive current thread (keeps in saved list).
+ */
+router.post('/conversation/save', async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `UPDATE learning_bot_conversations SET archived = true, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1 AND archived = false
+       RETURNING id`,
+      [userId]
+    );
+    res.json({ success: true, savedCount: result.rowCount });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/learning-bot/conversations — saved + active threads.
+ */
+router.get('/conversations', async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const rows = await pool.query(
+      `SELECT c.id, c.archived, c.updated_at, c.created_at,
+        (SELECT content FROM learning_bot_messages m
+         WHERE m.conversation_id = c.id AND m.role = 'user'
+         ORDER BY m.created_at ASC LIMIT 1) AS preview,
+        (SELECT COUNT(*)::int FROM learning_bot_messages m WHERE m.conversation_id = c.id) AS message_count
+       FROM learning_bot_conversations c
+       WHERE c.user_id = $1
+         AND EXISTS (SELECT 1 FROM learning_bot_messages m WHERE m.conversation_id = c.id)
+       ORDER BY c.updated_at DESC NULLS LAST, c.created_at DESC
+       LIMIT 50`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      conversations: rows.rows.map((r) => ({
+        id: r.id,
+        archived: r.archived,
+        preview: r.preview ? String(r.preview).slice(0, 120) : '',
+        messageCount: r.message_count || 0,
+        updatedAt: r.updated_at,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/learning-bot/conversations/:id/open — load a saved thread as active.
+ */
+router.post('/conversations/:id/open', async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const check = await pool.query(
+      `SELECT id FROM learning_bot_conversations WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    await pool.query(
+      `UPDATE learning_bot_conversations SET archived = true, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1 AND archived = false AND id <> $2`,
+      [userId, id]
+    );
+    await pool.query(
+      `UPDATE learning_bot_conversations SET archived = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+
+    const msgs = await pool.query(
+      `SELECT id, role, content FROM learning_bot_messages
+       WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT $2`,
+      [id, MAX_MESSAGES_RETURN]
+    );
+
+    res.json({
+      success: true,
+      conversationId: id,
+      messages: msgs.rows.map((r) => ({ id: r.id, role: r.role, content: r.content })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/learning-bot/message
  * Body: { conversationId?: string | null, text: string }
  */
