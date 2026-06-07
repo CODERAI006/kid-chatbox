@@ -22,6 +22,8 @@ import { extractSpeakableReply } from '@/utils/speechSynthesis';
 import { useVoiceConversation } from '@/hooks/useVoiceConversation';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import type { LearningBotMode, LearningStudyFormat } from '@/types/learningWorkspace';
+import { formatOptionLabel } from '@/types/learningWorkspace';
+import { inferStudyFormat } from '@/utils/inferStudyFormat';
 
 const WELCOME_TOPIC = 'Pick a format to start';
 
@@ -35,7 +37,6 @@ export const LearningChatWidget: FC = () => {
   const [pending, setPending] = useState(false);
   const [bootLoading, setBootLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastModel, setLastModel] = useState<string | null>(null);
   const [saveHint, setSaveHint] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const historyDrawer = useDisclosure();
@@ -49,18 +50,24 @@ export const LearningChatWidget: FC = () => {
   const panelBorder = useColorModeValue('gray.200', 'gray.600');
   const userBubble = useColorModeValue('blue.50', 'blue.900');
   const workspaceBg = useColorModeValue('gray.50', 'gray.900');
-  const modeBadgeBg = useColorModeValue('whiteAlpha.300', 'whiteAlpha.200');
 
   const currentTopic = useMemo(() => {
+    let topic = WELCOME_TOPIC;
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       const m = messages[i];
       if (m.role === 'assistant') {
         const ws = resolveWorkspace(m.content);
-        if (ws.topic && ws.topic !== 'Learning') return ws.topic;
+        if (ws.topic && ws.topic !== 'Learning') {
+          topic = ws.topic;
+          break;
+        }
       }
     }
-    return WELCOME_TOPIC;
-  }, [messages]);
+    const formatLabel = formatOptionLabel(studyFormat);
+    if (formatLabel && topic !== WELCOME_TOPIC) return `${formatLabel} · ${topic}`;
+    if (formatLabel && messages.length === 0) return formatLabel;
+    return topic;
+  }, [messages, studyFormat]);
 
   const loadActive = useCallback(async () => {
     setBootLoading(true);
@@ -71,6 +78,7 @@ export const LearningChatWidget: FC = () => {
       const loaded = Array.isArray(data.messages) ? data.messages : [];
       setMessages(loaded);
       setChatMode(inferChatMode(loaded));
+      setStudyFormat(inferStudyFormat(loaded));
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -106,14 +114,13 @@ export const LearningChatWidget: FC = () => {
       if (opts?.format) setStudyFormat(opts.format);
 
       try {
-        const { conversationId: cid, content, model } = await learningBotApi.sendMessage({
+        const { conversationId: cid, content } = await learningBotApi.sendMessage({
           conversationId,
           text: trimmed,
           mode,
           format: format ?? undefined,
         });
         setConversationId(cid);
-        if (model) setLastModel(model);
         setMessages((prev) => [
           ...prev,
           { role: 'user', content: trimmed },
@@ -144,7 +151,6 @@ export const LearningChatWidget: FC = () => {
   const resetSession = () => {
     setConversationId(null);
     setMessages([]);
-    setLastModel(null);
     setChatMode('workspace');
     setStudyFormat(null);
   };
@@ -164,6 +170,7 @@ export const LearningChatWidget: FC = () => {
     setConversationId(id);
     setMessages(loaded);
     setChatMode(inferChatMode(loaded));
+    setStudyFormat(inferStudyFormat(loaded));
     setSaveHint(null);
   };
 
@@ -173,7 +180,6 @@ export const LearningChatWidget: FC = () => {
   };
 
   const showOnboarding = messages.length === 0 && !bootLoading;
-  const modeLabel = chatMode === 'chat' ? '💬 Chat' : '📚 Cards';
 
   const lastAssistantText = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -204,8 +210,7 @@ export const LearningChatWidget: FC = () => {
     currentTopic,
     messages,
     chatMode,
-    modeLabel,
-    lastModel,
+    studyFormat,
     saveHint,
     bootLoading,
     pending,
@@ -216,7 +221,6 @@ export const LearningChatWidget: FC = () => {
     panelBorder,
     userBubble,
     workspaceBg,
-    modeBadgeBg,
     voice,
     endRef,
     onClose: () => setOpen(false),
@@ -232,8 +236,8 @@ export const LearningChatWidget: FC = () => {
     <>
       {!open && (
         <IconButton
-          aria-label="Open AI study assistant"
-          icon={<Text fontSize="xl">🎓</Text>}
+          aria-label="Open Guru AI"
+          icon={<Text fontSize="xl">🧘</Text>}
           position="fixed"
           bottom={{ base: 5, md: 8 }}
           right={{ base: 5, md: 8 }}

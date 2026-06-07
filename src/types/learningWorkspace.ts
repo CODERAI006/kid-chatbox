@@ -115,13 +115,18 @@ export const QUICK_ACTION_PROMPTS: Record<LearningQuickAction, string> = {
 export function buildStudyTopicPrompt(format: LearningStudyFormat, topic: string): string {
   const t = topic.trim();
   const prompts: Record<LearningStudyFormat, string> = {
-    learn: `Explain "${t}" in a kid-friendly way with a hook card and a short summary.`,
-    detail: `Teach "${t}" with an explanation card: short body plus readMore (3-6 detailed paragraphs with examples). Include flashcards too.`,
-    flashcards: `Create at least 20 flashcards about "${t}". Each front must be a question ending with ?. Include a brief hook card.`,
-    visualize: `Explain "${t}" with an interactive diagram (hotspots) and a short explanation.`,
-    watch: `Help me learn "${t}" with a video suggestion, audio summary, and brief explanation.`,
-    quiz: `Teach "${t}" briefly then give me a quiz card with instant feedback.`,
+    learn: `Explain "${t}" using ONLY a hook card and a short explanation card. No flashcards, quiz, or media.`,
+    detail: `Teach "${t}" using ONLY a hook card and one explanation card with detailed readMore (3-6 paragraphs). No flashcards or quiz.`,
+    flashcards: `Create ONLY flashcards about "${t}" — one flashcard card with at least 20 question/answer pairs. Each front must be a question ending with ?. No explanation or quiz cards.`,
+    visualize: `Explain "${t}" using ONLY an interactive diagram card with 4+ hotspots. No flashcards or quiz.`,
+    watch: `Help me learn "${t}" using ONLY a video card and an audio summary card. No flashcards or quiz.`,
+    quiz: `Quiz me on "${t}" using ONLY a quiz card with 3-4 options and feedback. No flashcards or long lesson.`,
     chat: `Let's talk about "${t}". I may ask follow-up questions — answer naturally.`,
   };
   return prompts[format];
+}
+
+export function formatOptionLabel(format: LearningStudyFormat | null): string | null {
+  if (!format) return null;
+  return STUDY_FORMAT_OPTIONS.find((o) => o.key === format)?.label ?? null;
 }

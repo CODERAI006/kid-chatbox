@@ -5,14 +5,11 @@ import { type KeyboardEvent, type RefObject } from 'react';
 import {
   Box,
   Button,
-  Flex,
   HStack,
-  IconButton,
   Text,
   Input,
   VStack,
   Spinner,
-  Badge,
   Divider,
 } from '@/shared/design-system';
 import type { LearningBotUiMessage } from '@/services/api';
@@ -21,6 +18,7 @@ import { LearningFormatOnboarding } from './LearningFormatOnboarding';
 import { LearningConversationalMessage } from './LearningConversationalMessage';
 import { LearningWorkspaceMessage } from './LearningWorkspaceMessage';
 import { VoiceConversationBar } from './VoiceConversationBar';
+import { GuruChatHeader } from './GuruChatHeader';
 import type { useVoiceConversation } from '@/hooks/useVoiceConversation';
 
 type VoiceState = ReturnType<typeof useVoiceConversation>;
@@ -29,8 +27,7 @@ export interface LearningChatPanelContentProps {
   currentTopic: string;
   messages: LearningBotUiMessage[];
   chatMode: LearningBotMode;
-  modeLabel: string;
-  lastModel: string | null;
+  studyFormat: LearningStudyFormat | null;
   saveHint: string | null;
   bootLoading: boolean;
   pending: boolean;
@@ -41,7 +38,6 @@ export interface LearningChatPanelContentProps {
   panelBorder: string;
   userBubble: string;
   workspaceBg: string;
-  modeBadgeBg: string;
   voice: VoiceState;
   endRef: RefObject<HTMLDivElement>;
   onClose: () => void;
@@ -60,8 +56,7 @@ export function LearningChatPanelContent({
   currentTopic,
   messages,
   chatMode,
-  modeLabel,
-  lastModel,
+  studyFormat,
   saveHint,
   bootLoading,
   pending,
@@ -72,7 +67,6 @@ export function LearningChatPanelContent({
   panelBorder,
   userBubble,
   workspaceBg,
-  modeBadgeBg,
   voice,
   endRef,
   onClose,
@@ -83,51 +77,21 @@ export function LearningChatPanelContent({
   onKeyDown,
   onDraftChange,
 }: LearningChatPanelContentProps) {
+  const isChatActive =
+    pending ||
+    bootLoading ||
+    (voice.voiceMode && voice.phase !== 'idle');
+
   return (
     <>
-      <Flex
-        px={3}
-        py={2}
-        align="center"
-        justify="space-between"
-        borderBottomWidth="1px"
-        borderColor={panelBorder}
-        bg="blue.600"
-        color="white"
-        flexShrink={0}
-      >
-        <Box minW={0} flex={1}>
-          <Text fontWeight="bold" fontSize="md">🎓 AI Study Assistant</Text>
-          <Text fontSize="xs" opacity={0.9} noOfLines={1}>Topic: {currentTopic}</Text>
-        </Box>
-        <HStack spacing={1} flexShrink={0}>
-          {messages.length > 0 && (
-            <Badge fontSize="0.6rem" bg={modeBadgeBg} color="white">
-              {modeLabel}
-            </Badge>
-          )}
-          {lastModel && (
-            <Badge fontSize="0.6rem" colorScheme="purple" display={{ base: 'none', lg: 'inline-flex' }}>
-              {lastModel}
-            </Badge>
-          )}
-          <Button size="xs" variant="ghost" color="white" _hover={{ bg: 'whiteAlpha.200' }} onClick={onHistoryOpen}>
-            Saved chats
-          </Button>
-          <Button size="xs" variant="ghost" color="white" _hover={{ bg: 'whiteAlpha.200' }} onClick={onNewTopic}>
-            New topic
-          </Button>
-          <IconButton
-            aria-label="Close assistant"
-            size="sm"
-            variant="ghost"
-            color="white"
-            _hover={{ bg: 'whiteAlpha.200' }}
-            icon={<Text>✕</Text>}
-            onClick={onClose}
-          />
-        </HStack>
-      </Flex>
+      <GuruChatHeader
+        currentTopic={currentTopic}
+        isChatActive={isChatActive}
+        panelBorder={panelBorder}
+        onClose={onClose}
+        onHistoryOpen={onHistoryOpen}
+        onNewTopic={onNewTopic}
+      />
 
       {saveHint && (
         <Box px={3} py={1} bg="green.50" borderBottomWidth="1px" borderColor="green.100" flexShrink={0}>
@@ -184,6 +148,7 @@ export function LearningChatPanelContent({
                   <Box key={m.id || `a-${i}`} w="100%">
                     <LearningWorkspaceMessage
                       content={m.content}
+                      studyFormat={studyFormat}
                       onAskPrompt={(prompt) => void onSendText(prompt)}
                     />
                   </Box>
@@ -247,7 +212,7 @@ export function LearningChatPanelContent({
             colorScheme="blue"
             size="md"
             onClick={onSend}
-            isDisabled={pending || bootLoading || !draft.trim()}
+            isDisabled={pending || bootLoading || !draft.trim() || showOnboarding}
           >
             Send
           </Button>

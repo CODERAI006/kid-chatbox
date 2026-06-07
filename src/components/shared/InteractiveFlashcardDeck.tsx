@@ -1,7 +1,7 @@
 /**
  * Interactive flashcard deck — question-first study flow.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type TouchEvent } from 'react';
 import {
   Box,
   Text,
@@ -14,6 +14,7 @@ import {
 } from '@/shared/design-system';
 import { MIN_FLASHCARD_COUNT } from '@/constants/flashcards';
 import type { FlashcardItem } from '@/utils/flashcardNormalize';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 
 export type { FlashcardItem };
 
@@ -43,6 +44,7 @@ export function InteractiveFlashcardDeck({
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [known, setKnown] = useState<Set<number>>(new Set());
+  const didSwipe = useRef(false);
 
   const current = deck[idx];
   const total = deck.length;
@@ -59,6 +61,17 @@ export function InteractiveFlashcardDeck({
     setFlipped(false);
     setIdx((i) => (i - 1 + total) % total);
   }, [total]);
+
+  const swipe = useHorizontalSwipe(
+    () => {
+      didSwipe.current = true;
+      goNext();
+    },
+    () => {
+      didSwipe.current = true;
+      goPrev();
+    }
+  );
 
   const markKnown = useCallback(() => {
     setKnown((prev) => new Set(prev).add(idx));
@@ -143,7 +156,25 @@ export function InteractiveFlashcardDeck({
         bg={flipped ? 'green.50' : 'blue.50'}
         textAlign="center"
         cursor="pointer"
-        onClick={() => setFlipped((f) => !f)}
+        onClick={() => {
+          if (didSwipe.current) {
+            didSwipe.current = false;
+            return;
+          }
+          setFlipped((f) => !f);
+        }}
+        onTouchStart={(e: TouchEvent) => {
+          didSwipe.current = false;
+          swipe.onTouchStart(e);
+        }}
+        onTouchEnd={swipe.onTouchEnd}
+        onPointerDown={(e: PointerEvent) => {
+          didSwipe.current = false;
+          swipe.onPointerDown(e);
+        }}
+        onPointerUp={swipe.onPointerUp}
+        onPointerCancel={swipe.onPointerCancel}
+        sx={{ touchAction: 'pan-y' }}
         boxShadow="md"
         transition="background 0.2s, border-color 0.2s"
       >
@@ -170,7 +201,7 @@ export function InteractiveFlashcardDeck({
             : current.front || 'Question missing for this card.'}
         </Text>
         <Text fontSize="xs" color="gray.500" mt={2}>
-          Tap to {flipped ? 'see question again' : 'check answer'}
+          Tap to {flipped ? 'see question again' : 'check answer'} · swipe ← →
         </Text>
       </Box>
 
@@ -198,7 +229,7 @@ export function InteractiveFlashcardDeck({
           🔀 Shuffle
         </Button>
         <Text fontSize="xs" color="gray.500">
-          Space / Enter to flip · ← → to move
+          Space / Enter to flip · ← → or swipe cards
         </Text>
       </HStack>
     </VStack>
