@@ -117,9 +117,10 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
   const questionCountRef = useRef(questions.length);
   phaseRef.current = phase;
   questionCountRef.current = questions.length;
-  /** Auto-start from Study: once per navigation key so StrictMode / effect churn does not start two generations. */
-  const autoStartRouteKeyRef = useRef<string | null>(null);
-  const hasConsumedAutoStartForRouteRef = useRef(false);
+  /** True only when user arrived via navigate('/quiz', { state: { config } }) — not manual form submit. */
+  const navigatedWithConfigRef = useRef(
+    Boolean((location.state as { config?: QuizConfig } | null)?.config)
+  );
 
   const handleConfigComplete = useCallback(async (quizConfig: {
     subject: string;
@@ -132,68 +133,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
     sampleQuestion?: string;
     examStyle?: string;
   }) => {
-    // Get user profile data - fetch fresh data from API to ensure we have latest profile
-    let userProfile: User | null = null;
-    
-    try {
-      // Fetch fresh user profile from API (includes latest age and preferredLanguage)
-      const { user: freshUser } = await profileApi.getProfile();
-      userProfile = freshUser as User | null;
-    } catch (error) {
-      // If profile API fails, try auth API
-      try {
-        const { user: authUser } = await authApi.fetchCurrentUser();
-        userProfile = authUser as User | null;
-      } catch (authError) {
-        // If both fail, fall back to localStorage
-        console.warn('Failed to fetch fresh user data, using cached data:', error);
-        const { user } = authApi.getCurrentUser();
-        userProfile = user as User | null;
-      }
-    }
-    
-    // Validate user profile has required fields
-    if (!userProfile || !userProfile.age || !userProfile.preferredLanguage) {
-      setError('Please complete your profile first. Go to Profile to set your age and preferred language.');
-      setPhase('config');
-      return;
-    }
-
-    // Check plan limits before starting quiz (only for AI-generated quizzes, not scheduled tests or library quizzes)
-    // Library quizzes bypass plan limits
-    if (!scheduledTestId) {
-      try {
-        const { user } = authApi.getCurrentUser();
-        if (user && (user as { id: string }).id) {
-          const planInfo = await planApi.getUserPlan((user as { id: string }).id);
-          if (planInfo.limits.remainingQuizzes <= 0) {
-            setError(
-              `Daily quiz limit reached. You have used ${planInfo.usage.quizCount} of ${planInfo.limits.dailyQuizLimit} quizzes today. Please try again tomorrow, upgrade your plan, or try a quiz from the library (library quizzes don't count toward limits).`
-            );
-            setPhase('config');
-            return;
-          }
-        }
-      } catch (planError) {
-        // If plan check fails, log warning but allow quiz to proceed
-        console.warn('Failed to check plan limits:', planError);
-      }
-    }
-
-    const fullConfig: QuizConfig = {
-      age: userProfile.age,
-      language: userProfile.preferredLanguage as QuizConfig['language'],
-      subject: quizConfig.subject as QuizConfig['subject'],
-      subtopics: quizConfig.subtopics,
-      questionCount: quizConfig.questionCount || QUIZ_CONSTANTS.DEFAULT_QUESTIONS,
-      difficulty: quizConfig.difficulty as QuizConfig['difficulty'],
-      instructions: quizConfig.instructions,
-      timeLimit: quizConfig.timeLimit,
-      gradeLevel: quizConfig.gradeLevel,
-      sampleQuestion: quizConfig.sampleQuestion,
-      examStyle: quizConfig.examStyle,
-    };
-    // A slower duplicate invocation must not call setPhase('loading') after another run already reached the quiz.
+    // A slower duplicate invocation must not start another job after one is already running.
     if (phaseRef.current === 'quiz' && questionCountRef.current > 0) {
       console.warn('[QuizTutor] Skipping quiz generation: a quiz is already on-screen.');
       return;
@@ -203,17 +143,75 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
       return;
     }
     quizGenerationLockRef.current = true;
-    quizGenAbortRef.current?.abort();
-    const genController = new AbortController();
-    quizGenAbortRef.current = genController;
-    const generationRunId = ++quizGenerationRunIdRef.current;
-    setConfig(fullConfig);
-    setIsAiGenerating(true);
-    setGenerationStartedAt(Date.now());
-    setGenBatchProgress(null);
-    setError(null);
+
+    let generationRunId = 0;
 
     try {
+      // Get user profile data - fetch fresh data from API to ensure we have latest profile
+      let userProfile: User | null = null;
+
+      try {
+        const { user: freshUser } = await profileApi.getProfile();
+        userProfile = freshUser as User | null;
+      } catch (error) {
+        try {
+          const { user: authUser } = await authApi.fetchCurrentUser();
+          userProfile = authUser as User | null;
+        } catch {
+          console.warn('Failed to fetch fresh user data, using cached data:', error);
+          const { user } = authApi.getCurrentUser();
+          userProfile = user as User | null;
+        }
+      }
+
+      if (!userProfile || !userProfile.age || !userProfile.preferredLanguage) {
+        setError('Please complete your profile first. Go to Profile to set your age and preferred language.');
+        setPhase('config');
+        return;
+      }
+
+      if (!scheduledTestId) {
+        try {
+          const { user } = authApi.getCurrentUser();
+          if (user && (user as { id: string }).id) {
+            const planInfo = await planApi.getUserPlan((user as { id: string }).id);
+            if (planInfo.limits.remainingQuizzes <= 0) {
+              setError(
+                `Daily quiz limit reached. You have used ${planInfo.usage.quizCount} of ${planInfo.limits.dailyQuizLimit} quizzes today. Please try again tomorrow, upgrade your plan, or try a quiz from the library (library quizzes don't count toward limits).`
+              );
+              setPhase('config');
+              return;
+            }
+          }
+        } catch (planError) {
+          console.warn('Failed to check plan limits:', planError);
+        }
+      }
+
+      const fullConfig: QuizConfig = {
+        age: userProfile.age,
+        language: userProfile.preferredLanguage as QuizConfig['language'],
+        subject: quizConfig.subject as QuizConfig['subject'],
+        subtopics: quizConfig.subtopics,
+        questionCount: quizConfig.questionCount || QUIZ_CONSTANTS.DEFAULT_QUESTIONS,
+        difficulty: quizConfig.difficulty as QuizConfig['difficulty'],
+        instructions: quizConfig.instructions,
+        timeLimit: quizConfig.timeLimit,
+        gradeLevel: quizConfig.gradeLevel,
+        sampleQuestion: quizConfig.sampleQuestion,
+        examStyle: quizConfig.examStyle,
+      };
+
+      quizGenAbortRef.current?.abort();
+      const genController = new AbortController();
+      quizGenAbortRef.current = genController;
+      generationRunId = ++quizGenerationRunIdRef.current;
+      setConfig(fullConfig);
+      setIsAiGenerating(true);
+      setGenerationStartedAt(Date.now());
+      setGenBatchProgress(null);
+      setError(null);
+
       const { jobId } = await quizApi.enqueueAiQuizGeneration(
         {
           subject: fullConfig.subject,
@@ -985,34 +983,31 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
     }
   }, [location.search, phase, loadScheduledTest, mode]);
 
-  // Auto-start quiz if config is passed from Study mode (only for AI-generated quizzes, not scheduled tests)
+  // Auto-start only when arriving from Study ("Take Quiz") — not after manual form submit sets config.
   useEffect(() => {
-    if (mode === 'library-attempt') {
+    if (mode === 'library-attempt' || !navigatedWithConfigRef.current) {
       return;
     }
     const searchParams = new URLSearchParams(location.search);
     const testId = searchParams.get('scheduledTestId');
     const routeKey = `${location.key}|${location.pathname}|${location.search}`;
+    const autoStartKey = `kid-chatbox:quiz-autostart:${routeKey}`;
 
-    if (autoStartRouteKeyRef.current !== routeKey) {
-      autoStartRouteKeyRef.current = routeKey;
-      hasConsumedAutoStartForRouteRef.current = false;
-    }
-
-    if (isAiGenerating) {
+    if (isAiGenerating || !config || phase !== 'config' || scheduledTestId || testId) {
       return;
     }
 
-    // Only auto-start AI quiz if there's no scheduled test in URL
-    if (!config || phase !== 'config' || scheduledTestId || testId) {
-      return;
+    try {
+      if (sessionStorage.getItem(autoStartKey) === 'done') {
+        navigatedWithConfigRef.current = false;
+        return;
+      }
+      sessionStorage.setItem(autoStartKey, 'done');
+    } catch {
+      // sessionStorage unavailable — fall through once per mount via navigatedWithConfigRef
     }
 
-    if (hasConsumedAutoStartForRouteRef.current) {
-      return;
-    }
-    hasConsumedAutoStartForRouteRef.current = true;
-
+    navigatedWithConfigRef.current = false;
     void handleConfigComplete(config);
   }, [
     config,

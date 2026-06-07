@@ -2,7 +2,7 @@
  * ConfigurationForm – button-first quiz setup.
  * Class & Exam Type at top; subject/difficulty/count/time as button selectors.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box, VStack, HStack, Text, Button, Card, CardBody, Heading,
@@ -82,9 +82,16 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   const [questionType, setQuestionType] = useState('');
   const [customSubtopicInput, setCustomSubtopicInput] = useState('');
   const [profileReady, setProfileReady] = useState(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
   const handleProfileReady = useCallback((ready: boolean) => {
     setProfileReady(ready);
   }, []);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      setSubmitLocked(false);
+    }
+  }, [isGenerating]);
 
   const toggleSubtopic = useCallback((st: string) =>
     setSelectedSubtopics(prev => prev.includes(st) ? prev.filter(x => x !== st) : [...prev, st]), []);
@@ -106,7 +113,8 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
     questionCount <= QUIZ_CONSTANTS.MAX_QUESTIONS && timeLimit > 0;
 
   const handleSubmit = useCallback(() => {
-    if (!isValidSubject(subject) || !isFormValid) return;
+    if (!isValidSubject(subject) || !isFormValid || submitLocked || isGenerating) return;
+    setSubmitLocked(true);
     const qtHint = questionType ? `Question type: ${questionType}. ` : '';
     let finalSubtopics: string[] = [];
     let finalInstructions: string | undefined;
@@ -127,7 +135,8 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
       examStyle: examStyle.trim() || undefined,
     });
   }, [subject, selectedSubtopics, customSubtopic, questionCount, difficulty,
-    instructions, timeLimit, gradeLevel, examStyle, questionType, onConfigComplete, isFormValid]);
+    instructions, timeLimit, gradeLevel, examStyle, questionType, onConfigComplete, isFormValid,
+    submitLocked, isGenerating]);
 
   const subtopics = subject && subject !== SUBJECTS.OTHER ? (SUBTOPIC_MAP[subject] ?? []) : [];
   const isFormValidWithLimits = isFormValid && canTakeQuiz && profileReady;
@@ -322,7 +331,7 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
             {/* ── Submit ────────────────────────────────────────────── */}
             <HStack spacing={3} pt={1}>
               <Button colorScheme="blue" size="lg" onClick={handleSubmit}
-                isDisabled={!isFormValidWithLimits || isGenerating}
+                isDisabled={!isFormValidWithLimits || isGenerating || submitLocked}
                 flex={1} borderRadius="xl" fontSize="lg" fontWeight="bold" py={6}
                 boxShadow={isFormValidWithLimits && !isGenerating ? 'lg' : 'none'}
                 _hover={isFormValidWithLimits && !isGenerating ? { boxShadow: 'xl', transform: 'translateY(-2px)' } : {}}
