@@ -34,6 +34,8 @@ async function generateQuizQuestions(config) {
     gradeLevel,
     sampleQuestion,
     examStyle,
+    subject,
+    includeImages,
   } = config;
 
   if (!isLlmConfigured()) {
@@ -436,17 +438,17 @@ Generate the questions now, following ALL requirements strictly. Ensure maximum 
       }
     }
 
-    const includeImages =
-      config.includeImages !== false &&
+    const shouldIncludeImages =
+      includeImages !== false &&
       String(process.env.QUIZ_IMAGES_DISABLED || '').toLowerCase() !== 'true';
 
-    if (!includeImages) {
+    if (!shouldIncludeImages) {
       return questions;
     }
 
     try {
       return await enrichQuestionsWithImages(questions, {
-        subject: topics[0] || 'education',
+        subject: subject || topics[0] || 'education',
         gradeLevel: gradeLevel || null,
       });
     } catch (imgErr) {

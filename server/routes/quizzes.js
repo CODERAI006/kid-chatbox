@@ -49,28 +49,36 @@ async function sendPublicQuizLibrary(req, res) {
   const { difficulty, subject, gradeLevel } = req.query;
 
   let query = `
-      SELECT id, name, description, difficulty, grade_level, subject,
-             number_of_questions, passing_percentage, time_limit, created_at
-      FROM quizzes
-      WHERE in_library = true AND is_active = true`;
+      SELECT q.id, q.name, q.description, q.difficulty, q.grade_level, q.subject,
+             q.number_of_questions, q.passing_percentage, q.time_limit, q.created_at,
+             u.name AS created_by_name,
+             CASE
+               WHEN q.subtopics IS NOT NULL AND cardinality(q.subtopics) > 0 THEN q.subtopics
+               WHEN s.title IS NOT NULL THEN ARRAY[s.title]::text[]
+               ELSE '{}'::text[]
+             END AS subtopics
+      FROM quizzes q
+      LEFT JOIN users u ON q.created_by = u.id
+      LEFT JOIN subtopics s ON q.subtopic_id = s.id
+      WHERE q.in_library = true AND q.is_active = true`;
 
   const params = [];
   let idx = 1;
 
   if (difficulty) {
-    query += ` AND difficulty = $${idx++}`;
+    query += ` AND q.difficulty = $${idx++}`;
     params.push(difficulty);
   }
   if (subject) {
-    query += ` AND subject = $${idx++}`;
+    query += ` AND q.subject = $${idx++}`;
     params.push(subject);
   }
   if (gradeLevel) {
-    query += ` AND grade_level = $${idx++}`;
+    query += ` AND q.grade_level = $${idx++}`;
     params.push(gradeLevel);
   }
 
-  query += ' ORDER BY created_at DESC';
+  query += ' ORDER BY q.created_at DESC';
 
   const result = await pool.query(query, params);
   res.json({ success: true, quizzes: result.rows });
@@ -464,6 +472,7 @@ router.post(
         name: name != null ? String(name) : undefined,
         sourceImages: normalizedSourceImages,
         sourceImageCount: normalizedSourceImages ? normalizedSourceImages.length : 0,
+        includeImages: req.body.includeImages !== false,
       };
 
       const ins = await pool.query(
@@ -1148,12 +1157,14 @@ router.post('/generate', checkPermission('manage_quizzes'), async (req, res, nex
       numberOfQuestions,
       difficulty,
       topics: topics || [],
+      subject: req.body.subject || topics?.[0] || undefined,
       language: language || 'English',
       subtopicId,
       description: description || undefined,
       gradeLevel: gradeLevel || undefined,
       sampleQuestion: sampleQuestion || undefined,
       examStyle: examStyle || undefined,
+      includeImages: req.body.includeImages !== false,
     });
 
     // Create quiz

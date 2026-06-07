@@ -1030,6 +1030,11 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
 
   const score = allAnswerResults.filter((r) => r.isCorrect).length;
   const answeredCount = answers.size;
+  const isStepsMode = quizLayoutMode === 'steps';
+  const isOnLastQuestion =
+    questions.length > 0 && currentQuestionStep >= questions.length - 1;
+  const waitingForLastQuestion = isStepsMode && !isOnLastQuestion;
+  const canSubmitQuiz = !waitingForLastQuestion && answeredCount > 0;
 
   if (phase === 'config' && mode === 'library-attempt') {
     return (
@@ -1340,21 +1345,30 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
                 style={{ width: '100%', maxWidth: '1000px', margin: '0 auto' }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={canSubmitQuiz ? { scale: 1.02 } : undefined}
+                whileTap={canSubmitQuiz ? { scale: 0.98 } : undefined}
               >
-                <Button
-                  colorScheme="green"
-                  size={{ base: 'md', md: 'lg' }}
-                  onClick={handleSubmitQuiz}
-                  width="100%"
-                  isDisabled={answeredCount === 0}
-                  boxShadow="lg"
-                  _hover={{ boxShadow: 'xl' }}
-                  transition="all 0.2s"
-                >
-                  Submit Quiz ({answeredCount}/{config?.questionCount || 0} answered)
-                </Button>
+                <VStack spacing={2} width="100%">
+                  {waitingForLastQuestion && (
+                    <Text fontSize="sm" color="gray.500" textAlign="center">
+                      Waiting to reach the last question before you can submit.
+                    </Text>
+                  )}
+                  <Button
+                    colorScheme="green"
+                    size={{ base: 'md', md: 'lg' }}
+                    onClick={handleSubmitQuiz}
+                    width="100%"
+                    isDisabled={!canSubmitQuiz}
+                    boxShadow="lg"
+                    _hover={{ boxShadow: canSubmitQuiz ? 'xl' : 'lg' }}
+                    transition="all 0.2s"
+                  >
+                    {waitingForLastQuestion
+                      ? `Submit Quiz — question ${currentQuestionStep + 1} of ${questions.length}`
+                      : `Submit Quiz (${answeredCount}/${config?.questionCount || 0} answered)`}
+                  </Button>
+                </VStack>
               </motion.div>
             </VStack>
           </Box>

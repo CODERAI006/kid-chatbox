@@ -76,12 +76,13 @@ async function runQuizAiGenerationJob(jobId) {
     const subject = String(payload.subject || topics[0] || 'Other').trim();
     const name =
       (payload.name && String(payload.name).trim()) ||
-      `AI Quiz: ${subject} (${new Date().toISOString().slice(0, 10)})`;
+      `${subject} (${new Date().toISOString().slice(0, 10)})`;
 
     const generatedQuestions = await generateQuizQuestions({
       numberOfQuestions,
       difficulty,
       topics,
+      subject,
       language,
       ageGroup,
       age: payload.age != null ? Number(payload.age) : undefined,
@@ -90,14 +91,19 @@ async function runQuizAiGenerationJob(jobId) {
       gradeLevel: gradeLevel || undefined,
       sampleQuestion,
       examStyle,
+      includeImages: payload.includeImages !== false,
     });
+
+    const subtopicsList = Array.isArray(payload.subtopics)
+      ? [...new Set(payload.subtopics.map((s) => String(s || '').trim()).filter(Boolean))]
+      : [];
 
     const quizResult = await pool.query(
       `INSERT INTO quizzes (
         subtopic_id, name, description, age_group, grade_level, subject, difficulty,
-        number_of_questions, passing_percentage, time_limit, created_by, in_library
+        number_of_questions, passing_percentage, time_limit, created_by, in_library, subtopics
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true, $12)
       RETURNING *`,
       [
         payload.subtopicId || null,
@@ -111,6 +117,7 @@ async function runQuizAiGenerationJob(jobId) {
         passingPercentage,
         Number.isFinite(timeLimit) ? timeLimit : null,
         userId,
+        subtopicsList,
       ]
     );
     const quiz = quizResult.rows[0];

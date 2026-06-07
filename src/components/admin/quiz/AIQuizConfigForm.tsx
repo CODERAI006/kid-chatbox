@@ -212,6 +212,12 @@ export const AIQuizConfigForm: React.FC<Props> = ({ value, onChange, showErrors 
         </FormControl>
       </SimpleGrid>
 
+      <Box bg="blue.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="blue.100">
+        <Text fontSize="xs" color="blue.800">
+          About 20% of generated questions will include AI illustrations (Flux image model in Ollama settings).
+        </Text>
+      </Box>
+
       {/* Sample question */}
       <AnimatePresence>
         <motion.div key="sample" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

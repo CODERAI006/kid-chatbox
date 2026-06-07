@@ -26,6 +26,7 @@ const GEN_STAGES = [
   { icon: '🧠', message: 'Thinking up questions…' },
   { icon: '📚', message: 'Picking the best topics…' },
   { icon: '✨', message: 'Crafting answer choices…' },
+  { icon: '🖼️', message: 'Drawing illustrations for some questions…' },
   { icon: '🔍', message: 'Checking for quality…' },
   { icon: '🎯', message: 'Finishing up your quiz…' },
 ];

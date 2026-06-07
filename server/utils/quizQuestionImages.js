@@ -4,6 +4,7 @@
 const { generateQuizQuestionImage } = require('./ollamaImageGenerate');
 
 const DEFAULT_FRACTION = 0.2;
+const IMAGE_CONCURRENCY = Math.min(3, Math.max(1, Number(process.env.QUIZ_IMAGE_CONCURRENCY) || 2));
 
 function getImageFraction() {
   const n = Number(process.env.QUIZ_IMAGE_FRACTION);
@@ -49,18 +50,32 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
 
   const enriched = questions.map((q) => ({ ...q, imageUrl: null }));
 
-  for (const idx of indices) {
+  const generateOne = async (idx) => {
     const q = questions[idx];
     try {
       const prompt = buildImagePrompt(q, ctx);
       const imageUrl = await generateQuizQuestionImage(prompt);
       enriched[idx] = { ...enriched[idx], imageUrl };
       console.info('[quiz-images] saved', { question: idx + 1, imageUrl });
+      return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('[quiz-images] skipped question', idx + 1, msg);
+      return false;
     }
-  }
+  };
+
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(IMAGE_CONCURRENCY, indices.length) }, async () => {
+    while (cursor < indices.length) {
+      const slot = cursor++;
+      await generateOne(indices[slot]);
+    }
+  });
+  await Promise.all(workers);
+
+  const saved = enriched.filter((q) => q.imageUrl).length;
+  console.info('[quiz-images] complete', { requested: indices.length, saved });
 
   return enriched;
 }

@@ -44,12 +44,18 @@ async function copyLibraryToQuiz(libraryId, userId) {
   const diffMap = { Easy: 'Basic', Medium: 'Advanced', Hard: 'Expert', Mixed: 'Mix' };
   const aiDifficulty = diffMap[lib.difficulty] || lib.difficulty || 'Mix';
 
+  const subtopicsList = Array.isArray(lib.subtopics)
+    ? lib.subtopics.map((s) => String(s || '').trim()).filter(Boolean)
+    : subName
+      ? [subName]
+      : [];
+
   const quizRes = await pool.query(
     `INSERT INTO quizzes (
       subtopic_id, name, description, age_group, grade_level, subject, difficulty,
-      number_of_questions, passing_percentage, time_limit, created_by, in_library
+      number_of_questions, passing_percentage, time_limit, created_by, in_library, subtopics
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,$12)
     RETURNING id`,
     [
       subtopicId,
@@ -63,6 +69,7 @@ async function copyLibraryToQuiz(libraryId, userId) {
       60,
       lib.time_limit,
       userId,
+      subtopicsList,
     ]
   );
   const quizId = quizRes.rows[0].id;
@@ -72,15 +79,18 @@ async function copyLibraryToQuiz(libraryId, userId) {
     const text = q.question || q.question_text || '';
     const options = q.options || [];
     const correct = q.correctAnswer ?? q.correct_answer ?? '';
+    const imageUrl = q.imageUrl || q.question_image_url || null;
     await pool.query(
       `INSERT INTO quiz_questions (
-        quiz_id, question_type, question_text, options,
+        quiz_id, question_type, question_text, question_image_url, options,
         correct_answer, explanation, points, order_index
       )
-      VALUES ($1,'multiple_choice',$2,$3,$4,$5,$6,$7)`,
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [
         quizId,
+        imageUrl ? 'image_based' : 'multiple_choice',
         text,
+        imageUrl,
         JSON.stringify(options),
         JSON.stringify(correct),
         q.explanation || null,

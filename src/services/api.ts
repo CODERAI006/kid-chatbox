@@ -540,6 +540,8 @@ export const quizApi = {
       passing_percentage: number;
       time_limit?: number;
       created_at: string;
+      created_by_name?: string | null;
+      subtopics?: string[];
     }>;
   }> => {
     const response = await apiClient.get('/quizzes/library', { params });

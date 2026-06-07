@@ -43,6 +43,7 @@ const initializeDatabase = async () => {
     const { migrateQuizScheduler } = require('../scripts/migrate-quiz-scheduler');
     const { migrateQuizSchedulerV2 } = require('../scripts/migrate-quiz-scheduler-v2');
     const { migrateQuizAiJobs } = require('../scripts/migrate-quiz-ai-jobs');
+    const { migrateQuizSubtopics } = require('../scripts/migrate-quiz-subtopics');
     const { migrateOllamaCloudSettings } = require('../scripts/migrate-ollama-cloud-settings');
     const { migrateWordOfDaySettings } = require('../scripts/migrate-word-of-day-settings');
     // Run comprehensive schema migration
@@ -62,6 +63,7 @@ const initializeDatabase = async () => {
     await migrateQuizScheduler();
     await migrateQuizSchedulerV2();
     await migrateQuizAiJobs();
+    await migrateQuizSubtopics();
     await migrateOllamaCloudSettings();
     await migrateWordOfDaySettings();
     console.log('✅ Database tables initialized successfully');
