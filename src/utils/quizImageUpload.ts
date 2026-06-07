@@ -1,6 +1,6 @@
-/** Client-side helpers for AI Quiz page image uploads (max 5 pages). */
+/** Client-side helpers for AI Quiz page image uploads (max 2 pages). */
 
-export const QUIZ_PAGE_IMAGE_MAX = 5;
+export const QUIZ_PAGE_IMAGE_MAX = 2;
 export const QUIZ_PAGE_MAX_BYTES = 4 * 1024 * 1024;
 export const QUIZ_PAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
 

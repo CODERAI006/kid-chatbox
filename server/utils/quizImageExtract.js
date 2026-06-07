@@ -4,7 +4,7 @@
 const { ollamaChat, isLlmConfigured, getOllamaRuntimeConfig } = require('./ollamaClient');
 const { resolveVisionModel } = require('./ollamaVisionModel');
 
-const MAX_PAGES = 5;
+const MAX_PAGES = 2;
 const MAX_BASE64_CHARS = 6 * 1024 * 1024;
 
 function normalizeBase64Images(images) {
