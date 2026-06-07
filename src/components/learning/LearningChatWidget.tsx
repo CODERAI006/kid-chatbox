@@ -16,6 +16,10 @@ import {
   Badge,
   Divider,
   useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  useBreakpointValue,
 } from '@/shared/design-system';
 import { getErrorMessage, learningBotApi, type LearningBotUiMessage } from '@/services/api';
 import { LearningWorkspaceMessage } from './LearningWorkspaceMessage';
@@ -205,6 +209,200 @@ export const LearningChatWidget: FC = () => {
     assistantMessageCount,
   });
 
+  const isDesktopModal = useBreakpointValue({ base: false, lg: true }) ?? false;
+
+  const chatPanel = (
+    <>
+      <Flex
+        px={3}
+        py={2}
+        align="center"
+        justify="space-between"
+        borderBottomWidth="1px"
+        borderColor={panelBorder}
+        bg="blue.600"
+        color="white"
+        flexShrink={0}
+      >
+        <Box minW={0} flex={1}>
+          <Text fontWeight="bold" fontSize="md">🎓 AI Study Assistant</Text>
+          <Text fontSize="xs" opacity={0.9} noOfLines={1}>Topic: {currentTopic}</Text>
+        </Box>
+        <HStack spacing={1} flexShrink={0}>
+          {messages.length > 0 && (
+            <Badge fontSize="0.6rem" bg={modeBadgeBg} color="white">
+              {modeLabel}
+            </Badge>
+          )}
+          {lastModel && (
+            <Badge fontSize="0.6rem" colorScheme="purple" display={{ base: 'none', lg: 'inline-flex' }}>
+              {lastModel}
+            </Badge>
+          )}
+          <Button
+            size="xs"
+            variant="ghost"
+            color="white"
+            _hover={{ bg: 'whiteAlpha.200' }}
+            onClick={historyDrawer.onOpen}
+          >
+            Saved chats
+          </Button>
+          <Button
+            size="xs"
+            variant="ghost"
+            color="white"
+            _hover={{ bg: 'whiteAlpha.200' }}
+            onClick={() => void startNewTopic()}
+          >
+            New topic
+          </Button>
+          <IconButton
+            aria-label="Close assistant"
+            size="sm"
+            variant="ghost"
+            color="white"
+            _hover={{ bg: 'whiteAlpha.200' }}
+            icon={<Text>✕</Text>}
+            onClick={() => setOpen(false)}
+          />
+        </HStack>
+      </Flex>
+
+      {saveHint && (
+        <Box px={3} py={1} bg="green.50" borderBottomWidth="1px" borderColor="green.100" flexShrink={0}>
+          <Text fontSize="xs" color="green.700">{saveHint}</Text>
+        </Box>
+      )}
+
+      <VStack align="stretch" flex={1} spacing={0} overflow="hidden" minH={0}>
+        <Box
+          flex={1}
+          minH={0}
+          overflowY="auto"
+          px={{ base: 3, md: 4 }}
+          py={3}
+          bg={workspaceBg}
+          sx={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+          }}
+        >
+          {bootLoading ? (
+            <HStack py={6} justify="center">
+              <Spinner size="sm" />
+              <Text fontSize="sm" color="gray.500">Loading workspace…</Text>
+            </HStack>
+          ) : (
+            <VStack align="stretch" spacing={3}>
+              {showOnboarding && (
+                <LearningFormatOnboarding
+                  disabled={pending}
+                  onStart={({ text, mode, format }) => void sendText(text, { mode, format })}
+                />
+              )}
+
+              {messages.map((m, i) =>
+                m.role === 'user' ? (
+                  <Box
+                    key={m.id || `u-${i}`}
+                    alignSelf="flex-end"
+                    maxW={{ base: '92%', md: '85%' }}
+                    px={3}
+                    py={2}
+                    borderRadius="lg"
+                    bg={userBubble}
+                  >
+                    <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="tall">{m.content}</Text>
+                  </Box>
+                ) : chatMode === 'chat' ? (
+                  <Box key={m.id || `a-${i}`} w="100%">
+                    <LearningConversationalMessage
+                      content={m.content}
+                      speakAloud={voice.voiceMode}
+                      onAskPrompt={(prompt) => void sendText(prompt)}
+                    />
+                  </Box>
+                ) : (
+                  <Box key={m.id || `a-${i}`} w="100%">
+                    <LearningWorkspaceMessage
+                      content={m.content}
+                      onAskPrompt={(prompt) => void sendText(prompt)}
+                    />
+                  </Box>
+                )
+              )}
+
+              {pending && (
+                <HStack py={2} spacing={2} justify="center">
+                  <Spinner size="sm" />
+                  <Text fontSize="sm" color="gray.500">
+                    {chatMode === 'chat' ? 'Thinking…' : 'Building your learning cards…'}
+                  </Text>
+                </HStack>
+              )}
+              <div ref={endRef} />
+            </VStack>
+          )}
+
+          {error && <Text fontSize="xs" color="red.500" px={1} py={1}>{error}</Text>}
+          {voice.voiceError && (
+            <Text fontSize="xs" color="orange.600" px={1} py={1}>{voice.voiceError}</Text>
+          )}
+        </Box>
+
+        {showAiStudy && (
+          <VoiceConversationBar
+            voiceMode={voice.voiceMode}
+            voiceSupported={voice.voiceSupported}
+            phase={voice.phase}
+            interimTranscript={voice.interimTranscript}
+            voiceLabel={voice.voiceLabel}
+            disabled={pending || bootLoading}
+            onToggleVoice={voice.toggleVoiceMode}
+            onStartMic={voice.startMic}
+            onStopMic={voice.stopMic}
+            onStopSpeaking={voice.stopSpeakingNow}
+          />
+        )}
+
+        <Divider />
+
+        <HStack align="center" spacing={2} px={3} py={3} flexShrink={0}>
+          <Input
+            value={
+              voice.voiceMode && voice.interimTranscript
+                ? voice.interimTranscript
+                : draft
+            }
+            isReadOnly={voice.voiceMode && voice.phase === 'listening' && !!voice.interimTranscript}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={
+              voice.voiceMode && voice.phase === 'listening'
+                ? 'Speak your question…'
+                : chatMode === 'chat'
+                  ? 'Type or use voice chat…'
+                  : showOnboarding
+                    ? 'Or type a topic + question…'
+                    : 'Ask a follow-up…'
+            }
+            size="md"
+            isDisabled={pending || bootLoading}
+          />
+          <Button
+            colorScheme="blue"
+            size="md"
+            onClick={() => void send()}
+            isDisabled={pending || bootLoading || !draft.trim()}
+          >
+            Send
+          </Button>
+        </HStack>
+      </VStack>
+    </>
+  );
+
   return (
     <>
       {!open && (
@@ -231,16 +429,41 @@ export const LearningChatWidget: FC = () => {
         onSaved={onSavedCurrent}
       />
 
-      {open && (
+      {open && isDesktopModal && (
+        <Modal
+          isOpen
+          onClose={() => setOpen(false)}
+          size="6xl"
+          isCentered
+          scrollBehavior="inside"
+        >
+          <ModalOverlay bg="blackAlpha.600" />
+          <ModalContent
+            maxW="min(960px, 92vw)"
+            h="min(90vh, 860px)"
+            bg={panelBg}
+            borderWidth="1px"
+            borderColor={panelBorder}
+            borderRadius="xl"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            m={4}
+          >
+            {chatPanel}
+          </ModalContent>
+        </Modal>
+      )}
+
+      {open && !isDesktopModal && (
         <Box
           position="fixed"
-          bottom={{ base: 2, md: 4 }}
-          right={{ base: 2, md: 4 }}
-          left={{ base: 2, md: 'auto' }}
+          bottom={2}
+          right={2}
+          left={2}
           zIndex={1500}
-          w={{ base: 'auto', md: 'min(680px, calc(100vw - 2rem))' }}
           maxW="100%"
-          h={{ base: 'min(88vh, 780px)', md: 'min(85vh, 760px)' }}
+          h="min(92dvh, 820px)"
           bg={panelBg}
           borderWidth="1px"
           borderColor={panelBorder}
@@ -250,181 +473,7 @@ export const LearningChatWidget: FC = () => {
           flexDirection="column"
           overflow="hidden"
         >
-          <Flex
-            px={3}
-            py={2}
-            align="center"
-            justify="space-between"
-            borderBottomWidth="1px"
-            borderColor={panelBorder}
-            bg="blue.600"
-            color="white"
-          >
-            <Box minW={0} flex={1}>
-              <Text fontWeight="bold" fontSize="md">🎓 AI Study Assistant</Text>
-              <Text fontSize="xs" opacity={0.9} noOfLines={1}>Topic: {currentTopic}</Text>
-            </Box>
-            <HStack spacing={1} flexShrink={0}>
-              {messages.length > 0 && (
-                <Badge fontSize="0.6rem" bg={modeBadgeBg} color="white">
-                  {modeLabel}
-                </Badge>
-              )}
-              {lastModel && (
-                <Badge fontSize="0.6rem" colorScheme="purple" display={{ base: 'none', lg: 'inline-flex' }}>
-                  {lastModel}
-                </Badge>
-              )}
-              <Button
-                size="xs"
-                variant="ghost"
-                color="white"
-                _hover={{ bg: 'whiteAlpha.200' }}
-                onClick={historyDrawer.onOpen}
-              >
-                Saved chats
-              </Button>
-              <Button
-                size="xs"
-                variant="ghost"
-                color="white"
-                _hover={{ bg: 'whiteAlpha.200' }}
-                onClick={() => void startNewTopic()}
-              >
-                New topic
-              </Button>
-              <IconButton
-                aria-label="Close assistant"
-                size="sm"
-                variant="ghost"
-                color="white"
-                _hover={{ bg: 'whiteAlpha.200' }}
-                icon={<Text>✕</Text>}
-                onClick={() => setOpen(false)}
-              />
-            </HStack>
-          </Flex>
-
-          {saveHint && (
-            <Box px={3} py={1} bg="green.50" borderBottomWidth="1px" borderColor="green.100">
-              <Text fontSize="xs" color="green.700">{saveHint}</Text>
-            </Box>
-          )}
-
-          <VStack align="stretch" flex={1} spacing={0} overflow="hidden">
-            <Box flex={1} overflowY="auto" px={3} py={3} bg={workspaceBg}>
-              {bootLoading ? (
-                <HStack py={6} justify="center">
-                  <Spinner size="sm" />
-                  <Text fontSize="sm" color="gray.500">Loading workspace…</Text>
-                </HStack>
-              ) : (
-                <VStack align="stretch" spacing={3}>
-                  {showOnboarding && (
-                    <LearningFormatOnboarding
-                      disabled={pending}
-                      onStart={({ text, mode, format }) => void sendText(text, { mode, format })}
-                    />
-                  )}
-
-                  {messages.map((m, i) =>
-                    m.role === 'user' ? (
-                      <Box
-                        key={m.id || `u-${i}`}
-                        alignSelf="flex-end"
-                        maxW="85%"
-                        px={3}
-                        py={2}
-                        borderRadius="lg"
-                        bg={userBubble}
-                      >
-                        <Text fontSize="sm" whiteSpace="pre-wrap">{m.content}</Text>
-                      </Box>
-                    ) : chatMode === 'chat' ? (
-                      <Box key={m.id || `a-${i}`} w="100%">
-                        <LearningConversationalMessage
-                          content={m.content}
-                          speakAloud={voice.voiceMode}
-                          onAskPrompt={(prompt) => void sendText(prompt)}
-                        />
-                      </Box>
-                    ) : (
-                      <Box key={m.id || `a-${i}`} w="100%">
-                        <LearningWorkspaceMessage
-                          content={m.content}
-                          onAskPrompt={(prompt) => void sendText(prompt)}
-                        />
-                      </Box>
-                    )
-                  )}
-
-                  {pending && (
-                    <HStack py={2} spacing={2} justify="center">
-                      <Spinner size="sm" />
-                      <Text fontSize="sm" color="gray.500">
-                        {chatMode === 'chat' ? 'Thinking…' : 'Building your learning cards…'}
-                      </Text>
-                    </HStack>
-                  )}
-                  <div ref={endRef} />
-                </VStack>
-              )}
-
-              {error && <Text fontSize="xs" color="red.500" px={1} py={1}>{error}</Text>}
-              {voice.voiceError && (
-                <Text fontSize="xs" color="orange.600" px={1} py={1}>{voice.voiceError}</Text>
-              )}
-            </Box>
-
-            {showAiStudy && (
-              <VoiceConversationBar
-                voiceMode={voice.voiceMode}
-                voiceSupported={voice.voiceSupported}
-                phase={voice.phase}
-                interimTranscript={voice.interimTranscript}
-                voiceLabel={voice.voiceLabel}
-                disabled={pending || bootLoading}
-                onToggleVoice={voice.toggleVoiceMode}
-                onStartMic={voice.startMic}
-                onStopMic={voice.stopMic}
-                onStopSpeaking={voice.stopSpeakingNow}
-              />
-            )}
-
-            <Divider />
-
-            <HStack align="center" spacing={2} px={3} py={3}>
-              <Input
-                value={
-                  voice.voiceMode && voice.interimTranscript
-                    ? voice.interimTranscript
-                    : draft
-                }
-                isReadOnly={voice.voiceMode && voice.phase === 'listening' && !!voice.interimTranscript}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder={
-                  voice.voiceMode && voice.phase === 'listening'
-                    ? 'Speak your question…'
-                    : chatMode === 'chat'
-                      ? 'Type or use voice chat…'
-                      : showOnboarding
-                        ? 'Or type a topic + question…'
-                        : 'Ask a follow-up…'
-                }
-                size="md"
-                isDisabled={pending || bootLoading}
-              />
-              <Button
-                colorScheme="blue"
-                size="md"
-                onClick={() => void send()}
-                isDisabled={pending || bootLoading || !draft.trim()}
-              >
-                Send
-              </Button>
-            </HStack>
-          </VStack>
+          {chatPanel}
         </Box>
       )}
     </>

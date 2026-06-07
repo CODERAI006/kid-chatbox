@@ -10,9 +10,15 @@ import {
   Button,
   Divider,
   Badge,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
   useColorModeValue,
 } from '@/shared/design-system';
-import { parseAiRichContent, type RichBlock } from '@/utils/aiRichContentParser';
+import { isActionSectionHeading, parseAiRichContent, type RichBlock } from '@/utils/aiRichContentParser';
 
 interface Props {
   content: string;
@@ -75,6 +81,8 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
   const noteBg = useColorModeValue('blue.50', 'blue.900');
   const importantBg = useColorModeValue('orange.50', 'orange.900');
   const codeBg = useColorModeValue('gray.800', 'gray.900');
+  const tableHeaderBg = useColorModeValue('blue.50', 'blue.900');
+  const tableRowAltBg = useColorModeValue('gray.50', 'gray.700');
   const fontSize = compact ? 'sm' : 'sm';
 
   switch (block.type) {
@@ -110,6 +118,40 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
           ))}
         </VStack>
       );
+    case 'table': {
+      const colCount = block.headers.length;
+      const padRow = (cells: string[]) => {
+        const row = [...cells];
+        while (row.length < colCount) row.push('');
+        return row.slice(0, colCount);
+      };
+      return (
+        <Box overflowX="auto" borderWidth="1px" borderColor="blue.100" borderRadius="md">
+          <Table size="sm" variant="simple">
+            <Thead bg={tableHeaderBg}>
+              <Tr>
+                {block.headers.map((h, idx) => (
+                  <Th key={idx} fontSize="xs" color="blue.800" whiteSpace="nowrap">
+                    {renderInline(h, `th-${idx}`)}
+                  </Th>
+                ))}
+              </Tr>
+            </Thead>
+            <Tbody>
+              {block.rows.map((cells, ri) => (
+                <Tr key={ri} bg={ri % 2 === 1 ? tableRowAltBg : undefined}>
+                  {padRow(cells).map((cell, ci) => (
+                    <Td key={ci} fontSize="xs" color="gray.800" verticalAlign="top">
+                      {renderInline(cell, `td-${ri}-${ci}`)}
+                    </Td>
+                  ))}
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+      );
+    }
     case 'code':
       return (
         <Box
@@ -153,8 +195,12 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
 export function AiRichContentView({ content, onAction, compact }: Props) {
   const { blocks, actions } = parseAiRichContent(content);
   const actionBg = useColorModeValue('purple.50', 'purple.900');
+  const showActions = actions.length > 0 && !!onAction;
+  const displayBlocks = showActions
+    ? blocks.filter((b) => !(b.type === 'heading' && isActionSectionHeading(b.text)))
+    : blocks;
 
-  if (!blocks.length && !actions.length) {
+  if (!displayBlocks.length && !actions.length) {
     return (
       <Text fontSize="sm" color="gray.500">
         No response yet.
@@ -164,29 +210,39 @@ export function AiRichContentView({ content, onAction, compact }: Props) {
 
   return (
     <VStack align="stretch" spacing={3}>
-      {blocks.map((block, i) => (
+      {displayBlocks.map((block, i) => (
         <BlockView key={`${block.type}-${i}`} block={block} compact={compact} />
       ))}
 
-      {actions.length > 0 && onAction && (
+      {showActions && (
         <Box p={3} bg={actionBg} borderRadius="md" borderWidth="1px" borderColor="purple.100">
           <Text fontSize="xs" fontWeight="bold" color="purple.700" mb={2}>
             Continue learning
           </Text>
-          <HStack spacing={2} flexWrap="wrap">
-            {actions.slice(0, 4).map((action) => (
+          <VStack align="stretch" spacing={2}>
+            {actions.slice(0, 4).map((action, i) => (
               <Button
-                key={action.label}
+                key={`${i}-${action.prompt.slice(0, 40)}`}
                 size="sm"
                 colorScheme="purple"
                 variant="outline"
                 bg="white"
-                onClick={() => onAction(action.prompt)}
+                w="100%"
+                h="auto"
+                minH="44px"
+                py={2.5}
+                px={3}
+                whiteSpace="normal"
+                textAlign="left"
+                justifyContent="flex-start"
+                fontWeight="normal"
+                lineHeight="tall"
+                onClick={() => onAction!(action.prompt)}
               >
-                {action.label}
+                {action.prompt}
               </Button>
             ))}
-          </HStack>
+          </VStack>
         </Box>
       )}
     </VStack>
