@@ -498,7 +498,7 @@ export const quizApi = {
     opts?: { signal?: AbortSignal }
   ): Promise<{ success: boolean; jobId: string; message?: string }> => {
     const response = await apiClient.post('/quizzes/ai-generate-job', body, {
-      timeout: 90_000,
+      timeout: 120_000,
       signal: opts?.signal,
     });
     return response.data;

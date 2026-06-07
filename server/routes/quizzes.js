@@ -16,6 +16,7 @@ const { generateQuizQuestions } = require('../utils/openai');
 const { trackQuizStart, trackQuizComplete, trackQuestionAnswer, trackQuizCreated } = require('../utils/eventTracker');
 const { runQuizAiGenerationJob } = require('../services/quizAiGenerationJob');
 const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
+const { normalizeBase64Images } = require('../utils/quizImageExtract');
 
 const router = express.Router();
 
@@ -374,9 +375,24 @@ router.post(
         passingPercentage,
         subtopicId,
         name,
+        sourceImages,
       } = req.body;
 
-      if (!subject || typeof subject !== 'string' || !subject.trim()) {
+      const hasSourceImages = Array.isArray(sourceImages) && sourceImages.length > 0;
+      let normalizedSourceImages;
+      if (hasSourceImages) {
+        try {
+          normalizedSourceImages = normalizeBase64Images(sourceImages);
+        } catch (imgErr) {
+          return res.status(400).json({
+            success: false,
+            message: imgErr instanceof Error ? imgErr.message : 'Invalid page images',
+          });
+        }
+      }
+
+      const subjectText = typeof subject === 'string' ? subject.trim() : '';
+      if (!subjectText && !hasSourceImages) {
         return res.status(400).json({ success: false, message: 'subject is required' });
       }
       if (!difficulty) {
@@ -409,7 +425,7 @@ router.post(
 
       const n = Math.min(50, Math.max(1, Number(numberOfQuestions) || 10));
       const payload = {
-        subject: subject.trim(),
+        subject: subjectText || 'Other',
         subtopics: Array.isArray(subtopics) ? subtopics : [],
         difficulty,
         numberOfQuestions: n,
@@ -433,6 +449,8 @@ router.post(
         passingPercentage,
         subtopicId: subtopicId || undefined,
         name: name != null ? String(name) : undefined,
+        sourceImages: normalizedSourceImages,
+        sourceImageCount: normalizedSourceImages ? normalizedSourceImages.length : 0,
       };
 
       const ins = await pool.query(

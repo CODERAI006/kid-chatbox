@@ -99,7 +99,8 @@ function logOllamaLine(payload) {
 
 /**
  * @param {object} params
- * @param {Array<{ role: string, content: string }>} params.messages
+ * @param {Array<{ role: string, content: string, images?: string[] }>} params.messages
+ * @param {string} [params.model] override default Ollama model
  * @param {number} [params.temperature]
  * @param {number} [params.num_predict] max new tokens
  * @param {number} [params.requestTimeoutMs] override socket wait (see resolveTimeoutMs)
@@ -107,6 +108,7 @@ function logOllamaLine(payload) {
  */
 async function ollamaChat({
   messages,
+  model: modelOverride,
   temperature = 0.7,
   num_predict = 4096,
   logContext = 'ollama.chat',
@@ -117,9 +119,16 @@ async function ollamaChat({
   }
   const runtime = getOllamaRuntimeConfig();
   const url = `${runtime.baseUrl}/api/chat`;
+  const normalizedMessages = messages.map((m) => {
+    const msg = { role: m.role, content: m.content };
+    if (Array.isArray(m.images) && m.images.length > 0) {
+      msg.images = m.images;
+    }
+    return msg;
+  });
   const body = {
-    model: runtime.model,
-    messages,
+    model: (modelOverride && String(modelOverride).trim()) || runtime.model,
+    messages: normalizedMessages,
     stream: false,
     options: {
       temperature,
@@ -141,11 +150,12 @@ async function ollamaChat({
       timeoutMs,
       model: body.model,
       options: body.options,
-      messageCount: messages.length,
-      messages: messages.map((m, i) => ({
+      messageCount: normalizedMessages.length,
+      messages: normalizedMessages.map((m, i) => ({
         index: i,
         role: m.role,
         contentChars: m.content.length,
+        imageCount: Array.isArray(m.images) ? m.images.length : 0,
         content: previewText(m.content, PREVIEW_CHARS, fullMode),
       })),
     });

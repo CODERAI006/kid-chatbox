@@ -132,6 +132,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
     gradeLevel?: string;
     sampleQuestion?: string;
     examStyle?: string;
+    sourceImages?: string[];
   }) => {
     // A slower duplicate invocation must not start another job after one is already running.
     if (phaseRef.current === 'quiz' && questionCountRef.current > 0) {
@@ -225,6 +226,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
           instructions: fullConfig.instructions,
           sampleQuestion: fullConfig.sampleQuestion,
           examStyle: fullConfig.examStyle,
+          sourceImages: quizConfig.sourceImages,
         },
         { signal: genController.signal }
       );

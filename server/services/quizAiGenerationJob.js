@@ -6,6 +6,7 @@ const { pool } = require('../config/database');
 const { generateQuizQuestions } = require('../utils/openai');
 const { trackQuizCreated } = require('../utils/eventTracker');
 const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
+const { extractTextFromQuizPages, normalizeBase64Images } = require('../utils/quizImageExtract');
 
 function buildTopics(payload) {
   const subject = (payload.subject || '').trim();
@@ -39,9 +40,19 @@ async function runQuizAiGenerationJob(jobId) {
       Math.max(1, Number(payload.numberOfQuestions) || 10)
     );
     const difficulty = payload.difficulty || 'Basic';
-    const topics = buildTopics(payload);
-    if (topics.length === 0) {
+    let topics = buildTopics(payload);
+    if (topics.length === 0 && !Array.isArray(payload.sourceImages)) {
       throw new Error('subject is required');
+    }
+
+    let extractedPageText = null;
+    if (Array.isArray(payload.sourceImages) && payload.sourceImages.length > 0) {
+      const images = normalizeBase64Images(payload.sourceImages);
+      console.info('[quiz-ai-job] extracting text from pages', { jobId, pages: images.length });
+      extractedPageText = await extractTextFromQuizPages(images);
+      if (topics.length === 0) {
+        topics = ['Uploaded page content'];
+      }
     }
 
     const language = payload.language || 'English';
@@ -54,10 +65,15 @@ async function runQuizAiGenerationJob(jobId) {
 
     const descParts = [];
     if (payload.instructions) descParts.push(String(payload.instructions).trim());
+    if (extractedPageText) {
+      descParts.push(
+        `SOURCE MATERIAL (from uploaded page images — generate questions ONLY from this content):\n\n${extractedPageText}`
+      );
+    }
     if (payload.age != null) descParts.push(`Learner age: ${payload.age}`);
     const description = descParts.length ? descParts.join('\n\n') : null;
 
-    const subject = String(payload.subject || topics[0]).trim();
+    const subject = String(payload.subject || topics[0] || 'Other').trim();
     const name =
       (payload.name && String(payload.name).trim()) ||
       `AI Quiz: ${subject} (${new Date().toISOString().slice(0, 10)})`;

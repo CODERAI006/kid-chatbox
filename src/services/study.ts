@@ -6,13 +6,30 @@ import { QuizConfig } from '@/types/quiz';
 import { User } from '@/types';
 import { aiApi } from '@/services/api';
 
+export interface PracticeQuestion {
+  question: string;
+  answer: string;
+  hint?: string;
+}
+
 export interface Lesson {
   title: string;
   introduction: string;
-  explanation: string[]; // Array of pointers/explanations
-  keyPoints: string[]; // Top 20 key points to remember
+  explanation: string[];
+  keyPoints: string[];
   examples: string[];
   summary: string;
+  practiceQuestions?: PracticeQuestion[];
+  imageKeywords?: string[];
+  funFacts?: string[];
+}
+
+export interface StudyLessonOptions {
+  lessonStyle?: string;
+  lessonDepth?: string;
+  contentFocus?: string[];
+  examStyle?: string;
+  gradeLevel?: string;
 }
 
 /**
@@ -40,10 +57,22 @@ function getUserProfile(): { grade?: string; age?: number; name?: string } {
  * @param config - Quiz configuration with subject, topic, age, language, difficulty
  * @param userProfile - User profile with age, grade, name for personalization
  */
-export async function generateLesson(config: QuizConfig, userProfile?: User | null): Promise<Lesson> {
+export async function generateLesson(
+  config: QuizConfig,
+  userProfile?: User | null,
+  studyOptions?: StudyLessonOptions,
+): Promise<Lesson> {
   const profile = userProfile || getUserProfile();
-  const grade = profile.grade || `Class ${Math.floor((config.age || 8) / 2) + 1}`;
+  const grade = studyOptions?.gradeLevel || profile.grade || `Class ${Math.floor((config.age || 8) / 2) + 1}`;
   const classLevel = grade.includes('Class') ? grade : `Class ${grade}`;
+  const examStyle = studyOptions?.examStyle || config.examStyle || 'CBSE';
+  const lessonStyle = studyOptions?.lessonStyle || 'Step-by-step';
+  const lessonDepth = studyOptions?.lessonDepth || 'Standard (15 min)';
+  const contentFocus = studyOptions?.contentFocus ?? ['Q&A Practice', 'Diagrams & Images'];
+  const wantQA = contentFocus.includes('Q&A Practice');
+  const wantFunFacts = contentFocus.includes('Fun Facts');
+  const wantExamples = contentFocus.includes('Real Examples');
+  const wantImages = contentFocus.includes('Diagrams & Images');
   const kidName = (userProfile as User)?.name || 'friend';
   const kidAge = config.age || 8;
 
@@ -104,6 +133,22 @@ export async function generateLesson(config: QuizConfig, userProfile?: User | nu
 - Connect chess concepts to real-life problem-solving`;
   }
 
+  const depthGuide =
+    lessonDepth.includes('Quick')
+      ? 'Keep content concise: shorter intro, 8-10 explanation points, 12 key points.'
+      : lessonDepth.includes('Deep')
+      ? 'Go deeper: richer intro, 12-15 explanation points, full 20 key points, more examples.'
+      : 'Balanced depth: standard intro, 10-12 explanation points, 20 key points.';
+
+  const styleGuide =
+    lessonStyle === 'Story-based'
+      ? 'Present concepts as a friendly story with characters or scenarios.'
+      : lessonStyle === 'Visual'
+      ? 'Emphasize visual descriptions, diagrams-in-words, and picture-this language.'
+      : lessonStyle === 'Exam-focused'
+      ? 'Highlight exam-style facts, definitions, and likely question patterns.'
+      : 'Use clear step-by-step explanations that build logically.';
+
   const prompt = `You are a smart and friendly teacher creating an amazing lesson for ${kidName}, a ${classLevel} student who is ${kidAge} years old.
 
 Create a comprehensive, engaging lesson about:
@@ -111,9 +156,17 @@ Create a comprehensive, engaging lesson about:
 - Topic: ${subtopicsText}
 - Language: ${config.language}
 - Grade Level: ${classLevel}
+- Exam Style: ${examStyle}
+- Lesson Style: ${lessonStyle}
+- Lesson Depth: ${lessonDepth}
 - Student Age: ${kidAge} years
+${config.instructions ? `- Extra instructions: ${config.instructions}` : ''}
 
 ${languageInstruction}
+
+LESSON PREFERENCES:
+- Style: ${styleGuide}
+- Depth: ${depthGuide}
 
 TEACHING APPROACH:
 1. Learning Style: ${learningStyle}
@@ -134,31 +187,24 @@ CONTENT REQUIREMENTS:
    - Use simple language
    - Include examples or comparisons
    - Build on previous points
-4. Examples: 3-5 real-world examples that ${kidName} can relate to. Make them fun and memorable.
+4. Examples: ${wantExamples ? '3-5' : '1-3'} real-world examples that ${kidName} can relate to.
 5. Key Points: Exactly 20 important things to remember. Make them short, clear, and easy to recall.
-6. Summary: One encouraging paragraph that ties everything together and makes ${kidName} feel confident about understanding the topic.
+6. Summary: One encouraging paragraph that ties everything together.
+${wantQA ? `7. Practice Questions: 5-8 short Q&A items with question, answer, and optional hint for self-study.` : ''}
+${wantFunFacts ? `8. Fun Facts: 3-5 surprising, kid-friendly facts related to the topic.` : ''}
+${wantImages ? `9. Image Keywords: 4-6 short English keywords (1-3 words each) for topic-related visuals (e.g. "solar system", "plant cell").` : ''}
 
 Return ONLY a valid JSON object with this exact structure:
 {
   "title": "Exciting chapter title",
-  "introduction": "3-4 detailed paragraphs (each 4-6 sentences) that hook interest, explain the topic's importance, provide context, and build curiosity",
-  "explanation": [
-    "Pointer 1: First concept explained clearly with examples",
-    "Pointer 2: Second concept building on the first",
-    "...continue with 10-15 comprehensive pointers"
-  ],
-  "keyPoints": [
-    "Key point 1 (short and memorable)",
-    "Key point 2",
-    "...exactly 20 key points"
-  ],
-  "examples": [
-    "Example 1 with detailed explanation",
-    "Example 2 with detailed explanation",
-    "Example 3 with detailed explanation",
-    "...3-5 examples total"
-  ],
-  "summary": "One encouraging paragraph summarizing everything"
+  "introduction": "3-4 detailed paragraphs",
+  "explanation": ["Pointer 1", "Pointer 2"],
+  "keyPoints": ["Key point 1", "...exactly 20 key points"],
+  "examples": ["Example 1"],
+  "summary": "One encouraging paragraph",
+  ${wantQA ? '"practiceQuestions": [{"question": "...", "answer": "...", "hint": "optional"}],' : ''}
+  ${wantFunFacts ? '"funFacts": ["Fact 1", "Fact 2"],' : ''}
+  ${wantImages ? '"imageKeywords": ["keyword1", "keyword2"]' : ''}
 }`;
 
   try {
@@ -205,6 +251,10 @@ Return ONLY a valid JSON object with this exact structure:
     } else if (lesson.keyPoints.length > 20) {
       lesson.keyPoints = lesson.keyPoints.slice(0, 20);
     }
+
+    if (!Array.isArray(lesson.practiceQuestions)) lesson.practiceQuestions = [];
+    if (!Array.isArray(lesson.imageKeywords)) lesson.imageKeywords = [];
+    if (!Array.isArray(lesson.funFacts)) lesson.funFacts = [];
 
     return lesson;
   } catch (error) {

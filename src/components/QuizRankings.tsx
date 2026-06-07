@@ -465,7 +465,15 @@ export const QuizRankings: React.FC = () => {
                                 }}
                               >
                                 <VStack align="start" spacing={0} w="100%">
-                                  <Text fontWeight="medium">{quiz.displayName}</Text>
+                                  <HStack spacing={2} flexWrap="wrap">
+                                    <Text fontWeight="medium">{quiz.displayName}</Text>
+                                    {quiz.source === 'admin' && (
+                                      <Badge colorScheme="purple" fontSize="2xs">Admin</Badge>
+                                    )}
+                                    {quiz.source === 'ai-tutor' && (
+                                      <Badge colorScheme="blue" fontSize="2xs">AI Tutor</Badge>
+                                    )}
+                                  </HStack>
                                   <Text fontSize="xs" color="gray.500">
                                     {quiz.participantCount} participants • {quiz.attemptCount} attempts
                                   </Text>

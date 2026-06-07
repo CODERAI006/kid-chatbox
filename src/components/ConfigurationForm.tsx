@@ -19,6 +19,8 @@ import {
 import { Subject, Difficulty } from '@/types/quiz';
 import { isValidSubject } from '@/utils/validation';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
+import { QuizPageUpload } from '@/components/quiz/QuizPageUpload';
+import type { QuizPageImage } from '@/utils/quizImageUpload';
 
 const CLASSES = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 const EXAM_STYLES = ['CBSE', 'NCERT', 'Olympiad', 'Competitive', 'ICSE', 'State Board'];
@@ -43,6 +45,7 @@ interface ConfigurationFormProps {
     subject: Subject; subtopics: string[]; questionCount?: number;
     difficulty: Difficulty; instructions?: string; timeLimit: number;
     gradeLevel?: string; sampleQuestion?: string; examStyle?: string;
+    sourceImages?: string[];
   }) => void;
   isGenerating?: boolean;
   generatingBatch?: { current: number; total: number } | null;
@@ -83,6 +86,8 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   const [customSubtopicInput, setCustomSubtopicInput] = useState('');
   const [profileReady, setProfileReady] = useState(false);
   const [submitLocked, setSubmitLocked] = useState(false);
+  const [pageImages, setPageImages] = useState<QuizPageImage[]>([]);
+  const hasPageImages = pageImages.length > 0;
   const handleProfileReady = useCallback((ready: boolean) => {
     setProfileReady(ready);
   }, []);
@@ -105,20 +110,31 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   }, [customSubtopicInput, selectedSubtopics]);
 
   const isFormValid =
-    isValidSubject(subject) &&
-    (subject === SUBJECTS.OTHER
-      ? customSubtopic.trim().length > 0
-      : selectedSubtopics.length > 0 || instructions.trim().length > 0) &&
     questionCount >= QUIZ_CONSTANTS.MIN_QUESTIONS &&
-    questionCount <= QUIZ_CONSTANTS.MAX_QUESTIONS && timeLimit > 0;
+    questionCount <= QUIZ_CONSTANTS.MAX_QUESTIONS &&
+    timeLimit > 0 &&
+    (hasPageImages
+      ? true
+      : isValidSubject(subject) &&
+        (subject === SUBJECTS.OTHER
+          ? customSubtopic.trim().length > 0
+          : selectedSubtopics.length > 0 || instructions.trim().length > 0));
 
   const handleSubmit = useCallback(() => {
-    if (!isValidSubject(subject) || !isFormValid || submitLocked || isGenerating) return;
+    if (!isFormValid || submitLocked || isGenerating) return;
+    if (!hasPageImages && !isValidSubject(subject)) return;
     setSubmitLocked(true);
     const qtHint = questionType ? `Question type: ${questionType}. ` : '';
+    let finalSubject = subject;
     let finalSubtopics: string[] = [];
     let finalInstructions: string | undefined;
-    if (subject === SUBJECTS.OTHER) {
+
+    if (hasPageImages) {
+      finalSubject = (isValidSubject(subject) ? subject : SUBJECTS.OTHER) as Subject;
+      finalSubtopics = ['Uploaded page content'];
+      const pageHint = `Generate questions only from the uploaded page image(s) (${pageImages.length} page${pageImages.length === 1 ? '' : 's'}).`;
+      finalInstructions = [pageHint, qtHint, instructions.trim()].filter(Boolean).join(' ').trim() || undefined;
+    } else if (subject === SUBJECTS.OTHER) {
       finalSubtopics = customSubtopic.trim() ? [customSubtopic.trim()] : [];
       finalInstructions = `${qtHint}${instructions.trim()}`.trim() || undefined;
     } else if (selectedSubtopics.length > 0) {
@@ -128,15 +144,21 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
       finalSubtopics = [instructions.trim()];
       finalInstructions = qtHint.trim() || undefined;
     }
+
     onConfigComplete({
-      subject, subtopics: finalSubtopics, questionCount, difficulty,
-      instructions: finalInstructions, timeLimit,
+      subject: finalSubject as Subject,
+      subtopics: finalSubtopics,
+      questionCount,
+      difficulty,
+      instructions: finalInstructions,
+      timeLimit,
       gradeLevel: gradeLevel.trim() || undefined,
       examStyle: examStyle.trim() || undefined,
+      sourceImages: hasPageImages ? pageImages.map((p) => p.base64) : undefined,
     });
   }, [subject, selectedSubtopics, customSubtopic, questionCount, difficulty,
     instructions, timeLimit, gradeLevel, examStyle, questionType, onConfigComplete, isFormValid,
-    submitLocked, isGenerating]);
+    submitLocked, isGenerating, hasPageImages, pageImages]);
 
   const subtopics = subject && subject !== SUBJECTS.OTHER ? (SUBTOPIC_MAP[subject] ?? []) : [];
   const isFormValidWithLimits = isFormValid && canTakeQuiz && profileReady;
@@ -150,6 +172,21 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
             <Heading size="lg" color="blue.600" textAlign="center">{MESSAGES.GREETING}</Heading>
 
             <ProfileQuizHint onReadyChange={handleProfileReady} />
+
+            <QuizPageUpload
+              pages={pageImages}
+              onChange={setPageImages}
+              isDisabled={isGenerating}
+            />
+
+            {hasPageImages && (
+              <Box bg="purple.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="purple.100">
+                <Text fontSize="xs" color="purple.800">
+                  Page photos uploaded — quiz questions will be generated from your images.
+                  Subject and subtopics below are optional for categorization.
+                </Text>
+              </Box>
+            )}
 
             {/* ── Class + Exam Type ─────────────────────────────────── */}
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
@@ -188,7 +225,9 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
 
             {/* ── Subject grid ──────────────────────────────────────── */}
             <Box>
-              <SL>Subject <Text as="span" color="red.400">*</Text></SL>
+              <SL>
+                Subject {!hasPageImages && <Text as="span" color="red.400">*</Text>}
+              </SL>
               <SimpleGrid columns={{ base: 3, sm: 4, md: 5 }} spacing={3}>
                 {Object.values(SUBJECTS).map(subj => {
                   const active = subject === subj;
@@ -343,6 +382,7 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
                         <Spinner size="sm" color="white" />
                         <Text as="span">Creating{generatingBatch != null && generatingBatch.total > 1 ? ` (${generatingBatch.current}/${generatingBatch.total})` : ''}…</Text>
                       </HStack>
+                    : hasPageImages ? 'Generate Quiz from Pages! 📄'
                     : 'Start Quiz! 🎉'}
               </Button>
               {isGenerating && onCancelGeneration && (
