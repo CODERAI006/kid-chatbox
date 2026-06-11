@@ -151,7 +151,7 @@ function getResolvedOllamaConfig(localBaseUrl, localModel) {
     };
   }
 
-  const localProfiles = buildDefaultProfiles('local');
+  const localProfiles = { ...buildDefaultProfiles('local'), ...cloud.profiles };
   return {
     mode: 'local',
     baseUrl: localBaseUrl,

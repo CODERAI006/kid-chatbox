@@ -12,6 +12,7 @@ import type { WordOfDayResponse } from '@/types/wordOfDay';
 import { WordOfDayCard } from './wordOfDay/WordOfDayCard';
 import { WordOfDayDashboardList } from './wordOfDay/WordOfDayDashboardList';
 import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
+import FactsAndFunPreview from './facts/FactsAndFunPreview';
 
 const toYMD = (d: Date): string => {
   const y = d.getFullYear();
@@ -81,7 +82,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'fu
     }
   };
 
-  return (
+  const wordCard = (
     <Card bg="white" borderColor="purple.200" borderWidth={2} boxShadow="md">
       <CardBody p={{ base: 3, md: 4 }}>
         <VStack spacing={4} align="stretch">
@@ -173,4 +174,15 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'fu
       </CardBody>
     </Card>
   );
+
+  if (isDashboard) {
+    return (
+      <VStack spacing={3} align="stretch">
+        {wordCard}
+        <FactsAndFunPreview grade={gradeLabel} />
+      </VStack>
+    );
+  }
+
+  return wordCard;
 };

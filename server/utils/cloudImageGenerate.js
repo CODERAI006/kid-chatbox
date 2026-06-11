@@ -1,6 +1,6 @@
 /**
- * Quiz illustrations via Ollama Cloud only (POST /api/generate → base64 image field).
- * Requires Admin → Ollama Cloud enabled with a valid API key.
+ * Quiz & study illustrations via Ollama POST /api/generate → base64 image field.
+ * Works with Ollama Cloud (Admin → API key) or local Ollama when image models are pulled.
  */
 const fs = require('fs');
 const path = require('path');
@@ -42,19 +42,31 @@ function resolveImageModel() {
   return raw;
 }
 
-function assertOllamaCloudReady() {
+function assertImageGenReady() {
   const runtime = getOllamaRuntimeConfig();
-  if (runtime.mode !== 'cloud' || !runtime.configured) {
+  if (!runtime.configured) {
     throw new Error(
-      'Quiz images require Ollama Cloud. Enable it and set an API key in Admin → Ollama Cloud.'
+      'Image generation requires Ollama. Enable Ollama Cloud in Admin or run local Ollama with an image model pulled.'
+    );
+  }
+  if (runtime.mode === 'cloud' && !runtime.headers?.Authorization) {
+    throw new Error(
+      'Ollama Cloud is enabled but no API key is set. Add a key in Admin → Ollama Cloud.'
+    );
+  }
+  const model = resolveImageModel();
+  if (!model) {
+    throw new Error(
+      'No image model configured. Set Admin → Ollama Cloud → Image generation or OLLAMA_IMAGE_MODEL.'
     );
   }
   return runtime;
 }
 
-async function generateViaOllamaCloud(prompt, model) {
-  const runtime = assertOllamaCloudReady();
-  const url = `${CLOUD_BASE_URL}/api/generate`;
+async function generateViaOllama(prompt, model) {
+  const runtime = assertImageGenReady();
+  const base = (runtime.mode === 'cloud' ? CLOUD_BASE_URL : runtime.baseUrl).replace(/\/$/, '');
+  const url = `${base}/api/generate`;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -65,27 +77,28 @@ async function generateViaOllamaCloud(prompt, model) {
 
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`Ollama Cloud image API ${res.status}: ${text.slice(0, 280)}`);
+    throw new Error(`Ollama image API ${res.status}: ${text.slice(0, 280)}`);
   }
 
   let data;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('Ollama Cloud returned non-JSON image response');
+    throw new Error('Ollama returned non-JSON image response');
   }
 
   const imageB64 = data?.image;
   if (!imageB64 || typeof imageB64 !== 'string') {
-    throw new Error(`Ollama Cloud model "${model}" returned no image data`);
+    throw new Error(`Ollama model "${model}" returned no image data`);
   }
 
   const buffer = Buffer.from(imageB64, 'base64');
   if (buffer.length < 500) {
-    throw new Error('Ollama Cloud returned an empty or invalid image');
+    throw new Error('Ollama returned an empty or invalid image');
   }
 
-  return { buffer, provider: 'ollama-cloud', model: data.model || model };
+  const provider = runtime.mode === 'cloud' ? 'ollama-cloud' : 'ollama-local';
+  return { buffer, provider, model: data.model || model };
 }
 
 function saveQuizImageBuffer(buffer) {
@@ -101,14 +114,14 @@ function saveQuizImageBase64(base64) {
 
 async function cloudGenerateImage(prompt) {
   const model = resolveImageModel();
-  return generateViaOllamaCloud(prompt, model);
+  return generateViaOllama(prompt, model);
 }
 
 /** @param {string} prompt */
 async function generateQuizQuestionImage(prompt) {
   const { buffer, provider, model } = await cloudGenerateImage(prompt);
   const imageUrl = saveQuizImageBuffer(buffer);
-  console.info('[quiz-images] ollama cloud save', { provider, model, imageUrl });
+  console.info('[quiz-images] saved', { provider, model, imageUrl });
   return imageUrl;
 }
 

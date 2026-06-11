@@ -44,7 +44,7 @@ Rules:
 10. Avoid technical jargon unless defined in keyTerms.
 11. Ensure factual correctness for ${board} curriculum.
 12. Write in ${language}.
-13. Pick visuals only where a photo helps learning (diagrams, anatomy, maps, experiments). imageKeyword: specific English phrase for hero photo (x/z-image-turbo). imageKeywords: 3–4 visual concepts only (not grammar/vocabulary).
+13. Pick visuals only where a photo helps learning (diagrams, anatomy, maps, experiments). imageKeyword: specific English phrase for hero photo. imageKeywords: exactly 2 visual concepts for gallery (not grammar/vocabulary).
 
 Output JSON only with this exact shape:
 {
@@ -72,7 +72,7 @@ Output JSON only with this exact shape:
   "askAiTeacherPrompts": ["Can you explain ...?", "At least 4 starter questions"],
   "keyPoints": ["Exactly 20 short key points"],
   "summary": "One encouraging closing paragraph",
-  "imageKeywords": ["specific keyword 1", "keyword 2", "keyword 3", "keyword 4"]
+  "imageKeywords": ["specific keyword 1", "keyword 2"]
 }
 
 Minimum counts: flashcards 20, keyPoints 20, keyTerms 8, quizQuestions 5.`;

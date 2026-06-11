@@ -1,9 +1,11 @@
 /**
- * Study lesson illustrations via Ollama Cloud (same pipeline as quiz images).
+ * Study lesson illustrations via Ollama (same pipeline as quiz images).
+ * Default: 1 hero + 2 gallery = 3 images. Override count with STUDY_GALLERY_IMAGES (1–3).
  */
 const { generateQuizQuestionImage } = require('./ollamaImageGenerate');
 
-const MAX_GALLERY = 4;
+/** Hero intro + this many gallery shots (3 images total by default). */
+const MAX_GALLERY = Math.min(Math.max(Number(process.env.STUDY_GALLERY_IMAGES) || 2, 1), 3);
 const IMAGE_CONCURRENCY = 2;
 
 function buildStudyImagePrompt(keyword, ctx = {}) {
@@ -59,6 +61,7 @@ async function enrichLessonWithImages(input, ctx = {}) {
   console.info('[study-images] complete', {
     intro: Boolean(introImageUrl),
     gallery: galleryImages.length,
+    maxGallery: MAX_GALLERY,
   });
 
   return { introImageUrl, galleryImages };

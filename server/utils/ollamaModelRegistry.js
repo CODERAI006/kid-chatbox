@@ -37,16 +37,21 @@ const OLLAMA_MODEL_TYPES = [
   {
     id: 'image',
     label: 'Image generation',
-    description: 'Quiz/study illustrations via Ollama (x/z-image-turbo). Text LLM picks which quiz questions need a visual.',
+    description:
+      'Study lesson (hero + gallery) and quiz illustrations via Ollama /api/generate. Pick speed vs quality; override with OLLAMA_IMAGE_MODEL.',
     emoji: '🖼️',
     defaultCloud: 'x/z-image-turbo',
     defaultLocal: 'x/z-image-turbo',
     envVar: 'OLLAMA_IMAGE_MODEL',
     implemented: true,
     presets: [
-      { id: 'x/z-image-turbo', label: 'Z-Image Turbo (recommended)' },
-      { id: 'x/flux2-klein:4b', label: 'FLUX.2 Klein 4B' },
-      { id: 'flux:cloud', label: 'Flux Cloud' },
+      { id: 'x/z-image-turbo', label: 'Z-Image Turbo — fastest (official Ollama default)' },
+      { id: 'x/flux2-klein:4b', label: 'FLUX.2 Klein 4B — quality + speed (Apache 2.0)' },
+      { id: 'x/flux2-klein:9b', label: 'FLUX.2 Klein 9B — highest FLUX.2 quality' },
+      { id: 'flux:cloud', label: 'FLUX Cloud — hosted FLUX' },
+      { id: 'flux-dev', label: 'FLUX.1 Dev — best open-source quality (ollama pull)' },
+      { id: 'flux-schnell', label: 'FLUX.1 Schnell — fast FLUX.1 (ollama pull)' },
+      { id: 'sdxl', label: 'SDXL — mature ecosystem (ollama pull)' },
     ],
   },
   {
