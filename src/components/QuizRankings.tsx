@@ -48,6 +48,7 @@ import {
 import { apiClient, authApi, quizApi } from '@/services/api';
 import { PullToRefresh } from './PullToRefresh';
 import { generateCertificate } from '@/utils/certificate';
+import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 
 /**
  * Quiz Rankings component for students
@@ -224,36 +225,52 @@ export const QuizRankings: React.FC = () => {
   if (loading) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <Box textAlign="center" py={10}>
-          <Spinner size="xl" />
-          <Text mt={4}>Loading quiz rankings...</Text>
-        </Box>
+        <StudentPageLayout
+          icon="🏆"
+          title="Quiz Rankings"
+          subtitle="Compare your scores and track progress across quizzes"
+        >
+          <Box textAlign="center" py={10}>
+            <Spinner size="xl" />
+            <Text mt={4} fontSize={{ base: 'sm', md: 'md' }}>Loading quiz rankings...</Text>
+          </Box>
+        </StudentPageLayout>
       </PullToRefresh>
     );
   }
 
   if (error) {
     return (
-      <Box p={6}>
+      <StudentPageLayout
+        icon="🏆"
+        title="Quiz Rankings"
+        subtitle="Compare your scores and track progress across quizzes"
+        actions={
+          <Button size="sm" onClick={loadRankings}>
+            Retry
+          </Button>
+        }
+      >
         <Alert status="error">
           <AlertIcon />
           {error}
         </Alert>
-        <Button mt={4} onClick={loadRankings}>
-          Retry
-        </Button>
-      </Box>
+      </StudentPageLayout>
     );
   }
 
   if (!analytics || analytics.leaderboard.length === 0) {
     return (
-      <Box p={6}>
+      <StudentPageLayout
+        icon="🏆"
+        title="Quiz Rankings"
+        subtitle="Compare your scores and track progress across quizzes"
+      >
         <Alert status="info">
           <AlertIcon />
           No quiz attempts found. Complete quizzes to see rankings!
         </Alert>
-      </Box>
+      </StudentPageLayout>
     );
   }
 
@@ -281,37 +298,38 @@ export const QuizRankings: React.FC = () => {
   if (!analytics || allParticipants.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <Box p={6} maxWidth="1400px" marginX="auto">
-          <VStack spacing={6} align="stretch">
-            <HStack justify="space-between" align="center">
-              <Heading size="lg">🏆 My Quiz Rankings</Heading>
-              <Button onClick={loadRankings} size="sm">
-                Refresh
-              </Button>
-            </HStack>
-            <Alert status="info">
-              <AlertIcon />
-              No quiz attempts found. Complete quizzes to see your rankings!
-            </Alert>
-          </VStack>
-        </Box>
+        <StudentPageLayout
+          icon="🏆"
+          title="Quiz Rankings"
+          subtitle="Compare your scores and track progress across quizzes"
+          actions={
+            <Button onClick={loadRankings} size="sm">
+              Refresh
+            </Button>
+          }
+        >
+          <Alert status="info">
+            <AlertIcon />
+            No quiz attempts found. Complete quizzes to see your rankings!
+          </Alert>
+        </StudentPageLayout>
       </PullToRefresh>
     );
   }
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <Box p={6} maxWidth="1400px" marginX="auto">
+      <StudentPageLayout
+        icon="🏆"
+        title="Quiz Rankings"
+        subtitle="Compare your scores and track progress across quizzes"
+        actions={
+          <Button onClick={loadRankings} size="sm">
+            Refresh
+          </Button>
+        }
+      >
         <VStack spacing={6} align="stretch">
-          {/* Header */}
-          <HStack justify="space-between" align="center">
-            <Heading size="lg">🏆 My Quiz Rankings</Heading>
-            <Button onClick={loadRankings} size="sm">
-              Refresh
-            </Button>
-          </HStack>
-
-          {/* Summary Stats */}
           <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
             <Stat>
               <StatLabel>My Total Attempts</StatLabel>
@@ -834,7 +852,7 @@ export const QuizRankings: React.FC = () => {
             </ModalFooter>
           </ModalContent>
         </Modal>
-      </Box>
+      </StudentPageLayout>
     </PullToRefresh>
   );
 };

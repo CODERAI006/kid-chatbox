@@ -11,9 +11,6 @@ import {
   TabPanels,
   Tab,
   TabPanel,
-  Heading,
-  Text,
-  HStack,
   Badge,
   Alert,
   AlertIcon,
@@ -22,6 +19,7 @@ import {
 import { StudyMode } from './StudyMode';
 import { StudyLibrary } from './StudyLibrary';
 import { StudyHistory } from './StudyHistory';
+import { StudentPageHeader } from '@/components/layout/StudentPageHeader';
 import { authApi } from '@/services/api';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
@@ -87,36 +85,50 @@ export const StudyHub: React.FC = () => {
 
   return (
     <Box minH="100vh" bg="gray.50">
-      <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6} py={4}>
-        <HStack spacing={3} align="center">
-          <Text fontSize="2xl">📚</Text>
-          <Box>
-            <Heading size="md" color="blue.700">Study Hub</Heading>
-            <Text fontSize="sm" color="gray.500">
-              Generate lessons, browse materials, and review your history — all in one place
-            </Text>
-          </Box>
-        </HStack>
-      </Box>
+      <StudentPageHeader
+        icon="📚"
+        title="Study Hub"
+        subtitle="Generate lessons, browse materials, and review your history — all in one place"
+      />
 
       <Tabs index={tabIndex} onChange={handleTabChange} isLazy colorScheme="blue" variant="enclosed">
-        <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6}>
-          <TabList border="none">
+        <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={{ base: 1, md: 6 }} overflowX="auto">
+          <TabList border="none" flexWrap={{ base: 'nowrap', md: 'wrap' }} minW="min-content">
             {showAiStudyTab && (
-              <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
-                🤖 AI Study Mode
+              <Tab
+                fontWeight="semibold"
+                fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+                px={{ base: 2, md: 4 }}
+                whiteSpace="nowrap"
+                _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+              >
+                🤖 AI Study
                 {isAdmin && !planAllowsAiStudy && (
-                  <Badge ml={2} colorScheme="orange" fontSize="xs">Plan hidden</Badge>
+                  <Badge ml={1} colorScheme="orange" fontSize="2xs">Hidden</Badge>
                 )}
               </Tab>
             )}
-            <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
-              📖 Study Library
+            <Tab
+              fontWeight="semibold"
+              fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+              px={{ base: 2, md: 4 }}
+              whiteSpace="nowrap"
+              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+            >
+              📖 Library
             </Tab>
-            <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
-              🕑 Study History
+            <Tab
+              fontWeight="semibold"
+              fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+              px={{ base: 2, md: 4 }}
+              whiteSpace="nowrap"
+              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+            >
+              🕑 History
               {historyCount !== null && historyCount > 0 && (
-                <Badge ml={2} colorScheme="blue" borderRadius="full">{historyCount}</Badge>
+                <Badge ml={1} colorScheme="blue" borderRadius="full" fontSize="2xs">
+                  {historyCount}
+                </Badge>
               )}
             </Tab>
           </TabList>

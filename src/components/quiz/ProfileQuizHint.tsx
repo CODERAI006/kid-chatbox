@@ -1,10 +1,11 @@
 /**
- * Shows whether the student's profile has age + language set before AI quiz generation.
+ * Mandatory age + language check for AI Quiz and Study modes.
+ * Shows missing fields in red; hides when profile is complete.
  */
 
 import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Alert, AlertIcon, AlertTitle, AlertDescription, Link, Spinner, Box } from '@/shared/design-system';
+import { Box, VStack, Text, Link, Spinner } from '@/shared/design-system';
 import { profileApi } from '@/services/api';
 
 export function ProfileQuizHint({
@@ -26,9 +27,10 @@ export function ProfileQuizHint({
         if (cancelled) return;
         const a = user?.age != null ? Number(user.age) : null;
         const lang = user?.preferredLanguage?.trim() || null;
-        setAge(Number.isFinite(a) && a! > 0 ? a! : null);
+        const validAge = Number.isFinite(a) && a! > 0 ? a! : null;
+        setAge(validAge);
         setLanguage(lang);
-        onReadyChange?.(Boolean(a && a > 0 && lang), a ?? undefined, lang ?? undefined);
+        onReadyChange?.(Boolean(validAge && lang), validAge ?? undefined, lang ?? undefined);
       } catch {
         if (!cancelled) {
           setAge(null);
@@ -64,33 +66,41 @@ export function ProfileQuizHint({
     );
   }
 
-  if (!age || !language) {
-    return (
-      <Alert status="warning" borderRadius="xl">
-        <AlertIcon />
-        <Box flex="1">
-          <AlertTitle fontSize="sm">Profile required</AlertTitle>
-          <AlertDescription fontSize="sm">
-            Set your age and preferred language in{' '}
-            <Link as={RouterLink} to="/profile" color="blue.600" fontWeight="semibold">
-              Profile
-            </Link>{' '}
-            before generating a quiz. Questions are tailored to your age.
-          </AlertDescription>
-        </Box>
-      </Alert>
-    );
-  }
+  if (age && language) return null;
 
   return (
-    <Alert status="info" borderRadius="xl" variant="subtle">
-      <AlertIcon />
-      <AlertDescription fontSize="sm">
-        Using age <strong>{age}</strong> and language <strong>{language}</strong> from your profile.{' '}
-        <Link as={RouterLink} to="/profile" color="blue.600" fontWeight="semibold">
-          Update profile
-        </Link>
-      </AlertDescription>
-    </Alert>
+    <Box
+      borderWidth={2}
+      borderColor="red.400"
+      borderRadius="xl"
+      bg="red.50"
+      px={4}
+      py={3}
+    >
+      <VStack align="stretch" spacing={2}>
+        <Text fontSize="sm" fontWeight="bold" color="red.600">
+          Mandatory profile settings — required for Quiz &amp; Study
+        </Text>
+        <VStack align="stretch" spacing={1}>
+          {!age && (
+            <Text fontSize="sm" fontWeight="semibold" color="red.600">
+              Age: Not set (mandatory)
+            </Text>
+          )}
+          {!language && (
+            <Text fontSize="sm" fontWeight="semibold" color="red.600">
+              Language: Not set (mandatory)
+            </Text>
+          )}
+        </VStack>
+        <Text fontSize="sm" color="red.700">
+          Set these in{' '}
+          <Link as={RouterLink} to="/profile" color="red.700" fontWeight="bold" textDecoration="underline">
+            Profile
+          </Link>{' '}
+          before starting.
+        </Text>
+      </VStack>
+    </Box>
   );
 }

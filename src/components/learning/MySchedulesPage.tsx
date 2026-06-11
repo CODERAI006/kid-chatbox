@@ -7,7 +7,6 @@ import {
   Button,
   Card,
   CardBody,
-  Heading,
   HStack,
   Spinner,
   Text,
@@ -24,6 +23,7 @@ import { StudyPlanCard } from './StudyPlanCard';
 import { StudyPlanLessonView } from './StudyPlanLessonView';
 import { StudyPlanGeneratorModal } from './StudyPlanGeneratorModal';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 
 export function MySchedulesPage() {
   const [plans, setPlans] = useState<StudyPlanRecord[]>([]);
@@ -80,22 +80,19 @@ export function MySchedulesPage() {
 
   return (
     <PullToRefresh onRefresh={loadPlans}>
-      <Box p={{ base: 3, md: 6 }} maxW="960px" mx="auto" w="100%">
+      <StudentPageLayout
+        icon="📅"
+        title="My Schedules"
+        subtitle="Multiple plans can run together — open a schedule to see today's lesson"
+        accent="purple"
+        maxW="960px"
+        actions={
+          <Button colorScheme="purple" size="sm" onClick={generator.onOpen}>
+            + Generate
+          </Button>
+        }
+      >
         <VStack align="stretch" spacing={4}>
-          <HStack justify="space-between" flexWrap="wrap" gap={2}>
-            <Box>
-              <Heading size={{ base: 'md', md: 'lg' }} color="purple.600">
-                My Schedules
-              </Heading>
-              <Text fontSize="sm" color={muted} mt={1}>
-                Multiple plans can run together — open a schedule to see today&apos;s lesson.
-              </Text>
-            </Box>
-            <Button colorScheme="purple" size="sm" onClick={generator.onOpen}>
-              + Generate schedule
-            </Button>
-          </HStack>
-
           {plans.length > 0 && (
             <HStack spacing={3} flexWrap="wrap" fontSize="xs" color={muted}>
               <HStack spacing={1}>
@@ -149,7 +146,7 @@ export function MySchedulesPage() {
             </VStack>
           )}
         </VStack>
-      </Box>
+      </StudentPageLayout>
 
       <StudyPlanGeneratorModal
         isOpen={generator.isOpen}

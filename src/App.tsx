@@ -363,13 +363,11 @@ export const App: React.FC = () => {
           <Route
             path="/news"
             element={
-              user ? (
+              <AuthGuard>
                 <StudentLayout user={user}>
                   <NewsFeed />
                 </StudentLayout>
-              ) : (
-                <NewsFeed />
-              )
+              </AuthGuard>
             }
           />
           {/* Admin Routes */}

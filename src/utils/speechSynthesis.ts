@@ -10,6 +10,7 @@ import {
   stopPiperSpeech,
 } from '@/utils/piperSpeech';
 import { speakWithServerPiper, stopServerPiperSpeech } from '@/utils/serverPiperSpeech';
+import { fetchTtsStatus } from '@/services/ttsApi';
 import { stopAudioPlayback } from '@/utils/audioPlayback';
 
 const INDIAN_VOICE_HINTS = [
@@ -254,6 +255,12 @@ export async function speakText(
   if (!cleaned) return { ok: false, voiceUsed: null };
 
   const chunks = splitForSpeech(cleaned);
+
+  const serverStatus = await fetchTtsStatus();
+  if (serverStatus.available) {
+    const serverResult = await speakWithServerPiper(chunks, options);
+    if (serverResult.ok) return serverResult;
+  }
 
   const piperResult = await speakWithPiper(chunks, options);
   if (piperResult.ok) return piperResult;

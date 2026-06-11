@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  FaLightbulb, FaSyncAlt, FaExclamationCircle, FaCalendarAlt, FaGraduationCap,
-} from 'react-icons/fa';
+  Box,
+  Button,
+  HStack,
+  Input,
+  SimpleGrid,
+  Skeleton,
+  Text,
+  VStack,
+} from '@/shared/design-system';
 import { publicApi } from '@/services/api';
+import { QuizPill, QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import FactCard from './FactCard';
 import type { DailyFact, DailyFactsResponse, FactSubjectId } from '@/types/dailyFacts';
-
-function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`bg-gray-200 animate-pulse rounded-xl ${className}`} />;
-}
 
 const toYMD = (d: Date) => [
   d.getFullYear(),
@@ -23,14 +27,19 @@ function getUserGrade(): string {
       const u = JSON.parse(raw);
       if (u?.grade) return u.grade;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'Class 5 / Grade 5';
 }
 
 function formatDisplayDate(dateStr: string) {
   try {
     return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-IN', {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
     });
   } catch {
     return dateStr;
@@ -90,101 +99,143 @@ export default function FactsAndFunPanel() {
   }, [subjects]);
 
   return (
-    <div className="space-y-6">
-      <section className="p-5 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 text-white shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-extrabold flex items-center gap-2">
-              <FaLightbulb className="w-6 h-6" aria-hidden />
+    <VStack align="stretch" spacing={{ base: 4, md: 5 }} maxW="1200px" mx="auto" w="100%">
+      <Box
+        p={{ base: 3, md: 5 }}
+        borderRadius={{ base: 'xl', md: '2xl' }}
+        bgGradient="linear(to-br, orange.400, orange.500, pink.500)"
+        color="white"
+        boxShadow="md"
+      >
+        <VStack align="stretch" spacing={3}>
+          <Box>
+            <Text fontSize={{ base: 'sm', md: 'md' }} fontWeight="extrabold">
               10 facts for your class today
-            </h2>
-            <p className="text-sm text-orange-100 mt-1 max-w-xl">
-              Science, geography, history, India, sports &amp; more — matched to your grade, saved once per day.
-            </p>
-            <p className="mt-2 inline-flex items-center gap-2 text-xs font-semibold bg-white/20 rounded-lg px-3 py-1.5">
-              <FaGraduationCap aria-hidden />
-              {gradeLabel}
-              {data?.cached && <span className="opacity-80">· loaded from saved edition</span>}
-            </p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wide text-orange-100">Pick a day</label>
-            <input
-              type="date"
-              value={selectedDate}
-              max={today}
-              onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-              className="px-3 py-2 rounded-xl text-gray-900 text-sm font-medium"
-            />
-          </div>
-        </div>
-      </section>
+            </Text>
+            <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="orange.50" mt={1}>
+              Science, geography, history, India, sports &amp; more — saved once per day for your class.
+            </Text>
+          </Box>
+          <HStack
+            flexWrap="wrap"
+            gap={2}
+            justify="space-between"
+            align={{ base: 'stretch', sm: 'center' }}
+          >
+            <HStack
+              spacing={2}
+              bg="whiteAlpha.200"
+              borderRadius="lg"
+              px={3}
+              py={1.5}
+              fontSize={{ base: '2xs', sm: 'xs' }}
+              fontWeight="semibold"
+            >
+              <Text aria-hidden>🎓</Text>
+              <Text>{gradeLabel}</Text>
+              {data?.cached && <Text opacity={0.85}>· saved edition</Text>}
+            </HStack>
+            <Box minW={{ base: '100%', sm: '180px' }}>
+              <QuizSectionLabel>Pick a day</QuizSectionLabel>
+              <Input
+                type="date"
+                value={selectedDate}
+                max={today}
+                size="sm"
+                bg="white"
+                color="gray.900"
+                borderRadius="lg"
+                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+              />
+            </Box>
+          </HStack>
+        </VStack>
+      </Box>
 
       {archiveDates.length > 1 && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <FaCalendarAlt className="w-4 h-4 text-gray-400" aria-hidden />
-          <span className="text-xs font-bold text-gray-500 uppercase">Earlier editions:</span>
-          {archiveDates.slice(0, 14).map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setSelectedDate(d)}
-              className={`text-xs px-3 py-1 rounded-full border font-semibold transition-colors ${
-                d === selectedDate
-                  ? 'bg-orange-500 text-white border-orange-500'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-orange-300'
-              }`}
-            >
-              {d === today ? 'Today' : new Date(`${d}T12:00:00`).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
-            </button>
-          ))}
-        </div>
+        <Box>
+          <QuizSectionLabel>Earlier editions</QuizSectionLabel>
+          <HStack flexWrap="wrap" spacing={2}>
+            {archiveDates.slice(0, 14).map((d) => (
+              <QuizPill
+                key={d}
+                label={
+                  d === today
+                    ? 'Today'
+                    : new Date(`${d}T12:00:00`).toLocaleDateString('en-IN', {
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                }
+                active={d === selectedDate}
+                onClick={() => setSelectedDate(d)}
+                cs="orange"
+              />
+            ))}
+          </HStack>
+        </Box>
       )}
 
-      <p className="text-sm text-gray-500">{formatDisplayDate(selectedDate)}</p>
+      <Text fontSize={{ base: 'xs', sm: 'sm' }} color="gray.500">
+        {formatDisplayDate(selectedDate)}
+      </Text>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setSubjectFilter('all')}
-          className={`text-xs px-3 py-1.5 rounded-full font-bold border ${
-            subjectFilter === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200'
-          }`}
-        >
-          All areas
-        </button>
-        {subjects.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => setSubjectFilter(s.id as FactSubjectId)}
-            className={`text-xs px-3 py-1.5 rounded-full font-bold border ${
-              subjectFilter === s.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200'
-            }`}
-          >
-            {s.emoji} {s.label}
-          </button>
-        ))}
-      </div>
+      <Box>
+        <QuizSectionLabel>Filter by area</QuizSectionLabel>
+        <HStack flexWrap="wrap" spacing={2}>
+          <QuizPill
+            label="All areas"
+            active={subjectFilter === 'all'}
+            onClick={() => setSubjectFilter('all')}
+            cs="gray"
+          />
+          {subjects.map((s) => (
+            <QuizPill
+              key={s.id}
+              label={`${s.emoji} ${s.label}`}
+              active={subjectFilter === s.id}
+              onClick={() => setSubjectFilter(s.id as FactSubjectId)}
+              cs="orange"
+            />
+          ))}
+        </HStack>
+      </Box>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-44" />)}
-        </div>
+        <VStack spacing={4} align="stretch">
+          <Text fontSize={{ base: 'xs', sm: 'sm' }} color="gray.500" textAlign="center">
+            {selectedDate === today
+              ? 'Loading today\'s facts for your class…'
+              : 'Loading saved facts…'}
+          </Text>
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={{ base: 3, md: 4 }}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} height="176px" borderRadius="xl" />
+            ))}
+          </SimpleGrid>
+        </VStack>
       ) : error ? (
-        <div className="text-center py-12 bg-white rounded-2xl border">
-          <FaExclamationCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
-          <p className="text-gray-600 mb-3">{error}</p>
-          <button
-            type="button"
+        <Box textAlign="center" py={10} bg="white" borderRadius="xl" borderWidth="1px" borderColor="gray.200">
+          <Text fontSize={{ base: 'xl', md: '2xl' }} mb={2} aria-hidden>
+            ⚠️
+          </Text>
+          <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.600" mb={1}>
+            {error}
+          </Text>
+          <Text fontSize={{ base: '2xs', sm: 'xs' }} color="gray.400" mb={4} maxW="md" mx="auto" px={4}>
+            Facts are created via Ollama. Ensure it is running and configured in admin.
+          </Text>
+          <Button
+            size="sm"
+            colorScheme="orange"
+            leftIcon={<Text aria-hidden>🔄</Text>}
             onClick={() => loadFacts(selectedDate)}
-            className="inline-flex items-center gap-2 px-5 py-2 bg-orange-500 text-white rounded-xl text-sm font-semibold"
           >
-            <FaSyncAlt className="w-3.5 h-3.5" /> Try again
-          </button>
-        </div>
+            Try again
+          </Button>
+        </Box>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={{ base: 3, md: 4 }}>
           {filtered.map((fact: DailyFact, i: number) => (
             <FactCard
               key={fact.id}
@@ -193,12 +244,14 @@ export default function FactsAndFunPanel() {
               index={data?.facts?.indexOf(fact) ?? i}
             />
           ))}
-        </div>
+        </SimpleGrid>
       )}
 
       {!loading && filtered.length === 0 && !error && (
-        <p className="text-center text-gray-500 py-8">No facts in this area for the selected day.</p>
+        <Text textAlign="center" fontSize={{ base: 'sm', md: 'md' }} color="gray.500" py={8}>
+          No facts in this area for the selected day.
+        </Text>
       )}
-    </div>
+    </VStack>
   );
 }

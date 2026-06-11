@@ -6,7 +6,6 @@ import {
   Box,
   Badge,
   Button,
-  Heading,
   HStack,
   Spinner,
   Table,
@@ -28,6 +27,7 @@ import {
 } from '@/services/api';
 import { PastChatMessageList } from './PastChatMessageList';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 
 function formatWhen(iso: string): string {
   try {
@@ -145,17 +145,14 @@ export function PastChatsPage() {
 
   return (
     <PullToRefresh onRefresh={loadList}>
-      <Box maxW="1400px" mx="auto" w="100%" px={{ base: 3, md: 6 }} py={{ base: 4, md: 6 }}>
+      <StudentPageLayout
+        icon="💬"
+        title="Past Chats"
+        subtitle="Your Guru study conversations — read threads or continue in Guru"
+      >
         <VStack align="stretch" spacing={4}>
-          <Box>
-            <Heading size="lg" mb={1}>Past Chats</Heading>
-            <Text fontSize="sm" color="gray.600">
-              Your Guru study conversations. Select a row to read the full thread or continue in Guru.
-            </Text>
-          </Box>
-
           {listError && (
-            <Text fontSize="sm" color="red.500">{listError}</Text>
+            <Text fontSize={{ base: 'xs', sm: 'sm' }} color="red.500">{listError}</Text>
           )}
 
           <HStack
@@ -316,7 +313,7 @@ export function PastChatsPage() {
             )}
           </HStack>
         </VStack>
-      </Box>
+      </StudentPageLayout>
     </PullToRefresh>
   );
 }

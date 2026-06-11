@@ -60,6 +60,12 @@ interface ScheduledTestsProps {
   showViewAll?: boolean;
 }
 
+function toScoreNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 /**
  * Scheduled Tests Component
  * Organizes tests into: Upcoming, Live, and Completed sections
@@ -112,7 +118,7 @@ export const ScheduledTests: React.FC<ScheduledTestsProps> = ({ maxDisplay, show
           completedAttemptId: (t.completedAttemptId ?? undefined) as string | null | undefined,
           completedAt: (t.completedAt ?? undefined) as string | null | undefined,
           score: (t.score ?? undefined) as number | null | undefined,
-          scorePercentage: (t.scorePercentage ?? undefined) as number | null | undefined,
+          scorePercentage: toScoreNumber(t.scorePercentage ?? t.score_percentage),
           correctAnswers: (t.correctAnswers ?? undefined) as number | null | undefined,
           wrongAnswers: (t.wrongAnswers ?? undefined) as number | null | undefined,
           timeTaken: (t.timeTaken ?? undefined) as number | null | undefined,
@@ -370,6 +376,7 @@ const TestCard: React.FC<TestCardProps> = ({ test, type, formatDate, onStartQuiz
   const scheduledFor = new Date(test.scheduledFor);
   const visibleFrom = new Date(test.visibleFrom);
   const isUpcoming = scheduledFor > now || visibleFrom > now;
+  const scorePct = toScoreNumber(test.scorePercentage);
 
   const borderColor = type === 'live' ? 'green.300' : type === 'completed' ? 'gray.300' : 'blue.200';
   const titleColor = type === 'live' ? 'green.700' : type === 'completed' ? 'gray.700' : 'blue.700';
@@ -393,12 +400,12 @@ const TestCard: React.FC<TestCardProps> = ({ test, type, formatDate, onStartQuiz
             {type === 'live' && (
               <Badge colorScheme="green" fontSize="xs">Live Now</Badge>
             )}
-            {type === 'completed' && test.scorePercentage !== null && test.scorePercentage !== undefined && (
+            {type === 'completed' && scorePct !== null && (
               <Badge
-                colorScheme={(test.scorePercentage || 0) >= test.passingPercentage ? 'green' : 'red'}
+                colorScheme={scorePct >= test.passingPercentage ? 'green' : 'red'}
                 fontSize="xs"
               >
-                {(test.scorePercentage || 0) >= test.passingPercentage ? 'Passed' : 'Failed'}
+                {scorePct >= test.passingPercentage ? 'Passed' : 'Failed'}
               </Badge>
             )}
           </HStack>
@@ -472,24 +479,24 @@ const TestCard: React.FC<TestCardProps> = ({ test, type, formatDate, onStartQuiz
           )}
 
           {/* Show Results for Completed Tests */}
-          {type === 'completed' && test.hasCompletedAttempt && test.scorePercentage !== null && test.scorePercentage !== undefined && (
+          {type === 'completed' && test.hasCompletedAttempt && scorePct !== null && (
             <>
               <Divider />
               <Box
                 w="100%"
                 p={4}
-                bg={(test.scorePercentage || 0) >= test.passingPercentage ? 'green.50' : 'red.50'}
+                bg={scorePct >= test.passingPercentage ? 'green.50' : 'red.50'}
                 borderRadius="md"
                 borderWidth="2px"
-                borderColor={(test.scorePercentage || 0) >= test.passingPercentage ? 'green.300' : 'red.300'}
+                borderColor={scorePct >= test.passingPercentage ? 'green.300' : 'red.300'}
               >
                 <VStack spacing={3} align="stretch">
                   <HStack justify="space-between">
-                    <Text fontSize="lg" fontWeight="bold" color={(test.scorePercentage || 0) >= test.passingPercentage ? 'green.700' : 'red.700'}>
+                    <Text fontSize="lg" fontWeight="bold" color={scorePct >= test.passingPercentage ? 'green.700' : 'red.700'}>
                       Your Score
                     </Text>
-                    <Text fontSize="xl" fontWeight="extrabold" color={(test.scorePercentage || 0) >= test.passingPercentage ? 'green.700' : 'red.700'}>
-                      {test.scorePercentage.toFixed(1)}%
+                    <Text fontSize="xl" fontWeight="extrabold" color={scorePct >= test.passingPercentage ? 'green.700' : 'red.700'}>
+                      {scorePct.toFixed(1)}%
                     </Text>
                   </HStack>
                   
@@ -500,8 +507,8 @@ const TestCard: React.FC<TestCardProps> = ({ test, type, formatDate, onStartQuiz
                       </Text>
                     </HStack>
                     <Progress
-                      value={test.scorePercentage}
-                      colorScheme={(test.scorePercentage || 0) >= test.passingPercentage ? 'green' : 'red'}
+                      value={scorePct}
+                      colorScheme={scorePct >= test.passingPercentage ? 'green' : 'red'}
                       size="lg"
                       borderRadius="md"
                     />

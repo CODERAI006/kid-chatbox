@@ -13,7 +13,6 @@ import {
   Button,
   Card,
   CardBody,
-  Heading,
   Select,
   Alert,
   AlertIcon,
@@ -27,6 +26,7 @@ import { LANGUAGES } from '@/constants/quiz';
 import { Language } from '@/types/quiz';
 import { profileApi } from '@/services/api';
 import { PullToRefresh } from './PullToRefresh';
+import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 import { APP_CONSTANTS } from '@/constants/app';
 
 interface ProfileProps {
@@ -131,12 +131,13 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <Box padding={{ base: 4, md: 6 }} maxWidth="600px" margin="0 auto">
+      <StudentPageLayout
+        icon="👤"
+        title="My Profile"
+        subtitle="Update your details and learning preferences"
+        maxW="600px"
+      >
         <VStack spacing={{ base: 4, md: 6 }} align="stretch">
-          <Heading size={{ base: 'md', md: 'lg' }} color="blue.600">
-            My Profile 👤
-          </Heading>
-
           {error && (
             <Alert status="error" borderRadius="md">
               <AlertIcon />
@@ -275,7 +276,7 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
             </CardBody>
           </Card>
         </VStack>
-      </Box>
+      </StudentPageLayout>
     </PullToRefresh>
   );
 };

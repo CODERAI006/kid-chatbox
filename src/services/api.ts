@@ -1113,12 +1113,17 @@ export const publicApi = {
       return response.data;
     } catch (error) {
       console.error('Failed to get daily facts:', error);
+      const axiosErr = error as { response?: { data?: import('@/types/dailyFacts').DailyFactsResponse } };
+      if (axiosErr.response?.data?.message) {
+        return axiosErr.response.data;
+      }
       return {
         success: false,
         date: date || '',
         grade: grade || '',
         facts: [],
-        message: 'Unable to load facts',
+        source: 'ollama',
+        message: 'Unable to load facts — is Ollama running?',
       };
     }
   },

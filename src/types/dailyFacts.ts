@@ -33,6 +33,7 @@ export interface DailyFactsResponse {
   subjects?: FactSubject[];
   factCount?: number;
   cached?: boolean;
+  source?: 'ollama';
   message?: string;
 }
 

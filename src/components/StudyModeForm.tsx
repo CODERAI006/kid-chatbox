@@ -4,7 +4,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Box, VStack, HStack, Text, Button, Card, CardBody, Heading,
+  Box, VStack, HStack, Text, Button, Card, CardBody,
   SimpleGrid, Textarea, Input, FormControl, FormLabel, Divider,
 } from '@/shared/design-system';
 import { ProfileQuizHint } from '@/components/quiz/ProfileQuizHint';
@@ -101,7 +101,6 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
     }
   }, [customSubtopicInput, selectedSubtopics]);
 
-  const displayGrade = userGrade || 'your class';
   const subtopics = subject && subject !== SUBJECTS.OTHER ? (SUBTOPIC_MAP[subject] ?? []) : [];
 
   const isFormValid =
@@ -141,11 +140,6 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
       <Card width="100%" maxWidth="960px" margin="0 auto" boxShadow="xl" borderRadius="2xl" overflow="hidden">
         <CardBody padding={{ base: 4, md: 6 }}>
           <VStack spacing={5} align="stretch">
-            <Heading size="lg" color="blue.600" textAlign="center">{STUDY_MODE_MESSAGES.GREETING}</Heading>
-            <Text fontSize="sm" color="gray.600" textAlign="center">
-              {STUDY_MODE_MESSAGES.SUBTITLE.replace('{grade}', displayGrade)}
-            </Text>
-
             <ProfileQuizHint onReadyChange={setProfileReady} />
 
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>

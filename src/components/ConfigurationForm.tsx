@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Box, VStack, HStack, Text, Button, Card, CardBody, Heading,
+  Box, VStack, HStack, Text, Button, Card, CardBody,
   SimpleGrid, Textarea, Input, FormControl, FormLabel, Divider, Spinner,
 } from '@/shared/design-system';
 import { ProfileQuizHint } from '@/components/quiz/ProfileQuizHint';
@@ -15,7 +15,7 @@ import {
   HINDI_SUBTOPICS, ENGLISH_SUBTOPICS, MATHS_SUBTOPICS,
   EVS_SCIENCE_SUBTOPICS, SOCIAL_STUDIES_SUBTOPICS,
   GENERAL_KNOWLEDGE_SUBTOPICS, CURRENT_AFFAIRS_SUBTOPICS,
-  CHESS_SUBTOPICS, MESSAGES, QUIZ_CONSTANTS,
+  CHESS_SUBTOPICS, QUIZ_CONSTANTS,
 } from '@/constants/quiz';
 import { EXAM_BOARDS } from '@/constants/examBoard';
 import { getCompetitiveTrack } from '@/constants/competitiveExams';
@@ -178,11 +178,6 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
       <Card width="100%" maxWidth="960px" margin="0 auto" boxShadow="xl" borderRadius={{ base: 'xl', md: '2xl' }} overflow="hidden">
         <CardBody padding={{ base: 3, sm: 4, md: 6 }}>
           <VStack spacing={{ base: 4, md: 5 }} align="stretch">
-
-            <Heading size={{ base: 'md', md: 'lg' }} color="blue.600" textAlign="center" fontSize={{ base: 'lg', md: '2xl' }}>
-              {MESSAGES.GREETING}
-            </Heading>
-
             <ProfileQuizHint onReadyChange={handleProfileReady} />
 
             <QuizPageUpload pages={pageImages} onChange={setPageImages} isDisabled={isGenerating} />

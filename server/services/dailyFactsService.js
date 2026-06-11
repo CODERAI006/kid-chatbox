@@ -32,6 +32,7 @@ async function buildDailyPayload(date, gradeLabel) {
     subjects: DAILY_FACT_SUBJECTS,
     factCount: facts.length,
     cached: false,
+    source: 'ollama',
   };
 }
 
@@ -43,12 +44,28 @@ async function getDailyFacts(dateInput, grade) {
 
   const cached = await readCache(key, cacheDate);
   if (cached?.facts?.length) {
-    return { ...cached, grade: gradeLabel, cached: true };
+    return { ...cached, grade: gradeLabel, cached: true, source: 'ollama' };
   }
 
-  const body = await buildDailyPayload(date, gradeLabel);
-  await writeCache(key, cacheDate, body);
-  return body;
+  try {
+    const body = await buildDailyPayload(date, gradeLabel);
+    await writeCache(key, cacheDate, body);
+    return body;
+  } catch (err) {
+    const { FactsGenerationError } = require('../utils/dailyFactsAi');
+    const message = err instanceof FactsGenerationError
+      ? err.message
+      : 'Failed to generate facts via Ollama.';
+    return {
+      success: false,
+      date: cacheDate,
+      grade: gradeLabel,
+      facts: [],
+      subjects: DAILY_FACT_SUBJECTS,
+      message,
+      source: 'ollama',
+    };
+  }
 }
 
 async function listArchiveDates(grade, limit = 30) {

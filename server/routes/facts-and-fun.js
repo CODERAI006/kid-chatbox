@@ -23,10 +23,13 @@ router.get('/dates', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const body = await getDailyFacts(req.query.date, req.query.grade);
+    if (!body.success && !body.cached) {
+      return res.status(503).json(body);
+    }
     res.json(body);
   } catch (error) {
     console.error('[facts-and-fun]', error.message);
-    res.status(500).json({ success: false, message: 'Failed to load daily facts' });
+    res.status(500).json({ success: false, message: 'Failed to load daily facts', source: 'ollama' });
   }
 });
 

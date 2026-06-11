@@ -350,7 +350,9 @@ router.get('/my-tests', async (req, res, next) => {
           completedAttemptId: hasCompletedAttempt ? completedAttempt.id : null,
           completedAt: hasCompletedAttempt ? completedAttempt.completed_at : null,
           score: hasCompletedAttempt ? completedAttempt.score : null,
-          scorePercentage: hasCompletedAttempt ? completedAttempt.score_percentage : null,
+          scorePercentage: hasCompletedAttempt
+            ? parseFloat(completedAttempt.score_percentage) || 0
+            : null,
           correctAnswers: hasCompletedAttempt ? completedAttempt.correct_answers : null,
           wrongAnswers: hasCompletedAttempt ? completedAttempt.wrong_answers : null,
           timeTaken: hasCompletedAttempt ? completedAttempt.time_taken : null,
