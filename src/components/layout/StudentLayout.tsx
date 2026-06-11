@@ -13,11 +13,12 @@ import {
   useDisclosure,
   useColorModeValue,
 } from '@/shared/design-system';
-import { Header } from './Header';
+import { StudentHeader } from './StudentHeader';
 import { Footer } from './Footer';
 import { MobileBottomNav, MOBILE_BOTTOM_NAV_HEIGHT } from './MobileBottomNav';
 import { StudentSidebar } from './StudentSidebar';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
+import { useStudyPlanNotifications } from '@/hooks/useStudyPlanNotifications';
 import { User } from '@/types';
 
 interface StudentLayoutProps {
@@ -27,7 +28,7 @@ interface StudentLayoutProps {
   showFooter?: boolean;
 }
 
-const WIDE_VIEW_PATHS = new Set(['/quiz-rankings']);
+const WIDE_VIEW_PATHS = new Set(['/quiz-rankings', '/past-chats', '/my-schedules']);
 
 function isStudentWideView(pathname: string, hash: string): boolean {
   if (WIDE_VIEW_PATHS.has(pathname)) return true;
@@ -53,6 +54,8 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const hintColor = useColorModeValue('gray.500', 'gray.400');
 
+  useStudyPlanNotifications({ enabled: Boolean(user) });
+
   useEffect(() => {
     if (!isMobile) {
       setSidebarVisible(!isStudentWideView(location.pathname, location.hash));
@@ -63,7 +66,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
     <Box minHeight="100vh" bg={bgColor}>
       {showHeader && (
         <Box position="sticky" top={0} zIndex={1000}>
-          <Header
+          <StudentHeader
             user={user}
             onMenuOpen={onOpen}
             showMenuButton={isMobile}
@@ -93,7 +96,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
         >
           {!isMobile && isWideView && !sidebarVisible && (
             <Text fontSize="xs" color={hintColor} mb={2} px={{ base: 4, md: 6 }}>
-              Sidebar hidden for more space — use ☰ in the header to show navigation.
+              Sidebar hidden for more space — tap &quot;Show nav&quot; in the header.
             </Text>
           )}
           {children}

@@ -4,6 +4,7 @@
 import { Box, Button, HStack, Text, useColorModeValue } from '@/shared/design-system';
 import { speakText, unlockSpeechSynthesis } from '@/utils/speechSynthesis';
 import { AiRichContentView } from './AiRichContentView';
+import { chatMessageContainerProps, chatResponsiveTextSx } from './chatResponsiveStyles';
 
 interface Props {
   content: string;
@@ -18,17 +19,17 @@ export function LearningConversationalMessage({ content, speakAloud, onAskPrompt
   return (
     <Box
       alignSelf="stretch"
-      w="100%"
-      maxW="100%"
-      px={{ base: 3, md: 4 }}
+      {...chatMessageContainerProps}
+      px={{ base: 2, sm: 3, md: 4 }}
       py={3}
       borderRadius="lg"
       bg={bubbleBg}
       borderWidth="1px"
       borderColor={bubbleBorder}
       boxShadow="sm"
+      sx={chatResponsiveTextSx}
     >
-      <HStack justify="space-between" mb={2}>
+      <HStack justify="space-between" mb={2} align="flex-start" gap={2} minW={0}>
         <HStack spacing={2}>
           <Text fontSize="lg">💬</Text>
           <Text fontSize="xs" color="gray.500" fontWeight="semibold">
@@ -53,4 +54,4 @@ export function LearningConversationalMessage({ content, speakAloud, onAskPrompt
     </Box>
   );
 }
-
+

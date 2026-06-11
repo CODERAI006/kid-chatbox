@@ -77,7 +77,8 @@ export type LearningStudyFormat =
   | 'detail'
   | 'flashcards'
   | 'quiz'
-  | 'chat';
+  | 'chat'
+  | 'studyplan';
 
 export interface StudyFormatOptions {
   quizCount?: number;
@@ -100,6 +101,7 @@ export const STUDY_FORMAT_OPTIONS: LearningFormatOption[] = [
   { key: 'flashcards', emoji: '⚡', label: 'Flashcards', hint: '20+ swipe cards', mode: 'workspace' },
   { key: 'quiz', emoji: '🎮', label: 'Quiz me', hint: 'Choose how many questions', mode: 'workspace' },
   { key: 'chat', emoji: '💬', label: 'Just chat', hint: 'Natural conversation', mode: 'chat' },
+  { key: 'studyplan', emoji: '📅', label: 'Plan my studies', hint: 'Exam prep schedule', mode: 'workspace' },
 ];
 
 export const QUICK_ACTION_PROMPTS: Record<LearningQuickAction, string> = {
@@ -136,6 +138,7 @@ export function buildStudyTopicPrompt(
       'Each card: one question, 3-4 options, correctOptionId, correctFeedback, wrongFeedback. ' +
       'Optional: one brief hook card. No flashcards or long lesson cards.',
     chat: `Let's talk about "${t}". I may ask follow-up questions — answer naturally.`,
+    studyplan: `Plan my exam prep for "${t}".`,
   };
   return prompts[format];
 }

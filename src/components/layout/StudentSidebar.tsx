@@ -14,10 +14,6 @@ import {
   Divider,
   Badge,
   Avatar,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   Drawer,
   DrawerBody,
   DrawerHeader,
@@ -42,6 +38,9 @@ const navItems = [
   { path: '/quiz', label: 'Quiz Hub', icon: '🎯' },
   { path: '/quiz-rankings', label: 'Quiz Rankings', icon: '🏆' },
   { path: '/study', label: 'Study Hub', icon: '📚' },
+  { path: '/past-chats', label: 'Past Chats', icon: '💬' },
+  { path: '/my-schedules', label: 'My Schedules', icon: '📅' },
+  { path: '__guru_chat__', label: 'Guru AI Chat', icon: '🧘' },
   { path: '/news', label: 'Education News', icon: '📰' },
   { path: '/profile', label: 'My Profile', icon: '👤' },
 ];
@@ -85,6 +84,11 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
   };
 
   const handleNavigate = (path: string) => {
+    if (path === '__guru_chat__') {
+      window.dispatchEvent(new CustomEvent('learning-chat:open', { detail: { mode: 'new' } }));
+      if (isMobile && onClose) onClose();
+      return;
+    }
     navigate(path);
     if (isMobile && onClose) {
       onClose();
@@ -102,9 +106,10 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
 
   const renderNavItem = (item: (typeof navItems)[0]) => {
     const isActive =
-      location.pathname === item.path ||
-      (item.path === '/study' && location.pathname.startsWith('/study')) ||
-      (item.path === '/quiz' && location.pathname.startsWith('/quiz'));
+      item.path !== '__guru_chat__' &&
+      (location.pathname === item.path ||
+        (item.path === '/study' && location.pathname.startsWith('/study')) ||
+        (item.path === '/quiz' && location.pathname.startsWith('/quiz')));
     const isDisabled =
       (item.path === '/study' && !hasStudyAccess) ||
       (item.path === '/quiz' && !hasQuizAccess);
@@ -147,24 +152,39 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
       borderColor="gray.200"
       boxShadow="sm"
     >
-      {/* User Info Section */}
       <Box>
-        <HStack spacing={3} mb={4}>
-          <Avatar size="md" name={user?.name || 'User'} />
-          <VStack align="start" spacing={0} flex={1}>
-            <Text fontWeight="bold" fontSize="sm" noOfLines={1}>
-              {user?.name || 'Student'}
-            </Text>
-            <Text fontSize="xs" color="gray.600" noOfLines={1}>
-              {user?.email || ''}
-            </Text>
-            {userWithAccess?.status === 'pending' && (
-              <Badge colorScheme="orange" size="sm" mt={1}>
-                Pending
-              </Badge>
-            )}
-          </VStack>
-        </HStack>
+        <Box
+          as="button"
+          type="button"
+          w="100%"
+          textAlign="left"
+          p={2}
+          mb={2}
+          borderRadius="md"
+          cursor="pointer"
+          _hover={{ bg: 'gray.50' }}
+          onClick={() => handleNavigate('/profile')}
+        >
+          <HStack spacing={3}>
+            <Avatar size="md" name={user?.name || 'User'} />
+            <VStack align="start" spacing={0} flex={1} minW={0}>
+              <Text fontWeight="semibold" fontSize="sm" noOfLines={1}>
+                {user?.name || 'Student'}
+              </Text>
+              <Text fontSize="xs" color="gray.600" noOfLines={1}>
+                {user?.email || ''}
+              </Text>
+              <Text fontSize="xs" color="blue.600" fontWeight="medium" mt={1}>
+                View profile →
+              </Text>
+              {userWithAccess?.status === 'pending' && (
+                <Badge colorScheme="orange" size="sm" mt={1}>
+                  Pending
+                </Badge>
+              )}
+            </VStack>
+          </HStack>
+        </Box>
         <Divider />
       </Box>
 
@@ -223,25 +243,23 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
         </>
       )}
 
-      {/* Logout */}
       <Box>
         <Divider mb={4} />
-        <Menu>
-          <MenuButton
-            as={Button}
-            w="100%"
-            variant="ghost"
-            colorScheme="red"
-            leftIcon={<Text>🚪</Text>}
-          >
-            Logout
-          </MenuButton>
-          <MenuList>
-            <MenuItem onClick={handleLogout} color="red.600">
-              Confirm Logout
-            </MenuItem>
-          </MenuList>
-        </Menu>
+        <Button
+          w="100%"
+          justifyContent="flex-start"
+          variant="ghost"
+          colorScheme="red"
+          leftIcon={<Text fontSize={{ base: 'md', md: 'lg' }}>🚪</Text>}
+          onClick={() => {
+            if (window.confirm('Log out of your account?')) {
+              handleLogout();
+            }
+          }}
+          size={{ base: 'sm', md: 'md' }}
+        >
+          <Text fontWeight="medium">Logout</Text>
+        </Button>
       </Box>
     </VStack>
   );

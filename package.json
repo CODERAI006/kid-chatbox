@@ -27,6 +27,7 @@
     "db:migrate-quiz-scheduler-v2": "node server/scripts/migrate-quiz-scheduler-v2.js",
     "db:migrate-quiz-library": "node server/scripts/migrate-quiz-library.js",
     "db:migrate-quiz-ai-jobs": "node server/scripts/migrate-quiz-ai-jobs.js",
+    "db:migrate-study-plan": "node server/scripts/migrate-study-plan.js",
     "db:migrate-all": "node server/scripts/run-all-db-migrations.js",
     "db:test": "node test-db-connection.js",
     "tts:setup": "node server/scripts/setup-piper-tts.js"

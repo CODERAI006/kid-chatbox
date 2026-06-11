@@ -8,6 +8,17 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+function normalizePhone(value) {
+  if (value == null || value === '') return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 15) {
+    return { error: 'Mobile number must be 10–15 digits' };
+  }
+  return { value: digits };
+}
+
 /**
  * Get user profile
  */
@@ -16,7 +27,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT id, email, name, age, grade, preferred_language, created_at
+      `SELECT id, email, name, age, grade, preferred_language, phone, birth_date, created_at
        FROM users
        WHERE id = $1`,
       [userId]
@@ -40,6 +51,8 @@ router.get('/', authenticateToken, async (req, res, next) => {
         age: user.age,
         grade: user.grade,
         preferredLanguage: user.preferred_language,
+        phone: user.phone,
+        birthDate: user.birth_date,
         createdAt: user.created_at,
       },
     });
@@ -49,43 +62,36 @@ router.get('/', authenticateToken, async (req, res, next) => {
 });
 
 /**
- * Update user profile
+ * Update user profile (mobile and language — identity fields are admin-managed)
  */
 router.put('/', authenticateToken, async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { name, age, grade, preferredLanguage } = req.body;
+    const { phone, preferredLanguage } = req.body;
 
-    // Validate required fields
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name is required',
-      });
-    }
-
-    // Validate age if provided
-    if (age !== undefined && age !== null) {
-      const ageNum = parseInt(age, 10);
-      if (isNaN(ageNum) || ageNum < 6 || ageNum > 14) {
+    let phoneValue = null;
+    if (phone !== undefined) {
+      const normalized = normalizePhone(phone);
+      if (normalized?.error) {
         return res.status(400).json({
           success: false,
-          message: 'Age must be between 6 and 14',
+          message: normalized.error,
         });
       }
+      phoneValue = normalized?.value ?? null;
+    } else {
+      const current = await pool.query('SELECT phone FROM users WHERE id = $1', [userId]);
+      phoneValue = current.rows[0]?.phone ?? null;
     }
 
-    // Update user profile
     const result = await pool.query(
       `UPDATE users
-       SET name = $1,
-           age = $2,
-           grade = $3,
-           preferred_language = $4,
+       SET phone = $1,
+           preferred_language = $2,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING id, email, name, age, grade, preferred_language, created_at`,
-      [name, age || null, grade || null, preferredLanguage || null, userId]
+       WHERE id = $3
+       RETURNING id, email, name, age, grade, preferred_language, phone, birth_date, created_at`,
+      [phoneValue, preferredLanguage || null, userId]
     );
 
     if (result.rows.length === 0) {
@@ -106,6 +112,8 @@ router.put('/', authenticateToken, async (req, res, next) => {
         age: user.age,
         grade: user.grade,
         preferredLanguage: user.preferred_language,
+        phone: user.phone,
+        birthDate: user.birth_date,
         createdAt: user.created_at,
       },
       message: 'Profile updated successfully',
@@ -116,5 +124,3 @@ router.put('/', authenticateToken, async (req, res, next) => {
 });
 
 module.exports = router;
-
-

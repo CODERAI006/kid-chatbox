@@ -68,7 +68,8 @@ const migrateSchema = async () => {
       ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id),
       ADD COLUMN IF NOT EXISTS last_login TIMESTAMP,
       ADD COLUMN IF NOT EXISTS google_id VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS phone VARCHAR(20)
+      ADD COLUMN IF NOT EXISTS phone VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS birth_date DATE
     `);
 
     // 5. User roles junction table

@@ -10,6 +10,7 @@ import { DetailLessonBody, DetailFactsCard } from './DetailLessonBody';
 import { QuizQuestionCard } from './QuizQuestionCard';
 import { AiRichContentView } from './AiRichContentView';
 import { speakText, unlockSpeechSynthesis } from '@/utils/speechSynthesis';
+import { chatMessageContainerProps, chatResponsiveTextSx } from './chatResponsiveStyles';
 
 interface Props {
   card: LearningWorkspaceCard;
@@ -30,20 +31,22 @@ function CardShell({
 }) {
   return (
     <Box
+      {...chatMessageContainerProps}
       borderWidth="1px"
       borderColor={`${accent}.200`}
       borderRadius="lg"
       bg="white"
       overflow="hidden"
       boxShadow="sm"
+      sx={chatResponsiveTextSx}
     >
-      <HStack px={3} py={2} bg={`${accent}.50`} borderBottomWidth="1px" borderColor={`${accent}.100`}>
-        <Text fontSize="lg">{emoji}</Text>
-        <Text fontSize="sm" fontWeight="bold" color={`${accent}.800`}>
+      <HStack px={3} py={2} bg={`${accent}.50`} borderBottomWidth="1px" borderColor={`${accent}.100`} minW={0}>
+        <Text fontSize="lg" flexShrink={0}>{emoji}</Text>
+        <Text fontSize="sm" fontWeight="bold" color={`${accent}.800`} minW={0} noOfLines={2}>
           {title}
         </Text>
       </HStack>
-      <Box px={3} py={3}>{children}</Box>
+      <Box px={{ base: 2, sm: 3 }} py={3} minW={0}>{children}</Box>
     </Box>
   );
 }
@@ -79,9 +82,17 @@ function DiagramHotspots({ card }: { card: LearningWorkspaceCard }) {
   return (
     <VStack align="stretch" spacing={2}>
       {diagramSrc && (
-        <Image src={diagramSrc} alt={card.imageAlt || card.title || 'Diagram'} borderRadius="md" />
+        <Image
+          src={diagramSrc}
+          alt={card.imageAlt || card.title || 'Diagram'}
+          borderRadius="md"
+          maxW="100%"
+          w="100%"
+          h="auto"
+          objectFit="contain"
+        />
       )}
-      <SimpleGrid columns={2} spacing={2}>
+      <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={2}>
         {hotspots.map((hs) => (
           <Button
             key={hs.id}
@@ -258,7 +269,7 @@ export function LearningWorkspaceCardView({ card, onAskPrompt, detailInline }: P
       return (
         <CardShell emoji="⚖️" title={card.title || 'Compare'} accent="pink">
           {card.comparison && (
-            <SimpleGrid columns={2} spacing={2}>
+            <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={2}>
               <Box p={2} bg="blue.50" borderRadius="md">
                 <Text fontSize="xs" fontWeight="bold">{card.comparison.leftTitle}</Text>
                 <Text fontSize="sm" mt={1}>{card.comparison.leftBody}</Text>
@@ -275,7 +286,18 @@ export function LearningWorkspaceCardView({ card, onAskPrompt, detailInline }: P
     case 'code':
       return (
         <CardShell emoji="💻" title={card.title || 'Code'} accent="gray">
-          <Box as="pre" fontSize="xs" p={2} bg="gray.900" color="green.200" borderRadius="md" overflowX="auto">
+          <Box
+            as="pre"
+            fontSize="xs"
+            p={2}
+            bg="gray.900"
+            color="green.200"
+            borderRadius="md"
+            maxW="100%"
+            overflowX="auto"
+            whiteSpace="pre-wrap"
+            sx={chatResponsiveTextSx}
+          >
             {card.code}
           </Box>
         </CardShell>

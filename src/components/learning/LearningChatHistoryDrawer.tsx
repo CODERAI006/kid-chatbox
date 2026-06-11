@@ -2,6 +2,7 @@
  * Saved learning-bot chat threads.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Drawer,
   DrawerOverlay,
@@ -47,6 +48,7 @@ export function LearningChatHistoryDrawer({
   onOpenChat,
   onSaved,
 }: Props) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<LearningBotSavedChat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +107,18 @@ export function LearningChatHistoryDrawer({
             <Text fontSize="xs" color="gray.600">
               Chats are saved automatically. Open a past thread or save the current one before starting fresh.
             </Text>
+            <Button
+              size="sm"
+              variant="link"
+              colorScheme="blue"
+              alignSelf="flex-start"
+              onClick={() => {
+                onClose();
+                navigate('/past-chats');
+              }}
+            >
+              View all past chats →
+            </Button>
             <Button size="sm" colorScheme="blue" variant="outline" onClick={() => void saveCurrent()}>
               💾 Save current chat
             </Button>

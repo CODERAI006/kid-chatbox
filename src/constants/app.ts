@@ -5,6 +5,7 @@
 export const APP_CONSTANTS = {
   APP_NAME: 'Guru AI',
   BRAND_NAME: 'Guru AI',
+  ADMIN_SUPPORT_EMAIL: 'info@guru-ai.cloud',
   MIN_AGE: 6,
   MAX_AGE: 14,
   DEFAULT_QUIZ_QUESTIONS: 15,

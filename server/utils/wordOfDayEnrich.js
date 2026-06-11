@@ -7,6 +7,7 @@ const { ADVANCED_SYNONYMS_ANTONYMS } = require('../data/advanced-synonyms-antony
 const { SYNONYMS_ANTONYMS_FALLBACK } = require('../data/synonyms-antonyms-fallback');
 const { ollamaChat, isLlmConfigured } = require('./ollamaClient');
 const { getCbseVocabularyGuidance } = require('./cbseGradeHints');
+const { enrichCacheKey, readCache, writeCache } = require('./wordOfDayDbCache');
 
 const FALLBACK_MAP = { ...SYNONYMS_ANTONYMS_FALLBACK, ...ADVANCED_SYNONYMS_ANTONYMS };
 
@@ -115,12 +116,23 @@ Return ONLY valid JSON:
   }
 }
 
-async function enrichWord(word, complexity, includeDetail = false, gradeLabel) {
-  const base = await fetchDictionaryWord(word);
-  if (!includeDetail) return base;
+async function enrichWord(word, complexity, includeDetail = false, gradeLabel, cacheDate) {
+  if (cacheDate && gradeLabel) {
+    const key = enrichCacheKey(gradeLabel, word, includeDetail);
+    const cached = await readCache(key, cacheDate);
+    if (cached?.word) return cached;
+  }
 
-  const detail = await generateWordDetail(word, complexity, base.meanings, gradeLabel);
-  return { ...base, ...detail };
+  const base = await fetchDictionaryWord(word);
+  const result = includeDetail
+    ? { ...base, ...(await generateWordDetail(word, complexity, base.meanings, gradeLabel)) }
+    : base;
+
+  if (cacheDate && gradeLabel) {
+    await writeCache(enrichCacheKey(gradeLabel, word, includeDetail), cacheDate, result);
+  }
+
+  return result;
 }
 
 module.exports = { fetchDictionaryWord, enrichWord, generateWordDetail };

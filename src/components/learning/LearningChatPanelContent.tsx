@@ -10,6 +10,8 @@ import { LearningConversationalMessage } from './LearningConversationalMessage';
 import { LearningWorkspaceMessage } from './LearningWorkspaceMessage';
 import { LearningChatComposer } from './LearningChatComposer';
 import { GuruChatHeader } from './GuruChatHeader';
+import { StudyPlanTodayBanner } from './StudyPlanTodayBanner';
+import { chatMessageContainerProps, chatResponsiveTextSx } from './chatResponsiveStyles';
 import type { useVoiceConversation } from '@/hooks/useVoiceConversation';
 
 type VoiceState = ReturnType<typeof useVoiceConversation>;
@@ -34,6 +36,9 @@ export interface LearningChatPanelContentProps {
   onClose: () => void;
   onHistoryOpen: () => void;
   onNewTopic: () => void;
+  onShare?: () => void;
+  shareText?: string;
+  isNewChat?: boolean;
   onDownload?: () => void;
   onSend: () => void;
   onSendText: (
@@ -64,6 +69,9 @@ export function LearningChatPanelContent({
   onClose,
   onHistoryOpen,
   onNewTopic,
+  onShare,
+  shareText,
+  isNewChat,
   onDownload,
   onSend,
   onSendText,
@@ -76,14 +84,17 @@ export function LearningChatPanelContent({
     (voice.voiceMode && voice.phase !== 'idle');
 
   return (
-    <>
+    <Box flex={1} minH={0} minW={0} display="flex" flexDirection="column" overflow="hidden">
       <GuruChatHeader
         currentTopic={currentTopic}
         isChatActive={isChatActive}
+        isNewChat={isNewChat}
+        shareText={shareText}
         panelBorder={panelBorder}
         onClose={onClose}
         onHistoryOpen={onHistoryOpen}
         onNewTopic={onNewTopic}
+        onShare={onShare}
         onDownload={onDownload}
       />
 
@@ -97,11 +108,18 @@ export function LearningChatPanelContent({
         <Box
           flex={1}
           minH={0}
+          minW={0}
           overflowY="auto"
-          px={{ base: 3, md: 4 }}
+          overflowX="hidden"
+          px={{ base: 2, sm: 3, md: 4 }}
           py={3}
           bg={workspaceBg}
-          sx={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'none', touchAction: 'pan-y' }}
+          sx={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'none',
+            touchAction: 'pan-y',
+            ...chatResponsiveTextSx,
+          }}
         >
           {bootLoading ? (
             <HStack py={6} justify="center">
@@ -109,7 +127,12 @@ export function LearningChatPanelContent({
               <Text fontSize="sm" color="gray.500">Loading workspace…</Text>
             </HStack>
           ) : (
-            <VStack align="stretch" spacing={3}>
+            <VStack align="stretch" spacing={3} {...chatMessageContainerProps}>
+              <StudyPlanTodayBanner
+                disabled={pending}
+                onStartToday={(text) => void onSendText(text, { mode: 'workspace', format: 'studyplan' })}
+              />
+
               {showOnboarding && (
                 <LearningFormatOnboarding
                   disabled={pending}
@@ -124,13 +147,16 @@ export function LearningChatPanelContent({
                   <Box
                     key={m.id || `u-${i}`}
                     alignSelf="flex-end"
-                    maxW={{ base: '92%', md: '85%' }}
+                    maxW={{ base: '100%', sm: '92%', md: '85%' }}
+                    minW={0}
                     px={3}
                     py={2}
                     borderRadius="lg"
                     bg={userBubble}
                   >
-                    <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="tall">{m.content}</Text>
+                    <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="tall" sx={chatResponsiveTextSx}>
+                      {m.content}
+                    </Text>
                   </Box>
                 ) : chatMode === 'chat' ? (
                   <Box key={m.id || `a-${i}`} w="100%">
@@ -182,6 +208,6 @@ export function LearningChatPanelContent({
           onDraftChange={onDraftChange}
         />
       </VStack>
-    </>
+    </Box>
   );
 }

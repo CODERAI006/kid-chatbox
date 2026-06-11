@@ -7,6 +7,7 @@ import { filterCardsByStudyFormat } from '@/utils/formatCardFilter';
 import type { LearningStudyFormat } from '@/types/learningWorkspace';
 import { LearningWorkspaceCardView } from './LearningWorkspaceCardView';
 import { InteractiveQuizDeck } from './InteractiveQuizDeck';
+import { chatMessageContainerProps } from './chatResponsiveStyles';
 
 interface Props {
   content: string;
@@ -23,7 +24,7 @@ export function LearningWorkspaceMessage({ content, studyFormat, onAskPrompt }: 
   const useQuizDeck = studyFormat === 'quiz' && quizCards.length > 0;
 
   return (
-    <VStack align="stretch" spacing={2} w="100%">
+    <VStack align="stretch" spacing={2} {...chatMessageContainerProps}>
       <Text fontSize="xs" color="gray.500" fontWeight="semibold">
         🤖 Guru AI · {workspace.topic}
       </Text>

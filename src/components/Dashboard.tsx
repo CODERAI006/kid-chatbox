@@ -16,6 +16,7 @@ import {
 import { analyticsApi, planApi, studyApi } from '@/services/api';
 import { AnalyticsData, User } from '@/types';
 import { MESSAGES } from '@/constants/app';
+import { getDashboardHeartGreeting } from '@/utils/dashboardGreeting';
 import { UpcomingTestsSidebar } from './UpcomingTestsSidebar';
 import { StudentUpcomingTestsMarquee } from '@/components/layout/StudentUpcomingTestsMarquee';
 import { PullToRefresh } from './PullToRefresh';
@@ -24,6 +25,7 @@ import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { isAppAdmin } from '@/utils/userAccess';
 import { SuggestedTopicsCard, type SuggestedTopicItem } from '@/components/dashboard/SuggestedTopicsCard';
 import { MyStudyCard, type RecentStudyItem } from '@/components/dashboard/MyStudyCard';
+import { MyScheduleCard } from '@/components/dashboard/MyScheduleCard';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { ActionTile } from '@/components/dashboard/ActionTile';
 import { PlanSummaryCard, type PlanInfo } from '@/components/dashboard/PlanSummaryCard';
@@ -118,13 +120,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const suggestedTopicItems = useMemo((): SuggestedTopicItem[] => {
     if (!analytics) return [];
     if (analytics.recommended_topics.length > 0) {
-      return analytics.recommended_topics.slice(0, 5).map((name, index) => ({
+      return analytics.recommended_topics.map((name, index) => ({
         name,
         score: analytics.per_subtopic_accuracy[name],
         rank: index + 1,
       }));
     }
-    return analytics.weaknesses.slice(0, 5).map((name, index) => ({
+    return analytics.weaknesses.map((name, index) => ({
       name,
       score: analytics.per_subject_accuracy[name],
       rank: index + 1,
@@ -145,7 +147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     navigate('/quiz#ai-quiz');
   };
 
-  const userName = user.name || 'Friend';
+  const heartGreeting = useMemo(() => getDashboardHeartGreeting(user.name), [user.name]);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
@@ -153,11 +155,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <VStack spacing={{ base: 4, md: 5 }} align="stretch">
           <VStack align={{ base: 'center', md: 'start' }} spacing={{ base: 1, md: 2 }}>
             <Heading size={{ base: 'md', sm: 'lg', md: 'xl', lg: '2xl' }} color="blue.600" lineHeight="shorter" textAlign={{ base: 'center', md: 'left' }}>
-              {MESSAGES.WELCOME}, {userName}! 👋
+              {heartGreeting}
             </Heading>
-            <Text fontSize={{ base: 'xs', sm: 'sm', md: 'md', lg: 'lg' }} color="gray.600" textAlign={{ base: 'center', md: 'left' }}>
-              {MESSAGES.DASHBOARD_GREETING}
-            </Text>
           </VStack>
 
           <StudentUpcomingTestsMarquee />
@@ -202,6 +201,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     onStudyClick={goStudy}
                   />
                 )}
+
+                <MyScheduleCard />
 
                 {analytics && (
                   <SuggestedTopicsCard items={suggestedTopicItems} hasQuizHistory={analytics.total_quizzes > 0} />

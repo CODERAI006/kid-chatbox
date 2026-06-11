@@ -11,6 +11,8 @@ export interface User {
   age?: number;
   grade?: string;
   preferredLanguage?: Language;
+  phone?: string;
+  birthDate?: string;
   createdAt: string;
 }
 

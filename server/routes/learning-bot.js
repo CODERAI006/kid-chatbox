@@ -130,6 +130,56 @@ router.get('/conversations', async (req, res, next) => {
 });
 
 /**
+ * GET /api/learning-bot/conversations/:id — read-only thread (does not change active chat).
+ */
+router.get('/conversations/:id', async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const check = await pool.query(
+      `SELECT id, archived, updated_at, created_at FROM learning_bot_conversations
+       WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    const row = check.rows[0];
+    const msgs = await pool.query(
+      `SELECT id, role, content FROM learning_bot_messages
+       WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT $2`,
+      [id, MAX_MESSAGES_RETURN]
+    );
+
+    const preview = await pool.query(
+      `SELECT content FROM learning_bot_messages
+       WHERE conversation_id = $1 AND role = 'user'
+       ORDER BY created_at ASC LIMIT 1`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      conversation: {
+        id: row.id,
+        archived: row.archived,
+        preview: preview.rows[0]?.content
+          ? String(preview.rows[0].content).slice(0, 120)
+          : '',
+        messageCount: msgs.rows.length,
+        updatedAt: row.updated_at,
+        createdAt: row.created_at,
+      },
+      messages: msgs.rows.map((r) => ({ id: r.id, role: r.role, content: r.content })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/learning-bot/conversations/:id/open — load a saved thread as active.
  */
 router.post('/conversations/:id/open', async (req, res, next) => {

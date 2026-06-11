@@ -1,8 +1,7 @@
 /**
- * Suggested topics — ranked, actionable improvement cards from quiz analytics.
+ * Suggested topics — compact cards (preview 3) with view-all modal.
  */
 
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -12,60 +11,45 @@ import {
   VStack,
   HStack,
   Button,
-  Progress,
-  Badge,
+  SimpleGrid,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
   useColorModeValue,
 } from '@/shared/design-system';
-import { FiBookOpen, FiTarget, FiTrendingUp } from 'react-icons/fi';
+import { FiTarget, FiTrendingUp } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { MESSAGES } from '@/constants/app';
+import { SuggestedTopicMiniCard, type SuggestedTopicItem } from './SuggestedTopicMiniCard';
 
-export interface SuggestedTopicItem {
-  name: string;
-  score?: number;
-  rank: number;
-}
+export type { SuggestedTopicItem };
 
 interface SuggestedTopicsCardProps {
   items: SuggestedTopicItem[];
   hasQuizHistory: boolean;
 }
 
+const PREVIEW_LIMIT = 3;
+
 function scoreMeta(score?: number): {
   label: string;
   colorScheme: string;
   progress: number;
-  hint: string;
 } {
   if (score === undefined) {
-    return {
-      label: 'Review',
-      colorScheme: 'orange',
-      progress: 40,
-      hint: 'Practice this area to build confidence',
-    };
+    return { label: 'Review', colorScheme: 'orange', progress: 40 };
   }
   if (score < 50) {
-    return {
-      label: 'Needs work',
-      colorScheme: 'red',
-      progress: score,
-      hint: 'Focus here first — your score is below 50%',
-    };
+    return { label: 'Needs work', colorScheme: 'red', progress: score };
   }
   if (score < 70) {
-    return {
-      label: 'Getting better',
-      colorScheme: 'orange',
-      progress: score,
-      hint: 'A little more practice will help you improve',
-    };
+    return { label: 'Getting better', colorScheme: 'orange', progress: score };
   }
-  return {
-    label: 'Almost there',
-    colorScheme: 'yellow',
-    progress: score,
-    hint: 'You are close — one more review could lock it in',
-  };
+  return { label: 'Almost there', colorScheme: 'yellow', progress: score };
 }
 
 export const SuggestedTopicsCard: React.FC<SuggestedTopicsCardProps> = ({
@@ -73,11 +57,14 @@ export const SuggestedTopicsCard: React.FC<SuggestedTopicsCardProps> = ({
   hasQuizHistory,
 }) => {
   const navigate = useNavigate();
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const titleColor = useColorModeValue('blue.700', 'blue.300');
   const subtitleColor = useColorModeValue('gray.600', 'gray.400');
-  const rowBg = useColorModeValue('white', 'gray.800');
   const rowBorder = useColorModeValue('gray.200', 'gray.600');
   const mutedBg = useColorModeValue('gray.50', 'gray.900');
+
+  const previewItems = items.slice(0, PREVIEW_LIMIT);
+  const hasMore = items.length > PREVIEW_LIMIT;
 
   if (!hasQuizHistory) {
     return (
@@ -120,118 +107,64 @@ export const SuggestedTopicsCard: React.FC<SuggestedTopicsCardProps> = ({
   }
 
   return (
-    <Card borderWidth="1px" borderColor={rowBorder} boxShadow="md" w="100%">
-      <CardBody p={{ base: 4, md: 5 }}>
-        <HStack spacing={3} align="start" mb={4}>
-          <Box color="blue.500" fontSize="xl">
-            <FiTarget />
-          </Box>
-          <Box flex={1}>
-            <Heading size={{ base: 'sm', md: 'md' }} color={titleColor} lineHeight="short">
-              {MESSAGES.SUGGESTED_TOPICS}
-            </Heading>
-            <Text fontSize={{ base: 'sm', md: 'md' }} color={subtitleColor} mt={1}>
-              Start at the top — these topics had the lowest scores in your recent quizzes.
-            </Text>
-          </Box>
-        </HStack>
-
-        <VStack spacing={3} align="stretch">
-          {items.map((item) => {
-            const meta = scoreMeta(item.score);
-            const isTop = item.rank === 1;
-            return (
-              <Box
-                key={`${item.name}-${item.rank}`}
-                p={{ base: 3, md: 4 }}
-                borderRadius="lg"
-                bg={rowBg}
-                borderWidth="1px"
-                borderColor={isTop ? 'blue.300' : rowBorder}
-                boxShadow={isTop ? 'sm' : 'none'}
-              >
-                <HStack justify="space-between" align="start" flexWrap="wrap" gap={3} mb={2}>
-                  <HStack align="start" spacing={3} flex={1} minW="200px">
-                    <Box
-                      w={8}
-                      h={8}
-                      borderRadius="full"
-                      bg={isTop ? 'blue.500' : 'gray.100'}
-                      color={isTop ? 'white' : 'gray.600'}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      fontWeight="bold"
-                      fontSize="sm"
-                      flexShrink={0}
-                    >
-                      {item.rank}
-                    </Box>
-                    <Box flex={1} minW={0}>
-                      <HStack flexWrap="wrap" gap={2} mb={1}>
-                        <Text
-                          fontSize={{ base: 'md', md: 'lg' }}
-                          fontWeight="semibold"
-                          color={titleColor}
-                          wordBreak="break-word"
-                        >
-                          {item.name}
-                        </Text>
-                        <Badge colorScheme={meta.colorScheme} fontSize="xs">
-                          {meta.label}
-                        </Badge>
-                        {isTop && (
-                          <Badge colorScheme="blue" variant="subtle" fontSize="xs">
-                            Start here
-                          </Badge>
-                        )}
-                      </HStack>
-                      <Text fontSize="sm" color={subtitleColor}>
-                        {meta.hint}
-                      </Text>
-                    </Box>
-                  </HStack>
-                  {item.score !== undefined && (
-                    <Text fontSize="2xl" fontWeight="bold" color={`${meta.colorScheme}.500`}>
-                      {item.score}%
-                    </Text>
-                  )}
-                </HStack>
-
-                {item.score !== undefined && (
-                  <Progress
-                    value={meta.progress}
-                    size="sm"
-                    colorScheme={meta.colorScheme}
-                    borderRadius="full"
-                    mb={3}
-                  />
-                )}
-
-                <HStack spacing={2} flexWrap="wrap">
-                  <Button
-                    size="sm"
-                    colorScheme="blue"
-                    leftIcon={<FiBookOpen />}
-                    onClick={() => navigate('/study#ai-study')}
-                  >
-                    Study this
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    colorScheme="blue"
-                    leftIcon={<FiTarget />}
-                    onClick={() => navigate('/quiz#ai-quiz')}
-                  >
-                    Practice quiz
-                  </Button>
-                </HStack>
+    <>
+      <Card borderWidth="1px" borderColor={rowBorder} boxShadow="md" w="100%">
+        <CardBody p={{ base: 4, md: 5 }}>
+          <HStack justify="space-between" align="start" mb={4} flexWrap="wrap" gap={2}>
+            <HStack spacing={3} align="start" flex={1} minW="200px">
+              <Box color="blue.500" fontSize="xl">
+                <FiTarget />
               </Box>
-            );
-          })}
-        </VStack>
-      </CardBody>
-    </Card>
+              <Box flex={1}>
+                <Heading size={{ base: 'sm', md: 'md' }} color={titleColor} lineHeight="short">
+                  {MESSAGES.SUGGESTED_TOPICS}
+                </Heading>
+                <Text fontSize="sm" color={subtitleColor} mt={1}>
+                  Topics with the lowest scores — start with #1.
+                </Text>
+              </Box>
+            </HStack>
+            {hasMore && (
+              <Button size="xs" variant="ghost" colorScheme="blue" onClick={onOpen}>
+                View all ({items.length}) →
+              </Button>
+            )}
+          </HStack>
+
+          <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={3}>
+            {previewItems.map((item) => (
+              <SuggestedTopicMiniCard
+                key={`${item.name}-${item.rank}`}
+                item={item}
+                meta={scoreMeta(item.score)}
+                compact
+              />
+            ))}
+          </SimpleGrid>
+        </CardBody>
+      </Card>
+
+      <Modal isOpen={isOpen} onClose={onClose} size="lg" scrollBehavior="inside">
+        <ModalOverlay />
+        <ModalContent mx={4}>
+          <ModalHeader color={titleColor}>{MESSAGES.SUGGESTED_TOPICS}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Text fontSize="sm" color={subtitleColor} mb={4}>
+              All topics ranked by score — focus on the lowest first.
+            </Text>
+            <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+              {items.map((item) => (
+                <SuggestedTopicMiniCard
+                  key={`all-${item.name}-${item.rank}`}
+                  item={item}
+                  meta={scoreMeta(item.score)}
+                />
+              ))}
+            </SimpleGrid>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+    </>
   );
 };

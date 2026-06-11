@@ -26,8 +26,16 @@ import { formatOptionLabel } from '@/types/learningWorkspace';
 import { DEFAULT_QUIZ_COUNT } from '@/constants/learningQuiz';
 import { inferStudyFormat } from '@/utils/inferStudyFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { buildNewChatShareText, shareOrCopyText } from '@/utils/chatShare';
+import { buildStudyPlanPrompt, type StudyPlanDay } from '@/utils/studyPlanSchedule';
 
 const WELCOME_TOPIC = 'Pick a format to start';
+
+type ChatOpenDetail = {
+  mode?: 'continue' | 'new' | 'study-plan';
+  examName?: string;
+  day?: StudyPlanDay;
+};
 
 export const LearningChatWidget: FC = () => {
   const [open, setOpen] = useState(false);
@@ -94,10 +102,17 @@ export const LearningChatWidget: FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    void loadActive();
-  }, [open, loadActive]);
+  const openFreshChat = useCallback(async () => {
+    setOpen(true);
+    setError(null);
+    setSaveHint(null);
+    try {
+      await learningBotApi.resetConversation();
+    } catch (e) {
+      setError(getErrorMessage(e));
+    }
+    resetSession();
+  }, []);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -155,6 +170,28 @@ export const LearningChatWidget: FC = () => {
     },
     [conversationId, chatMode, studyFormat, quizQuestionCount]
   );
+
+  useEffect(() => {
+    const onOpenRequest = (ev: Event) => {
+      const detail = (ev as CustomEvent<ChatOpenDetail>).detail;
+      setOpen(true);
+      if (detail?.mode === 'continue') {
+        void loadActive();
+        return;
+      }
+      if (detail?.mode === 'study-plan' && detail.day && detail.examName) {
+        void (async () => {
+          await openFreshChat();
+          const text = buildStudyPlanPrompt(detail.examName!, detail.day!);
+          await sendText(text, { mode: 'workspace', format: 'studyplan' });
+        })();
+        return;
+      }
+      void openFreshChat();
+    };
+    window.addEventListener('learning-chat:open', onOpenRequest);
+    return () => window.removeEventListener('learning-chat:open', onOpenRequest);
+  }, [loadActive, openFreshChat, sendText]);
 
   const send = useCallback(() => void sendText(draft), [draft, sendText]);
 
@@ -335,6 +372,13 @@ export const LearningChatWidget: FC = () => {
   };
 
   const showOnboarding = messages.length === 0 && !bootLoading;
+  const isNewChat = showOnboarding;
+  const shareText = buildNewChatShareText(currentTopic);
+
+  const handleShare = useCallback(async () => {
+    const result = await shareOrCopyText(buildNewChatShareText(currentTopic));
+    if (result === 'failed') setError('Could not share. Copy the invite text from the header.');
+  }, [currentTopic]);
 
   const lastAssistantText = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -379,6 +423,9 @@ export const LearningChatWidget: FC = () => {
     onClose: () => setOpen(false),
     onHistoryOpen: historyDrawer.onOpen,
     onNewTopic: () => void startNewTopic(),
+    onShare: () => void handleShare(),
+    shareText,
+    isNewChat,
     onSend: () => void send(),
     onSendText: sendText,
     onKeyDown,
@@ -400,7 +447,7 @@ export const LearningChatWidget: FC = () => {
           rounded="full"
           colorScheme="blue"
           boxShadow="lg"
-          onClick={() => setOpen(true)}
+          onClick={() => void openFreshChat()}
         />
       )}
 
@@ -438,16 +485,17 @@ export const LearningChatWidget: FC = () => {
         <Box
           data-chat-overlay
           position="fixed"
-          bottom={2}
-          right={2}
-          left={2}
+          bottom={{ base: 0, sm: 2 }}
+          right={{ base: 0, sm: 2 }}
+          left={{ base: 0, sm: 2 }}
           zIndex={1500}
           maxW="100%"
-          h="min(92dvh, 820px)"
+          minW={0}
+          h={{ base: '100dvh', sm: 'min(92dvh, 820px)' }}
           bg={panelBg}
           borderWidth="1px"
           borderColor={panelBorder}
-          borderRadius="xl"
+          borderRadius={{ base: 'none', sm: 'xl' }}
           boxShadow="2xl"
           display="flex"
           flexDirection="column"

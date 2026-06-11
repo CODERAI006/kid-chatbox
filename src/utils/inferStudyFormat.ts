@@ -14,6 +14,7 @@ const USER_HINTS: Array<{ format: LearningStudyFormat; patterns: RegExp[] }> = [
   },
   { format: 'learn', patterns: [/only a hook card and a short explanation/i] },
   { format: 'chat', patterns: [/let's talk about/i] },
+  { format: 'studyplan', patterns: [/preparing for/i, /Day \d+\)/i, /Plan my exam prep/i] },
 ];
 
 function inferFromAssistant(messages: LearningBotUiMessage[]): LearningStudyFormat | null {

@@ -34,6 +34,8 @@ interface HeaderProps {
   showSidebarToggle?: boolean;
   sidebarVisible?: boolean;
   onSidebarToggle?: () => void;
+  /** When true, logout is handled elsewhere (e.g. student sidebar). */
+  hideLogout?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   showSidebarToggle = false,
   sidebarVisible = true,
   onSidebarToggle,
+  hideLogout = false,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -267,15 +270,17 @@ export const Header: React.FC<HeaderProps> = ({
                   <MenuItem onClick={() => navigate('/profile')}>My Profile</MenuItem>
                 </MenuList>
               </Menu>
-              <Button
-                colorScheme="red"
-                variant="outline"
-                size={{ base: 'xs', md: 'sm' }}
-                onClick={handleLogout}
-              >
-                <Text display={{ base: 'none', sm: 'block' }}>Logout</Text>
-                <Text display={{ base: 'block', sm: 'none' }}>🚪</Text>
-              </Button>
+              {!hideLogout && (
+                <Button
+                  colorScheme="red"
+                  variant="outline"
+                  size={{ base: 'xs', md: 'sm' }}
+                  onClick={handleLogout}
+                >
+                  <Text display={{ base: 'none', sm: 'block' }}>Logout</Text>
+                  <Text display={{ base: 'block', sm: 'none' }}>🚪</Text>
+                </Button>
+              )}
             </>
           ) : (
             <Button size={{ base: 'xs', md: 'sm' }} colorScheme="blue" onClick={() => navigate('/login')}>

@@ -32,6 +32,9 @@ export const Footer: React.FC = () => {
           <RouterLink to="/#pricing" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', color: '#90cdf4' }}>
             Pricing Plans
           </RouterLink>
+          <RouterLink to="/my-schedules" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', color: '#90cdf4' }}>
+            My Schedules
+          </RouterLink>
           <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.400">
             Made with ❤️ for kids
           </Text>

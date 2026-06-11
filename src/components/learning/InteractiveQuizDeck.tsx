@@ -53,6 +53,9 @@ export function InteractiveQuizDeck({ cards }: Props) {
 
   return (
     <Box
+      w="100%"
+      minW={0}
+      maxW="100%"
       borderWidth="1px"
       borderColor="green.200"
       borderRadius="lg"

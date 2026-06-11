@@ -19,6 +19,7 @@ import {
   useColorModeValue,
 } from '@/shared/design-system';
 import { isActionSectionHeading, parseAiRichContent, type RichBlock } from '@/utils/aiRichContentParser';
+import { chatMessageContainerProps, chatResponsiveTextSx } from './chatResponsiveStyles';
 
 interface Props {
   content: string;
@@ -99,7 +100,7 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
       );
     case 'paragraph':
       return (
-        <Text fontSize={fontSize} lineHeight="tall" color="gray.800">
+        <Text fontSize={fontSize} lineHeight="tall" color="gray.800" sx={chatResponsiveTextSx}>
           {renderInline(block.text, 'p')}
         </Text>
       );
@@ -111,7 +112,7 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
               <Text fontSize={fontSize} color="blue.500" fontWeight="bold" flexShrink={0}>
                 {block.ordered ? `${i + 1}.` : '•'}
               </Text>
-              <Text fontSize={fontSize} lineHeight="tall" color="gray.800" flex={1}>
+              <Text fontSize={fontSize} lineHeight="tall" color="gray.800" flex={1} minW={0} sx={chatResponsiveTextSx}>
                 {renderInline(item, `li-${i}`)}
               </Text>
             </HStack>
@@ -126,12 +127,18 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
         return row.slice(0, colCount);
       };
       return (
-        <Box overflowX="auto" borderWidth="1px" borderColor="blue.100" borderRadius="md">
-          <Table size="sm" variant="simple">
+        <Box maxW="100%" overflowX="auto" borderWidth="1px" borderColor="blue.100" borderRadius="md">
+          <Table size="sm" variant="simple" sx={{ tableLayout: { base: 'auto', md: 'fixed' }, width: '100%' }}>
             <Thead bg={tableHeaderBg}>
               <Tr>
                 {block.headers.map((h, idx) => (
-                  <Th key={idx} fontSize="xs" color="blue.800" whiteSpace="nowrap">
+                  <Th
+                    key={idx}
+                    fontSize="xs"
+                    color="blue.800"
+                    whiteSpace={{ base: 'normal', md: 'nowrap' }}
+                    sx={chatResponsiveTextSx}
+                  >
                     {renderInline(h, `th-${idx}`)}
                   </Th>
                 ))}
@@ -141,7 +148,14 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
               {block.rows.map((cells, ri) => (
                 <Tr key={ri} bg={ri % 2 === 1 ? tableRowAltBg : undefined}>
                   {padRow(cells).map((cell, ci) => (
-                    <Td key={ci} fontSize="xs" color="gray.800" verticalAlign="top">
+                    <Td
+                      key={ci}
+                      fontSize="xs"
+                      color="gray.800"
+                      verticalAlign="top"
+                      whiteSpace="normal"
+                      sx={chatResponsiveTextSx}
+                    >
                       {renderInline(cell, `td-${ri}-${ci}`)}
                     </Td>
                   ))}
@@ -161,8 +175,10 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
           bg={codeBg}
           color="green.200"
           borderRadius="md"
+          maxW="100%"
           overflowX="auto"
           whiteSpace="pre-wrap"
+          sx={chatResponsiveTextSx}
         >
           {block.text}
         </Box>
@@ -179,7 +195,7 @@ function BlockView({ block, compact }: { block: RichBlock; compact?: boolean }) 
           <Badge mb={2} colorScheme={palette.badge} fontSize="xs">
             {palette.label}
           </Badge>
-          <Text fontSize={fontSize} lineHeight="tall" color="gray.800">
+          <Text fontSize={fontSize} lineHeight="tall" color="gray.800" sx={chatResponsiveTextSx}>
             {renderInline(block.text, `callout-${block.variant}`)}
           </Text>
         </Box>
@@ -209,7 +225,7 @@ export function AiRichContentView({ content, onAction, compact }: Props) {
   }
 
   return (
-    <VStack align="stretch" spacing={3}>
+    <VStack align="stretch" spacing={3} {...chatMessageContainerProps}>
       {displayBlocks.map((block, i) => (
         <BlockView key={`${block.type}-${i}`} block={block} compact={compact} />
       ))}

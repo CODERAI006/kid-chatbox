@@ -23,6 +23,7 @@ import {
   type LearningBotMode,
   type LearningStudyFormat,
 } from '@/types/learningWorkspace';
+import { StudyPlanOnboarding } from './StudyPlanOnboarding';
 import {
   DEFAULT_QUIZ_COUNT,
   MIN_QUIZ_COUNT,
@@ -42,7 +43,7 @@ interface Props {
 }
 
 export function LearningFormatOnboarding({ disabled, onStart }: Props) {
-  const [step, setStep] = useState<'format' | 'topic'>('format');
+  const [step, setStep] = useState<'format' | 'topic' | 'studyplan'>('format');
   const [format, setFormat] = useState<LearningStudyFormat | null>(null);
   const [topic, setTopic] = useState('');
   const [quizCount, setQuizCount] = useState(DEFAULT_QUIZ_COUNT);
@@ -53,7 +54,7 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
 
   const pickFormat = (key: LearningStudyFormat) => {
     setFormat(key);
-    setStep('topic');
+    setStep(key === 'studyplan' ? 'studyplan' : 'topic');
   };
 
   const submitTopic = () => {
@@ -72,6 +73,27 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
     setTopic('');
     setQuizCount(DEFAULT_QUIZ_COUNT);
   };
+
+  if (step === 'studyplan') {
+    return (
+      <StudyPlanOnboarding
+        disabled={disabled}
+        onBack={() => {
+          setStep('format');
+          setFormat(null);
+        }}
+        onPlanCreated={({ text }) => {
+          onStart({
+            text,
+            mode: 'workspace',
+            format: 'studyplan',
+          });
+          setStep('format');
+          setFormat(null);
+        }}
+      />
+    );
+  }
 
   if (step === 'format') {
     return (

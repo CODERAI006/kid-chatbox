@@ -234,6 +234,29 @@ export const learningBotApi = {
     return response.data;
   },
 
+  getConversationById: async (
+    conversationId: string
+  ): Promise<{
+    success: boolean;
+    conversation: LearningBotSavedChat;
+    messages: LearningBotUiMessage[];
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      conversation: LearningBotSavedChat;
+      messages: LearningBotUiMessage[];
+      message?: string;
+    }>(`/learning-bot/conversations/${conversationId}`);
+    if (!response.data.success || !response.data.conversation) {
+      throw new Error(response.data.message || 'Could not load chat');
+    }
+    return {
+      success: true,
+      conversation: response.data.conversation,
+      messages: response.data.messages || [],
+    };
+  },
+
   openConversation: async (
     conversationId: string
   ): Promise<{ success: boolean; conversationId: string; messages: LearningBotUiMessage[] }> => {
@@ -780,9 +803,7 @@ export const profileApi = {
    * Update user profile
    */
   updateProfile: async (data: {
-    name: string;
-    age?: number;
-    grade?: string;
+    phone?: string;
     preferredLanguage?: string;
   }): Promise<{ user: User; message: string }> => {
     const response = await apiClient.put<{
