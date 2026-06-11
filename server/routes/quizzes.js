@@ -19,6 +19,7 @@ const { resolveQuizAgeGroup } = require('../utils/resolveQuizAgeGroup');
 const { normalizeBase64Images } = require('../utils/quizImageExtract');
 const { syncQuizAttemptToHistory } = require('../utils/syncQuizAttemptToHistory');
 const { sanitizeOllamaImageUrl } = require('../utils/ollamaImageUrl');
+const { gradesMatch } = require('../utils/normalizeGrade');
 
 const router = express.Router();
 
@@ -52,7 +53,14 @@ async function sendPublicQuizLibrary(req, res) {
   let query = `
       SELECT q.id, q.name, q.description, q.difficulty, q.grade_level, q.subject,
              q.number_of_questions, q.passing_percentage, q.time_limit, q.created_at,
+             q.created_by AS created_by_id,
              u.name AS created_by_name,
+             EXISTS (
+               SELECT 1 FROM user_roles ur
+               INNER JOIN roles r ON r.id = ur.role_id
+               WHERE ur.user_id = q.created_by
+                 AND r.name IN ('admin', 'super_admin')
+             ) AS creator_is_admin,
              CASE
                WHEN q.subtopics IS NOT NULL AND cardinality(q.subtopics) > 0 THEN q.subtopics
                WHEN s.title IS NOT NULL THEN ARRAY[s.title]::text[]
@@ -82,7 +90,46 @@ async function sendPublicQuizLibrary(req, res) {
   query += ' ORDER BY q.created_at DESC';
 
   const result = await pool.query(query, params);
-  res.json({ success: true, quizzes: result.rows });
+
+  let viewerGrade = null;
+  if (req.user?.id) {
+    const viewerRes = await pool.query('SELECT grade FROM users WHERE id = $1', [req.user.id]);
+    viewerGrade = viewerRes.rows[0]?.grade ?? null;
+  }
+
+  const quizzes = result.rows.map((row) => {
+    const isMine = Boolean(req.user?.id && row.created_by_id === req.user.id);
+    const isSameGrade = gradesMatch(viewerGrade, row.grade_level);
+    let generationSource = 'other';
+    if (isMine) {
+      generationSource = 'mine';
+    } else if (row.creator_is_admin) {
+      generationSource = 'admin';
+    } else if (isSameGrade) {
+      generationSource = 'peer';
+    }
+
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      difficulty: row.difficulty,
+      grade_level: row.grade_level,
+      subject: row.subject,
+      number_of_questions: row.number_of_questions,
+      passing_percentage: row.passing_percentage,
+      time_limit: row.time_limit,
+      created_at: row.created_at,
+      created_by_id: row.created_by_id,
+      created_by_name: row.created_by_name,
+      subtopics: row.subtopics,
+      is_mine: isMine,
+      is_same_grade: isSameGrade,
+      generation_source: generationSource,
+    };
+  });
+
+  res.json({ success: true, quizzes, viewer_grade: viewerGrade });
 }
 
 /**

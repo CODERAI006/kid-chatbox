@@ -15,6 +15,7 @@ import {
 } from '@/shared/design-system';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { MobileBottomNav, MOBILE_BOTTOM_NAV_HEIGHT } from './MobileBottomNav';
 import { StudentSidebar } from './StudentSidebar';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
 import { User } from '@/types';
@@ -82,6 +83,10 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
           flex={1}
           minH="calc(100vh - 73px)"
           py={{ base: 2, md: 4, lg: 6 }}
+          pb={{
+            base: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + env(safe-area-inset-bottom, 0px) + 0.5rem)`,
+            md: undefined,
+          }}
           px={{ base: 0, md: 0 }}
           width="100%"
           overflowX="hidden"
@@ -95,7 +100,13 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
         </Box>
       </HStack>
 
-      {showFooter && <Footer />}
+      {showFooter && (
+        <Box display={{ base: 'none', md: 'block' }}>
+          <Footer />
+        </Box>
+      )}
+
+      {isMobile && <MobileBottomNav user={user} />}
 
       <LearningChatWidget />
     </Box>

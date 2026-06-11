@@ -23,6 +23,7 @@ export interface GuruChatHeaderProps {
   onClose: () => void;
   onHistoryOpen: () => void;
   onNewTopic: () => void;
+  onDownload?: () => void;
 }
 
 export function GuruChatHeader({
@@ -32,6 +33,7 @@ export function GuruChatHeader({
   onClose,
   onHistoryOpen,
   onNewTopic,
+  onDownload,
 }: GuruChatHeaderProps) {
   const ghostProps = {
     variant: 'ghost' as const,
@@ -128,6 +130,26 @@ export function GuruChatHeader({
           icon={<Text fontSize="sm">➕</Text>}
           onClick={onNewTopic}
         />
+        {onDownload && (
+          <Button
+            size="xs"
+            {...ghostProps}
+            display={{ base: 'none', md: 'inline-flex' }}
+            onClick={onDownload}
+          >
+            ⬇ Export
+          </Button>
+        )}
+        {onDownload && (
+          <IconButton
+            aria-label="Export PDF"
+            size="sm"
+            {...ghostProps}
+            display={{ base: 'inline-flex', md: 'none' }}
+            icon={<Text fontSize="sm">⬇</Text>}
+            onClick={onDownload}
+          />
+        )}
         <IconButton
           aria-label="Close Guru AI"
           size="sm"

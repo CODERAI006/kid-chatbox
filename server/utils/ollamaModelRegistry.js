@@ -37,16 +37,16 @@ const OLLAMA_MODEL_TYPES = [
   {
     id: 'image',
     label: 'Image generation',
-    description: 'Quiz illustrations via Ollama Cloud only (~20% of questions). Requires Ollama Cloud enabled.',
+    description: 'Quiz/study illustrations via Ollama (x/z-image-turbo). Text LLM picks which quiz questions need a visual.',
     emoji: '🖼️',
-    defaultCloud: 'flux:cloud',
-    defaultLocal: '',
+    defaultCloud: 'x/z-image-turbo',
+    defaultLocal: 'x/z-image-turbo',
     envVar: 'OLLAMA_IMAGE_MODEL',
     implemented: true,
     presets: [
-      { id: 'flux:cloud', label: 'Flux Cloud (recommended)' },
+      { id: 'x/z-image-turbo', label: 'Z-Image Turbo (recommended)' },
       { id: 'x/flux2-klein:4b', label: 'FLUX.2 Klein 4B' },
-      { id: 'x/z-image-turbo', label: 'Z-Image Turbo' },
+      { id: 'flux:cloud', label: 'Flux Cloud' },
     ],
   },
   {

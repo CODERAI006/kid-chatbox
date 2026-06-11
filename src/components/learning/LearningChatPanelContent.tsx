@@ -2,22 +2,13 @@
  * Inner chat panel — header, scrollable messages, voice bar, input.
  */
 import { type KeyboardEvent, type RefObject } from 'react';
-import {
-  Box,
-  Button,
-  HStack,
-  Text,
-  Input,
-  VStack,
-  Spinner,
-  Divider,
-} from '@/shared/design-system';
+import { Box, HStack, Text, VStack, Spinner } from '@/shared/design-system';
 import type { LearningBotUiMessage } from '@/services/api';
 import type { LearningBotMode, LearningStudyFormat } from '@/types/learningWorkspace';
 import { LearningFormatOnboarding } from './LearningFormatOnboarding';
 import { LearningConversationalMessage } from './LearningConversationalMessage';
 import { LearningWorkspaceMessage } from './LearningWorkspaceMessage';
-import { VoiceConversationBar } from './VoiceConversationBar';
+import { LearningChatComposer } from './LearningChatComposer';
 import { GuruChatHeader } from './GuruChatHeader';
 import type { useVoiceConversation } from '@/hooks/useVoiceConversation';
 
@@ -43,6 +34,7 @@ export interface LearningChatPanelContentProps {
   onClose: () => void;
   onHistoryOpen: () => void;
   onNewTopic: () => void;
+  onDownload?: () => void;
   onSend: () => void;
   onSendText: (
     text: string,
@@ -72,6 +64,7 @@ export function LearningChatPanelContent({
   onClose,
   onHistoryOpen,
   onNewTopic,
+  onDownload,
   onSend,
   onSendText,
   onKeyDown,
@@ -91,6 +84,7 @@ export function LearningChatPanelContent({
         onClose={onClose}
         onHistoryOpen={onHistoryOpen}
         onNewTopic={onNewTopic}
+        onDownload={onDownload}
       />
 
       {saveHint && (
@@ -107,7 +101,7 @@ export function LearningChatPanelContent({
           px={{ base: 3, md: 4 }}
           py={3}
           bg={workspaceBg}
-          sx={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+          sx={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'none', touchAction: 'pan-y' }}
         >
           {bootLoading ? (
             <HStack py={6} justify="center">
@@ -175,50 +169,18 @@ export function LearningChatPanelContent({
           )}
         </Box>
 
-        {showAiStudy && (
-          <VoiceConversationBar
-            voiceMode={voice.voiceMode}
-            voiceSupported={voice.voiceSupported}
-            phase={voice.phase}
-            interimTranscript={voice.interimTranscript}
-            voiceLabel={voice.voiceLabel}
-            disabled={pending || bootLoading}
-            onToggleVoice={voice.toggleVoiceMode}
-            onStartMic={voice.startMic}
-            onStopMic={voice.stopMic}
-            onStopSpeaking={voice.stopSpeakingNow}
-          />
-        )}
-
-        <Divider />
-
-        <HStack align="center" spacing={2} px={3} py={3} flexShrink={0}>
-          <Input
-            value={voice.voiceMode && voice.interimTranscript ? voice.interimTranscript : draft}
-            isReadOnly={voice.voiceMode && voice.phase === 'listening' && !!voice.interimTranscript}
-            onChange={(e) => onDraftChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={
-              voice.voiceMode && voice.phase === 'listening'
-                ? 'Speak your question…'
-                : chatMode === 'chat'
-                  ? 'Type or use voice chat…'
-                  : showOnboarding
-                    ? 'Or type a topic + question…'
-                    : 'Ask a follow-up…'
-            }
-            size="md"
-            isDisabled={pending || bootLoading}
-          />
-          <Button
-            colorScheme="blue"
-            size="md"
-            onClick={onSend}
-            isDisabled={pending || bootLoading || !draft.trim() || showOnboarding}
-          >
-            Send
-          </Button>
-        </HStack>
+        <LearningChatComposer
+          draft={draft}
+          chatMode={chatMode}
+          showOnboarding={showOnboarding}
+          showAiStudy={showAiStudy}
+          pending={pending}
+          bootLoading={bootLoading}
+          voice={voice}
+          onSend={onSend}
+          onKeyDown={onKeyDown}
+          onDraftChange={onDraftChange}
+        />
       </VStack>
     </>
   );

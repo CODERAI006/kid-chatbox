@@ -1,6 +1,6 @@
 /**
  * Open-source Piper neural TTS in the browser (ONNX / WASM).
- * Voice: en_IN-spicor-medium — Indian English, MIT-licensed Piper ecosystem.
+ * Voice: en_US-lessac-medium — natural US English female (matches server Piper).
  */
 
 import { download, predict } from '@the-vedantic-coder/piper-tts-web';
@@ -11,8 +11,8 @@ import {
   stopAudioPlayback,
 } from '@/utils/audioPlayback';
 
-/** Indian English Piper voice (NavGurukul / SPICOR dataset, open weights). */
-export const PIPER_VOICE_ID = 'en_IN-spicor-medium';
+/** US English female Piper voice (Lessac, rhasspy/piper-voices). */
+export const PIPER_VOICE_ID = 'en_US-lessac-medium';
 
 let modelReady = false;
 let modelLoading: Promise<boolean> | null = null;

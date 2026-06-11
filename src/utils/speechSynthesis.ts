@@ -1,5 +1,5 @@
 /**
- * Text-to-speech — Piper (open-source neural) → server Piper → browser fallback.
+ * Text-to-speech — Piper in browser, then server Piper (single female voice, no browser dual-voice fallback).
  */
 
 import { resolveWorkspace } from '@/utils/learningWorkspaceParser';
@@ -27,15 +27,12 @@ const INDIAN_VOICE_HINTS = [
 const FEMALE_HINTS = ['female', 'woman', 'neerja', 'heera', 'raveena', 'kavya', 'swara'];
 
 const CHUNK_MAX = 320;
-const START_TIMEOUT_MS = 6000;
-const HANG_MS_PER_CHAR = 120;
-const HANG_MIN_MS = 45000;
 
 let cachedVoice: SpeechSynthesisVoice | null | undefined;
 let voicesReadyPromise: Promise<SpeechSynthesisVoice[]> | null = null;
 
 export function isTtsSupported(): boolean {
-  return isPiperBrowserSupported() || isBrowserTtsSupported();
+  return isPiperBrowserSupported();
 }
 
 export function isBrowserTtsSupported(): boolean {
@@ -75,10 +72,6 @@ export function pickIndianFemaleVoice(
     voices.find((v) => v.lang.startsWith('en')) ??
     null
   );
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export function loadVoices(timeoutMs = 3000): Promise<SpeechSynthesisVoice[]> {
@@ -232,116 +225,6 @@ export interface SpeakResult {
   voiceUsed: string | null;
 }
 
-interface UtteranceConfig {
-  voice: SpeechSynthesisVoice | null;
-  lang: string;
-  rate: number;
-  pitch: number;
-  label: string;
-}
-
-function buildStrategies(voices: SpeechSynthesisVoice[], rate: number, pitch: number): UtteranceConfig[] {
-  const indian = getIndianFemaleVoice(voices);
-  const indianValid = indian && voices.some((v) => v.name === indian.name);
-
-  const strategies: UtteranceConfig[] = [
-    {
-      voice: null,
-      lang: 'en-US',
-      rate,
-      pitch,
-      label: 'system default',
-    },
-  ];
-
-  if (indianValid && indian) {
-    strategies.unshift({
-      voice: indian,
-      lang: indian.lang,
-      rate,
-      pitch,
-      label: indian.name,
-    });
-  }
-
-  strategies.push({
-    voice: null,
-    lang: 'en-IN',
-    rate,
-    pitch,
-    label: 'en-IN default',
-  });
-
-  return strategies;
-}
-
-function speakChunk(
-  text: string,
-  config: UtteranceConfig,
-  fireStart: boolean,
-  onStart?: () => void
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (!text.trim()) {
-      resolve(true);
-      return;
-    }
-
-    let settled = false;
-    let started = false;
-
-    const finish = (ok: boolean) => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(startTimer);
-      window.clearTimeout(hangTimer);
-      resolve(ok);
-    };
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    if (config.voice) {
-      utterance.voice = config.voice;
-      utterance.lang = config.voice.lang;
-    } else {
-      utterance.lang = config.lang;
-    }
-    utterance.rate = config.rate;
-    utterance.pitch = config.pitch;
-    utterance.volume = 1;
-
-    // Prevent GC on some browsers.
-    (window as Window & { __kidChatUtterance?: SpeechSynthesisUtterance }).__kidChatUtterance =
-      utterance;
-
-    utterance.onstart = () => {
-      started = true;
-      if (fireStart) {
-        unlockSpeechSynthesis();
-        onStart?.();
-      }
-    };
-    utterance.onend = () => finish(true);
-    utterance.onerror = () => finish(false);
-
-    const startTimer = window.setTimeout(() => {
-      if (started || settled) return;
-      if (speechSynthesis.speaking || speechSynthesis.pending) return;
-      finish(false);
-    }, START_TIMEOUT_MS);
-
-    // Safety net only — never resolve success here; wait for onend.
-    const hangTimer = window.setTimeout(() => {
-      if (settled) return;
-      speechSynthesis.cancel();
-      finish(false);
-    }, Math.max(HANG_MIN_MS, text.length * HANG_MS_PER_CHAR + 15000));
-
-    unlockSpeechSynthesis();
-    speechSynthesis.speak(utterance);
-    unlockSpeechSynthesis();
-  });
-}
-
 export function extractSpeakableReply(content: string): string {
   const ws = resolveWorkspace(content);
   const parts: string[] = [];
@@ -375,64 +258,7 @@ export async function speakText(
   const piperResult = await speakWithPiper(chunks, options);
   if (piperResult.ok) return piperResult;
 
-  const serverResult = await speakWithServerPiper(chunks, options);
-  if (serverResult.ok) return serverResult;
-
-  return speakWithBrowser(cleaned, options);
-}
-
-async function speakWithBrowser(
-  cleaned: string,
-  options: SpeakOptions
-): Promise<SpeakResult> {
-  if (!isBrowserTtsSupported()) return { ok: false, voiceUsed: null };
-
-  unlockSpeechSynthesis();
-  speechSynthesis.cancel();
-  await delay(200);
-
-  const voices = await loadVoices();
-  const rate = options.rate ?? 0.95;
-  const pitch = options.pitch ?? 1.05;
-  const strategies = buildStrategies(voices, rate, pitch);
-  const chunks = splitForSpeech(cleaned);
-
-  let anySuccess = false;
-  let voiceUsed: string | null = null;
-  let winningStrategy: UtteranceConfig | null = null;
-
-  for (let i = 0; i < chunks.length; i += 1) {
-    if (i > 0) await delay(120);
-
-    const tryStrategies: UtteranceConfig[] = winningStrategy ? [winningStrategy] : strategies;
-    let chunkOk = false;
-
-    for (let s = 0; s < tryStrategies.length; s += 1) {
-      const strategy: UtteranceConfig = tryStrategies[s];
-      if (s > 0) {
-        speechSynthesis.cancel();
-        await delay(100);
-      }
-
-      chunkOk = await speakChunk(
-        chunks[i],
-        strategy,
-        i === 0 && !anySuccess,
-        options.onStart
-      );
-      if (chunkOk) {
-        anySuccess = true;
-        winningStrategy = strategy;
-        voiceUsed = strategy.label;
-        break;
-      }
-    }
-
-    if (!chunkOk) break;
-  }
-
-  options.onEnd?.();
-  return { ok: anySuccess, voiceUsed };
+  return speakWithServerPiper(chunks, options);
 }
 
 export function stopSpeaking(): void {

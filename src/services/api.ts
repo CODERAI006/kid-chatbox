@@ -302,6 +302,33 @@ export const learningBotApi = {
       throw new Error(response.data.message || 'Reset failed');
     }
   },
+
+  exportConversation: async (conversationId: string): Promise<{
+    success: boolean;
+    conversationId: string;
+    messages: LearningBotUiMessage[];
+    downloadUrl?: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      conversationId: string;
+      messages: LearningBotUiMessage[];
+      downloadUrl?: string;
+      message?: string;
+    }>('/learning-bot/conversation/export', { conversationId });
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Export failed');
+    }
+    return response.data;
+  },
+
+  downloadConversationPdf: async (conversationId: string): Promise<Blob> => {
+    const response = await apiClient.get<Blob>(
+      `/learning-bot/conversation/${conversationId}/download`,
+      { responseType: 'blob' }
+    );
+    return response.data;
+  },
 };
 
 /**
@@ -540,9 +567,14 @@ export const quizApi = {
       passing_percentage: number;
       time_limit?: number;
       created_at: string;
+      created_by_id?: string | null;
       created_by_name?: string | null;
       subtopics?: string[];
+      is_mine?: boolean;
+      is_same_grade?: boolean;
+      generation_source?: 'mine' | 'peer' | 'admin' | 'other';
     }>;
+    viewer_grade?: string | null;
   }> => {
     const response = await apiClient.get('/quizzes/library', { params });
     return response.data;

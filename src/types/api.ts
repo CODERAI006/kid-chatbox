@@ -37,6 +37,13 @@ export interface AnalyticsData {
     subject: string;
     date: string;
   }>;
+  recent_activities: Array<{
+    type: 'quiz' | 'study';
+    title: string;
+    subtitle: string;
+    date: string;
+    score?: number;
+  }>;
   strengths: string[];
   weaknesses: string[];
   recommended_topics: string[];

@@ -25,6 +25,7 @@ import type { LearningBotMode, LearningStudyFormat } from '@/types/learningWorks
 import { formatOptionLabel } from '@/types/learningWorkspace';
 import { DEFAULT_QUIZ_COUNT } from '@/constants/learningQuiz';
 import { inferStudyFormat } from '@/utils/inferStudyFormat';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const WELCOME_TOPIC = 'Pick a format to start';
 
@@ -47,6 +48,7 @@ export const LearningChatWidget: FC = () => {
   pendingRef.current = pending;
   bootLoadingRef.current = bootLoading;
   const { showAiStudy } = usePlanAiFlags();
+  const isDesktopModal = useBreakpointValue({ base: false, lg: true }) ?? false;
 
   const panelBg = useColorModeValue('white', 'gray.800');
   const panelBorder = useColorModeValue('gray.200', 'gray.600');
@@ -100,6 +102,8 @@ export const LearningChatWidget: FC = () => {
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, open, pending, bootLoading]);
+
+  useBodyScrollLock(open);
 
   const sendText = useCallback(
     async (
@@ -180,6 +184,143 @@ export const LearningChatWidget: FC = () => {
     }
   };
 
+  const downloadConversation = useCallback(async () => {
+    if (!conversationId) {
+      setError('No conversation to download');
+      return;
+    }
+
+    try {
+      setError(null);
+      setPending(true);
+
+      // Get messages directly from getConversation (already in state or fetch fresh)
+      let conversationMessages = messages;
+      if (messages.length === 0) {
+        // Fetch if not in state
+        const data = await learningBotApi.getConversation();
+        conversationMessages = data.messages || [];
+      }
+
+      // Generate PDF using jsPDF - Chat-like interface
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Header with Guru AI branding (matching chat UI)
+      const headerBg = [59, 130, 246]; // Blue 600
+      const headerText = [255, 255, 255]; // White
+      doc.setFillColor(headerBg[0], headerBg[1], headerBg[2]);
+      doc.rect(0, 0, pageWidth, 28, 'F');
+      doc.setTextColor(headerText[0], headerText[1], headerText[2]);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Guru AI', pageWidth / 2, 17, { align: 'center' });
+
+      // Chat topic and metadata
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const topicLine = conversationMessages.find((m) => m.role === 'user')?.content?.substring(0, 50) || 'Chat Conversation';
+      doc.setTextColor(225, 235, 255);
+      const dateStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
+      doc.text(`Topic: ${topicLine}  |  Exported: ${dateStr}  |  ${conversationMessages.length} messages`, pageWidth / 2, 24, { align: 'center' });
+
+      // Messages area
+      let currentY = 42;
+      const margin = 14;
+      const maxContentWidth = pageWidth - margin * 2;
+
+      // Message bubble styling
+      const userBubbleBg = [239, 246, 253]; // Blue 50
+      const aiBubbleBg = [255, 255, 255]; // White
+      const userText = [30, 64, 175]; // Blue 900
+      const aiText = [55, 65, 81]; // Gray 800
+      const userBadgeBg = [59, 130, 246]; // Blue 600
+      const aiBadgeBg = [16, 185, 129]; // Green 500
+
+      for (let i = 0; i < conversationMessages.length; i++) {
+        const msg = conversationMessages[i];
+        const isUser = msg.role === 'user';
+
+        // Message bubble background
+        const bubbleBg = isUser ? userBubbleBg : aiBubbleBg;
+        doc.setFillColor(bubbleBg[0], bubbleBg[1], bubbleBg[2]);
+
+        // Calculate bubble width
+        const msgText = msg.content || '';
+        const lines = doc.splitTextToSize(msgText, maxContentWidth);
+        const contentHeight = lines.length * 6;
+        const bubbleHeight = Math.max(24, contentHeight + 12);
+        const bubbleWidth = maxContentWidth - (isUser ? 0 : 0);
+
+        // Check if we need a new page
+        if (currentY + bubbleHeight + 10 > pageHeight - 20) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        // Draw bubble
+        const bubbleX = isUser ? margin : margin;
+        doc.roundedRect(bubbleX, currentY, bubbleWidth, bubbleHeight, 2, 2, 'F');
+
+        // Role badge
+        const badgeBg = isUser ? userBadgeBg : aiBadgeBg;
+        const badgeText = isUser ? 'YOU' : 'AI';
+        const badgeWidth = doc.getTextWidth(badgeText) + 8;
+        const badgeHeight = 7;
+        doc.setFillColor(badgeBg[0], badgeBg[1], badgeBg[2]);
+        doc.roundedRect(bubbleX, currentY - 4, badgeWidth, badgeHeight, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        doc.text(badgeText, bubbleX + 4, currentY - 0.5);
+
+        // Timestamp (only on first message of each role group)
+        if (i === 0 || conversationMessages[i - 1]?.role !== msg.role) {
+          doc.setFontSize(7);
+          doc.setTextColor(107, 114, 128); // Gray 500
+          doc.text(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), bubbleX, currentY + bubbleHeight - 2);
+        }
+
+        // Message content
+        currentY += 10;
+        doc.setFontSize(9);
+        doc.setTextColor(isUser ? userText[0] : aiText[0], isUser ? userText[1] : aiText[1], isUser ? userText[2] : aiText[2]);
+
+        for (let j = 0; j < lines.length; j++) {
+          doc.text(lines[j], bubbleX + 2, currentY + j * 6);
+        }
+
+        currentY += contentHeight + 12;
+      }
+
+      // Footer (matching chat UI)
+      const footerY = pageHeight - 12;
+      doc.setDrawColor(229, 231, 235); // Gray 200
+      doc.setLineWidth(0.5);
+      doc.line(margin, footerY, pageWidth - margin, footerY);
+
+      doc.setFontSize(8);
+      doc.setTextColor(107, 114, 128); // Gray 500
+      doc.text('Guru AI - AI-Powered Educational Platform', pageWidth / 2, pageHeight - 5, { align: 'center' });
+
+      // Save PDF
+      const fileName = `chat_export_${conversationId.substring(0, 8)}.pdf`;
+      doc.save(fileName);
+
+    } catch (e) {
+      const msg = getErrorMessage(e);
+      setError(msg);
+    } finally {
+      setPending(false);
+    }
+  }, [conversationId, messages]);
+
   const onOpenSavedChat = (id: string, loaded: LearningBotUiMessage[]) => {
     setConversationId(id);
     setMessages(loaded);
@@ -218,8 +359,6 @@ export const LearningChatWidget: FC = () => {
     assistantMessageCount,
   });
 
-  const isDesktopModal = useBreakpointValue({ base: false, lg: true }) ?? false;
-
   const panelProps = {
     currentTopic,
     messages,
@@ -244,6 +383,7 @@ export const LearningChatWidget: FC = () => {
     onSendText: sendText,
     onKeyDown,
     onDraftChange: setDraft,
+    onDownload: downloadConversation,
   };
 
   return (
@@ -253,7 +393,7 @@ export const LearningChatWidget: FC = () => {
           aria-label="Open Guru AI"
           icon={<Text fontSize="xl">🧘</Text>}
           position="fixed"
-          bottom={{ base: 5, md: 8 }}
+          bottom={{ base: 'calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem)', md: 8 }}
           right={{ base: 5, md: 8 }}
           zIndex={1500}
           size="lg"
@@ -276,6 +416,7 @@ export const LearningChatWidget: FC = () => {
         <Modal isOpen onClose={() => setOpen(false)} size="6xl" isCentered scrollBehavior="inside">
           <ModalOverlay bg="blackAlpha.600" />
           <ModalContent
+            data-chat-overlay
             maxW="min(960px, 92vw)"
             h="min(90vh, 860px)"
             bg={panelBg}
@@ -286,6 +427,7 @@ export const LearningChatWidget: FC = () => {
             display="flex"
             flexDirection="column"
             m={4}
+            sx={{ overscrollBehavior: 'none' }}
           >
             <LearningChatPanelContent {...panelProps} />
           </ModalContent>
@@ -294,6 +436,7 @@ export const LearningChatWidget: FC = () => {
 
       {open && !isDesktopModal && (
         <Box
+          data-chat-overlay
           position="fixed"
           bottom={2}
           right={2}
@@ -309,6 +452,7 @@ export const LearningChatWidget: FC = () => {
           display="flex"
           flexDirection="column"
           overflow="hidden"
+          sx={{ overscrollBehavior: 'none' }}
         >
           <LearningChatPanelContent {...panelProps} />
         </Box>

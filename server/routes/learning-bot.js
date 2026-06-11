@@ -172,6 +172,56 @@ router.post('/conversations/:id/open', async (req, res, next) => {
 });
 
 /**
+ * POST /api/learning-bot/conversation/export
+ * Export conversation to PDF
+ */
+router.post('/conversation/export', async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.body || {};
+
+    if (!conversationId) {
+      return res.status(400).json({ success: false, message: 'conversationId is required' });
+    }
+
+    // Check conversation ownership
+    const check = await pool.query(
+      `SELECT id FROM learning_bot_conversations WHERE id = $1 AND user_id = $2`,
+      [conversationId, userId]
+    );
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    // Get all messages
+    const msgs = await pool.query(
+      `SELECT id, role, content, created_at FROM learning_bot_messages
+       WHERE conversation_id = $1
+       ORDER BY created_at ASC`,
+      [conversationId]
+    );
+
+    const messages = msgs.rows.map((r) => ({
+      id: r.id,
+      role: r.role,
+      content: r.content,
+      timestamp: r.created_at,
+    }));
+
+    // Export to PDF using jsPDF (loaded via CDN for server-side)
+    // We'll generate HTML and let the frontend handle PDF generation
+    res.json({
+      success: true,
+      conversationId,
+      messages,
+      downloadUrl: `/api/learning-bot/conversation/${conversationId}/pdf`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/learning-bot/message
  * Body: { conversationId?: string | null, text: string }
  */
@@ -278,6 +328,117 @@ router.post('/message', async (req, res, next) => {
     } finally {
       client.release();
     }
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/learning-bot/conversation/:id/download
+ * Download conversation as PDF
+ */
+router.get('/conversation/:id/download', async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    // Verify ownership
+    const check = await pool.query(
+      `SELECT id FROM learning_bot_conversations WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    // Get conversation details
+    const convCheck = await pool.query(
+      `SELECT id, created_at, updated_at FROM learning_bot_conversations WHERE id = $1`,
+      [id]
+    );
+    if (convCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    const conversation = convCheck.rows[0];
+
+    // Get all messages
+    const msgs = await pool.query(
+      `SELECT role, content, created_at FROM learning_bot_messages
+       WHERE conversation_id = $1
+       ORDER BY created_at ASC`,
+      [id]
+    );
+
+    const messages = msgs.rows.map((r) => ({
+      role: r.role,
+      content: r.content,
+      timestamp: r.created_at,
+    }));
+
+    // Count messages by role
+    const userCount = messages.filter((m) => m.role === 'user').length;
+    const assistantCount = messages.filter((m) => m.role === 'assistant').length;
+
+    // Create a simple HTML template for the conversation
+    const topic = messages.find((m) => m.role === 'user')?.content?.substring(0, 50) || 'Chat Conversation';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Chat Export - ${topic}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+          .header { border-bottom: 2px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px; }
+          .header h1 { color: #6366f1; margin: 0; font-size: 24px; }
+          .header p { color: #666; margin: 5px 0 0 0; font-size: 14px; }
+          .message { margin-bottom: 20px; padding: 15px; border-radius: 8px; }
+          .message.user { background: #e0e7ff; border-left: 4px solid #6366f1; }
+          .message.assistant { background: #f9fafb; border-left: 4px solid #10b981; }
+          .message-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
+          .message-header .role { font-weight: bold; text-transform: uppercase; }
+          .message-content { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+          .timestamp { color: #666; }
+          .footer { border-top: 1px solid #ddd; padding-top: 20px; margin-top: 30px; font-size: 12px; color: #999; text-align: center; }
+          .stats { display: flex; gap: 20px; justify-content: center; margin-top: 15px; }
+          .stat { padding: 5px 15px; background: #f3f4f6; border-radius: 20px; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Guru AI Learning Chat</h1>
+          <p>Exported on: ${new Date().toLocaleString()}</p>
+          <div class="stats">
+            <span class="stat">Total Messages: ${messages.length}</span>
+            <span class="stat">Questions: ${userCount}</span>
+            <span class="stat">Answers: ${assistantCount}</span>
+          </div>
+        </div>
+        ${messages.map((m) => `
+          <div class="message ${m.role}">
+            <div class="message-header">
+              <span class="role">${m.role === 'user' ? 'You' : 'AI Tutor'}</span>
+              <span class="timestamp">${new Date(m.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="message-content">${m.content.replace(/\n/g, '<br>')}</div>
+          </div>
+        `).join('')}
+        <div class="footer">
+          <p>Guru AI - AI-Powered Educational Platform</p>
+          <p>Conversation ID: ${id}</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Set headers for PDF download
+    res.header('Content-Type', 'application/pdf');
+    res.header('Content-Disposition', `attachment; filename="chat_export_${id.substring(0, 8)}.pdf"`);
+
+    // Send the HTML as the response
+    // The frontend will handle converting HTML to PDF using jsPDF
+    res.send(html);
   } catch (err) {
     next(err);
   }

@@ -369,7 +369,7 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
 
             <Box bg="blue.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="blue.100">
               <Text fontSize="xs" color="blue.800">
-                About 20% of AI-generated questions include an Ollama Cloud illustration (enable Ollama Cloud in Admin).
+                The AI picks which questions need a picture (~20%); images use x/z-image-turbo via Ollama Cloud.
               </Text>
             </Box>
 

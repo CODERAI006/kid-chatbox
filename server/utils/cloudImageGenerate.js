@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { CLOUD_BASE_URL, getConfiguredModel } = require('./ollamaCloudSettings');
 const { getOllamaRuntimeConfig } = require('./ollamaClient');
 
-const DEFAULT_CLOUD_IMAGE_MODEL = 'flux:cloud';
+const DEFAULT_CLOUD_IMAGE_MODEL = 'x/z-image-turbo';
 const DEPRECATED_IMAGE_MODELS = new Set(['gemini-2.5-flash-image', 'gemini-3.1-flash-image']);
 const UPLOAD_DIR = path.join(__dirname, '../../uploads/quiz-images');
 const IMAGE_TIMEOUT_MS = Number(process.env.QUIZ_IMAGE_TIMEOUT_MS) || 180_000;

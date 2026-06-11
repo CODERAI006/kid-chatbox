@@ -175,7 +175,7 @@ export function useVoiceConversation(
             onStart: () => setTtsError(null),
           });
           if (!result.ok && speakingRef.current) {
-            setTtsError('Voice unavailable — read the reply above or tap 🔊 Skip.');
+            setTtsError('Voice unavailable — read the reply above or tap the speaker icon.');
           }
         } catch {
           if (speakingRef.current) {
@@ -284,10 +284,10 @@ export function useVoiceConversation(
       : phase === 'thinking'
         ? 'Thinking…'
         : phase === 'speaking'
-          ? ttsError ?? 'Speaking… tap 🔊 to skip'
+          ? ttsError ?? 'Speaking… tap speaker icon to skip'
           : voiceMode
             ? 'Tap mic to ask'
-            : 'Voice chat off';
+            : 'Tap mic to talk with Guru';
 
   return {
     voiceMode,

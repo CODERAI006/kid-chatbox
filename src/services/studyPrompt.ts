@@ -44,7 +44,7 @@ Rules:
 10. Avoid technical jargon unless defined in keyTerms.
 11. Ensure factual correctness for ${board} curriculum.
 12. Write in ${language}.
-13. imageKeyword must be a specific English phrase for a hero image (e.g. "human heart anatomy model").
+13. Pick visuals only where a photo helps learning (diagrams, anatomy, maps, experiments). imageKeyword: specific English phrase for hero photo (x/z-image-turbo). imageKeywords: 3–4 visual concepts only (not grammar/vocabulary).
 
 Output JSON only with this exact shape:
 {

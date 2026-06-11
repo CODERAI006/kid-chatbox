@@ -1,5 +1,5 @@
 /**
- * Attach AI-generated illustrations to ~20% of quiz questions.
+ * Attach Ollama Cloud illustrations to quiz questions the text LLM marks as visual.
  */
 const { generateQuizQuestionImage } = require('./ollamaImageGenerate');
 const { sanitizeOllamaImageUrl } = require('./ollamaImageUrl');
@@ -12,8 +12,14 @@ function getImageFraction() {
   return Number.isFinite(n) && n > 0 && n <= 1 ? n : DEFAULT_FRACTION;
 }
 
-/** Evenly spread indices so visuals appear throughout the quiz. */
-function selectImageQuestionIndices(totalCount, fraction = getImageFraction()) {
+function normalizeNeedsImage(value) {
+  if (value === true) return true;
+  if (typeof value === 'string') return /^(true|yes|1)$/i.test(value.trim());
+  return false;
+}
+
+/** Evenly spread indices when the LLM marks no visual questions. */
+function selectSpreadIndices(totalCount, fraction = getImageFraction()) {
   if (totalCount < 1) return [];
   const target = Math.max(1, Math.round(totalCount * fraction));
   const indices = [];
@@ -24,7 +30,56 @@ function selectImageQuestionIndices(totalCount, fraction = getImageFraction()) {
   return [...new Set(indices)];
 }
 
+/**
+ * Prefer questions the text LLM flagged with needsImage; cap at ~20% of the quiz.
+ * @param {Array<{ needsImage?: boolean, imagePrompt?: string }>} questions
+ */
+function selectImageQuestionIndices(questions, fraction = getImageFraction()) {
+  if (!Array.isArray(questions) || questions.length === 0) return [];
+
+  const maxCount = Math.max(1, Math.round(questions.length * fraction));
+  const llmPicked = questions
+    .map((q, i) => ({ i, q }))
+    .filter(({ q }) => normalizeNeedsImage(q.needsImage));
+
+  if (llmPicked.length > 0) {
+    const ranked = llmPicked
+      .map(({ i, q }) => ({
+        i,
+        score: String(q.imagePrompt || '').trim().length > 10 ? 2 : 1,
+      }))
+      .sort((a, b) => b.score - a.score || a.i - b.i)
+      .slice(0, maxCount)
+      .map((x) => x.i)
+      .sort((a, b) => a - b);
+
+    console.info('[quiz-images] LLM selected visual questions', {
+      marked: llmPicked.length,
+      generating: ranked.length,
+      maxCount,
+      indices: ranked.map((i) => i + 1),
+    });
+    return ranked;
+  }
+
+  const fallback = selectSpreadIndices(questions.length, fraction);
+  console.info('[quiz-images] LLM marked no visuals; using spread fallback', {
+    indices: fallback.map((i) => i + 1),
+  });
+  return fallback;
+}
+
 function buildImagePrompt(question, ctx = {}) {
+  const custom = String(question.imagePrompt || '').trim();
+  if (custom) {
+    const subject = String(ctx.subject || 'school subject').trim();
+    const grade = ctx.gradeLevel ? `Grade ${ctx.gradeLevel}. ` : '';
+    return (
+      `${grade}Child-friendly educational photograph for a quiz about ${subject}. ` +
+      `${custom}. Photorealistic, clean background, no text or letters in the image, suitable for children.`
+    );
+  }
+
   const subject = String(ctx.subject || 'school subject').trim();
   const grade = ctx.gradeLevel ? `Grade ${ctx.gradeLevel}. ` : '';
   const qText = String(question.question || '').replace(/\s+/g, ' ').slice(0, 220);
@@ -35,20 +90,19 @@ function buildImagePrompt(question, ctx = {}) {
   );
 }
 
+function stripImageMeta(question) {
+  const { needsImage, imagePrompt, ...rest } = question;
+  return rest;
+}
+
 /**
- * @param {Array<{ question: string, options: object, correctAnswer: string, explanation: string, number?: number }>} questions
+ * @param {Array<{ question: string, options: object, correctAnswer: string, explanation: string, needsImage?: boolean, imagePrompt?: string }>} questions
  * @param {{ subject?: string, gradeLevel?: string }} ctx
  */
 async function enrichQuestionsWithImages(questions, ctx = {}) {
   if (!Array.isArray(questions) || questions.length === 0) return questions;
 
-  const indices = selectImageQuestionIndices(questions.length);
-  console.info('[quiz-images] generating illustrations', {
-    total: questions.length,
-    target: indices.length,
-    indices: indices.map((i) => i + 1),
-  });
-
+  const indices = selectImageQuestionIndices(questions);
   const enriched = questions.map((q) => ({ ...q, imageUrl: null }));
 
   const generateOne = async (idx) => {
@@ -58,7 +112,11 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
       const imageUrl = sanitizeOllamaImageUrl(await generateQuizQuestionImage(prompt));
       if (!imageUrl) return false;
       enriched[idx] = { ...enriched[idx], imageUrl };
-      console.info('[quiz-images] saved', { question: idx + 1, imageUrl });
+      console.info('[quiz-images] saved', {
+        question: idx + 1,
+        llmMarked: normalizeNeedsImage(q.needsImage),
+        imageUrl,
+      });
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -80,16 +138,24 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
   console.info('[quiz-images] complete', { requested: indices.length, saved });
   if (indices.length > 0 && saved === 0) {
     console.warn(
-      '[quiz-images] no illustrations saved — enable Ollama Cloud and set an image model in Admin → Ollama Cloud'
+      '[quiz-images] no illustrations saved — enable Ollama Cloud and set image model x/z-image-turbo in Admin'
     );
   }
 
-  return enriched;
+  return enriched.map(stripImageMeta);
+}
+
+function stripQuestionImageMeta(questions) {
+  if (!Array.isArray(questions)) return questions;
+  return questions.map(stripImageMeta);
 }
 
 module.exports = {
   enrichQuestionsWithImages,
   selectImageQuestionIndices,
+  selectSpreadIndices,
   buildImagePrompt,
   getImageFraction,
+  normalizeNeedsImage,
+  stripQuestionImageMeta,
 };

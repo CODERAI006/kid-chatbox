@@ -116,7 +116,7 @@ router.get('/:userId', authenticateToken, async (req, res, next) => {
       .reverse()
       .map((row) => Math.round(parseFloat(row.score_percentage)));
 
-    // Get last three scores
+    // Get last three scores (legacy)
     const lastScoresResult = await pool.query(
       `SELECT 
         score_percentage,
@@ -133,6 +133,31 @@ router.get('/:userId', authenticateToken, async (req, res, next) => {
       score: Math.round(parseFloat(row.score_percentage)),
       subject: row.subject,
       date: row.timestamp.toISOString(),
+    }));
+
+    // Unified recent activity — last 2 study or quiz events
+    const recentActivityResult = await pool.query(
+      `(SELECT 'quiz' AS type, subject AS title, subtopic AS subtitle,
+               score_percentage AS score, timestamp
+        FROM quiz_results WHERE user_id = $1)
+       UNION ALL
+       (SELECT 'study' AS type,
+               COALESCE(lesson_title, topic) AS title,
+               subject AS subtitle,
+               NULL AS score,
+               timestamp
+        FROM study_sessions WHERE user_id = $1)
+       ORDER BY timestamp DESC
+       LIMIT 2`,
+      [userId]
+    );
+
+    const recentActivities = recentActivityResult.rows.map((row) => ({
+      type: row.type,
+      title: row.title,
+      subtitle: row.subtitle,
+      date: row.timestamp.toISOString(),
+      score: row.score != null ? Math.round(parseFloat(row.score)) : undefined,
     }));
 
     // Identify strengths (subjects with >70% accuracy)
@@ -160,6 +185,7 @@ router.get('/:userId', authenticateToken, async (req, res, next) => {
       time_spent_studying: timeSpentStudying,
       improvement_trend: improvementTrend,
       last_three_scores: lastThreeScores,
+      recent_activities: recentActivities,
       strengths,
       weaknesses,
       recommended_topics: recommendedTopics,

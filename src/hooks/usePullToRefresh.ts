@@ -17,6 +17,12 @@ interface UsePullToRefreshReturn {
   canPull: boolean;
 }
 
+const CHAT_OVERLAY_SELECTOR = '[data-chat-overlay]';
+
+function isInsideChatOverlay(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(CHAT_OVERLAY_SELECTOR) !== null;
+}
+
 /**
  * Hook for pull-to-refresh functionality
  * @param options - Configuration options
@@ -57,12 +63,18 @@ export const usePullToRefresh = ({
     elementRef.current = element;
 
     const handleTouchStart = (e: TouchEvent) => {
+      if (isInsideChatOverlay(e.target)) {
+        setCanPull(false);
+        isPulling.current = false;
+        return;
+      }
+
       // Only allow pull from top of page
       if (window.scrollY > 0) {
         setCanPull(false);
         return;
       }
-      
+
       const touch = e.touches[0];
       startY.current = touch.clientY;
       currentY.current = touch.clientY;
@@ -110,11 +122,17 @@ export const usePullToRefresh = ({
 
     // Mouse events for desktop (optional)
     const handleMouseDown = (e: MouseEvent) => {
+      if (isInsideChatOverlay(e.target)) {
+        setCanPull(false);
+        isPulling.current = false;
+        return;
+      }
+
       if (window.scrollY > 0) {
         setCanPull(false);
         return;
       }
-      
+
       startY.current = e.clientY;
       currentY.current = e.clientY;
       isPulling.current = true;

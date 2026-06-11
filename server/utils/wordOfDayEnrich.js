@@ -6,6 +6,7 @@ const axios = require('axios');
 const { ADVANCED_SYNONYMS_ANTONYMS } = require('../data/advanced-synonyms-antonyms');
 const { SYNONYMS_ANTONYMS_FALLBACK } = require('../data/synonyms-antonyms-fallback');
 const { ollamaChat, isLlmConfigured } = require('./ollamaClient');
+const { getCbseVocabularyGuidance } = require('./cbseGradeHints');
 
 const FALLBACK_MAP = { ...SYNONYMS_ANTONYMS_FALLBACK, ...ADVANCED_SYNONYMS_ANTONYMS };
 
@@ -54,9 +55,10 @@ async function fetchDictionaryWord(word) {
   }
 }
 
-async function generateWordDetail(word, complexity, meanings) {
+async function generateWordDetail(word, complexity, meanings, gradeLabel) {
   const def = meanings[0]?.definitions[0]?.definition || word;
   const pos = meanings[0]?.partOfSpeech || 'word';
+  const cbse = getCbseVocabularyGuidance(gradeLabel || 'Class 5 / Grade 5', complexity);
 
   if (!isLlmConfigured()) {
     return {
@@ -71,21 +73,22 @@ async function generateWordDetail(word, complexity, meanings) {
   }
 
   try {
-    const prompt = `Explain the English word "${word}" (${pos}) for a student.
+    const prompt = `Explain the English word "${word}" (${pos}) for a ${cbse.classLevel} CBSE board student (age ~${cbse.age}).
 Definition: ${def}
-Complexity level: ${complexity}
+Complexity: ${complexity}
+Textbook context: ${cbse.bookRef}
 
 Return ONLY valid JSON:
 {
-  "detailedExplanation": "2-3 kid-friendly sentences explaining the word clearly",
+  "detailedExplanation": "2-3 age-appropriate sentences explaining the word clearly, referencing how it might appear in NCERT/CBSE books",
   "realWorldExamples": ["detailed example 1", "detailed example 2", "detailed example 3"],
-  "schoolExample": "one detailed sentence using the word in a school situation",
-  "dailyLifeExample": "one detailed sentence using the word in everyday life"
+  "schoolExample": "one detailed sentence using the word in an Indian CBSE school context",
+  "dailyLifeExample": "one detailed sentence using the word in everyday life in India"
 }`;
 
     const { content } = await ollamaChat({
       messages: [
-        { role: 'system', content: 'You help students learn vocabulary. Return only JSON.' },
+        { role: 'system', content: 'You help CBSE board students learn vocabulary from NCERT textbooks. Return only JSON.' },
         { role: 'user', content: prompt },
       ],
       temperature: 0.6,
@@ -112,11 +115,11 @@ Return ONLY valid JSON:
   }
 }
 
-async function enrichWord(word, complexity, includeDetail = false) {
+async function enrichWord(word, complexity, includeDetail = false, gradeLabel) {
   const base = await fetchDictionaryWord(word);
   if (!includeDetail) return base;
 
-  const detail = await generateWordDetail(word, complexity, base.meanings);
+  const detail = await generateWordDetail(word, complexity, base.meanings, gradeLabel);
   return { ...base, ...detail };
 }
 

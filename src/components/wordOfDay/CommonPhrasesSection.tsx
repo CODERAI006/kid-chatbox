@@ -4,6 +4,7 @@
 
 import { Box, Card, CardBody, Heading, Text, VStack, Badge, HStack } from '@/shared/design-system';
 import type { DailyPhrase } from '@/types/wordOfDay';
+import { MESSAGES } from '@/constants/app';
 
 interface CommonPhrasesSectionProps {
   phrases: DailyPhrase[];
@@ -21,12 +22,17 @@ export const CommonPhrasesSection: React.FC<CommonPhrasesSectionProps> = ({
     <Card bg="teal.50" borderColor="teal.200" borderWidth={compact ? 1 : 1.5}>
       <CardBody p={compact ? { base: 2, md: 3 } : { base: 3, md: 4 }}>
         <VStack spacing={compact ? 2 : 3} align="stretch">
-          <Heading size={compact ? 'xs' : 'sm'} color="teal.700">
-            💬 {phrases.length} Idioms & Expressions
-          </Heading>
+          <HStack justify="space-between" flexWrap="wrap" gap={1}>
+            <Heading size={compact ? 'xs' : 'sm'} color="teal.700">
+              💬 {phrases.length} Idioms & Expressions
+            </Heading>
+            <Badge colorScheme="purple" fontSize="2xs" variant="subtle">
+              AI daily
+            </Badge>
+          </HStack>
           {!compact && (
             <Text fontSize="xs" color="gray.600">
-              Phrases you can drop into a sentence — like "steal someone's thunder"
+              {MESSAGES.IDIOMS_AI_LABEL}
             </Text>
           )}
           {phrases.map((item, i) => (

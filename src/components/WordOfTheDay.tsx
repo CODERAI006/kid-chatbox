@@ -50,7 +50,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'fu
     setError(false);
     try {
       const dateStr = toYMD(date);
-      const cacheKey = `wotd_v4:${gradeLabel}:${dateStr}`;
+      const cacheKey = `wotd_v6_cbse:${gradeLabel}:${dateStr}`;
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as WordOfDayResponse;
@@ -90,8 +90,8 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'fu
               <Heading size="sm" color="purple.700">📚 Words of the Day</Heading>
               <Text fontSize="xs" color="gray.500">
                 {isDashboard
-                  ? `Today's 3 words for ${gradeLabel}`
-                  : `3 words for ${gradeLabel} — tap any word for full details`}
+                  ? `Today's 3 CBSE words for ${gradeLabel}`
+                  : `3 AI-picked CBSE textbook words for ${gradeLabel} — tap any word for full details`}
               </Text>
             </VStack>
             {!isToday(selectedDate) && (

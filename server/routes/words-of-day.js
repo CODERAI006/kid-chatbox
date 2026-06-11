@@ -6,8 +6,8 @@
 
 const express = require('express');
 const { pool } = require('../config/database');
-const { getWordsForDate } = require('../data/grade-vocabulary');
-const { getPhrasesForDate } = require('../data/daily-phrases');
+const { generateDailyWords } = require('../utils/dailyWordsAi');
+const { generateDailyPhrases } = require('../utils/dailyPhrasesAi');
 const { getComplexityForGrade, defaultComplexityForGrade } = require('../utils/wordOfDaySettings');
 const { enrichWord } = require('../utils/wordOfDayEnrich');
 
@@ -29,7 +29,7 @@ function formatDate(d) {
 
 function cacheKey(grade) {
   const g = String(grade || 'default').replace(/\s+/g, '_').toLowerCase();
-  return `wotd_v4_${g}`;
+  return `wotd_v6_cbse_${g}`;
 }
 
 async function readCache(key, cacheDate) {
@@ -66,11 +66,11 @@ async function buildDailyPayload(date, grade) {
     (await getComplexityForGrade(gradeLabel)) ||
     defaultComplexityForGrade(gradeLabel);
 
-  const wordTexts = getWordsForDate(date, gradeLabel, complexity);
+  const wordTexts = await generateDailyWords(date, gradeLabel, complexity);
   const words = await Promise.all(
-    wordTexts.map((w) => enrichWord(w, complexity, false))
+    wordTexts.map((w) => enrichWord(w, complexity, false, gradeLabel))
   );
-  const phrases = getPhrasesForDate(date, gradeLabel, complexity);
+  const phrases = await generateDailyPhrases(date, gradeLabel, complexity);
 
   return {
     success: true,
@@ -114,8 +114,16 @@ router.get('/detail', async (req, res) => {
       defaultComplexityForGrade(gradeLabel);
 
     const wordParam = String(req.query.word || '').trim().toLowerCase();
-    const todaysWords = getWordsForDate(date, gradeLabel, complexity)
-      .map((w) => w.toLowerCase());
+    const mainKey = cacheKey(grade);
+    const mainCached = await readCache(mainKey, cacheDate);
+    let todaysWords = (mainCached?.words || [])
+      .map((w) => String(w.word || '').toLowerCase())
+      .filter(Boolean);
+
+    if (!todaysWords.length) {
+      todaysWords = (await generateDailyWords(date, gradeLabel, complexity))
+        .map((w) => w.toLowerCase());
+    }
 
     if (!wordParam || !todaysWords.includes(wordParam)) {
       return res.status(404).json({
@@ -128,8 +136,8 @@ router.get('/detail', async (req, res) => {
     const cached = await readCache(detailKey, cacheDate);
     if (cached?.word) return res.json(cached);
 
-    const word = await enrichWord(wordParam, complexity, true);
-    const phrases = getPhrasesForDate(date, gradeLabel, complexity);
+    const word = await enrichWord(wordParam, complexity, true, gradeLabel);
+    const phrases = await generateDailyPhrases(date, gradeLabel, complexity);
     const body = {
       success: true,
       date: cacheDate,

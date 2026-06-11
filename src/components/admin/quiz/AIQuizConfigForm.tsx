@@ -214,7 +214,7 @@ export const AIQuizConfigForm: React.FC<Props> = ({ value, onChange, showErrors 
 
       <Box bg="blue.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="blue.100">
         <Text fontSize="xs" color="blue.800">
-          About 20% of generated questions will include Ollama Cloud illustrations (enable Ollama Cloud in Admin).
+          The AI marks which questions need a visual (~20%); illustrations use x/z-image-turbo on Ollama Cloud.
         </Text>
       </Box>
 

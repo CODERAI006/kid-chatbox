@@ -261,6 +261,7 @@ function buildBatchQuizPrompt(
   const sample = config.sampleQuestion ? config.sampleQuestion.trim().slice(0, 450) : '';
   const grade = config.gradeLevel ? `Grade/class: ${config.gradeLevel}. ` : '';
   const exam = config.examStyle ? `Exam style: ${config.examStyle}. ` : '';
+  const targetImages = Math.max(1, Math.round(batchSize * 0.2));
 
   return `You generate multiple-choice quiz items for children.
 
@@ -274,13 +275,14 @@ ${userExtra ? `Teacher notes (follow if possible):\n${userExtra}\n` : ''}
 ${sample ? `Style sample (match level, not wording):\n${sample}\n` : ''}
 
 Hard rules (so JSON is not cut off):
-- Each item: "number" (1..${batchSize} within this batch), "question", "options" with keys A B C D, "correctAnswer" (single letter A–D), "explanation".
+- Each item: "number" (1..${batchSize} within this batch), "question", "options" with keys A B C D, "correctAnswer" (single letter A–D), "explanation", "needsImage" (boolean), "imagePrompt" (string).
+- Mark ~${targetImages} items with needsImage true only when a photo helps (diagrams, maps, science scenes). Give imagePrompt: vivid English scene, no text in image. Otherwise needsImage false and imagePrompt "".
 - "explanation": MAX 2 short sentences (~40 words). Name why the right option is right; one line on wrong options is enough.
 - One clearly correct option; three plausible distractors.
 - Return ONLY one JSON array. No markdown, no text before or after the array.
 
 Shape:
-[{"number":1,"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correctAnswer":"A","explanation":"..."}, ...]`;
+[{"number":1,"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correctAnswer":"A","explanation":"...","needsImage":false,"imagePrompt":""}, ...]`;
 }
 
 /**

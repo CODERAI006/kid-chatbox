@@ -166,10 +166,10 @@ Kid Chatbox can route AI to [Ollama Cloud](https://docs.ollama.com/cloud) instea
 |------|----------|-----------------|
 | `text` | Quiz, study, learning bot | `gpt-oss:120b` |
 | `ocr` | Page photo reading | `qwen3-vl:235b-cloud` |
-| `image` | Quiz illustrations (~20% of questions, **Ollama Cloud only**) | `flux:cloud` |
+| `image` | Quiz/study illustrations (**x/z-image-turbo**; text LLM picks visual quiz questions) | `x/z-image-turbo` |
 | `voice` | TTS narration (planned) | — |
 | `pdf` | Document export (planned) | — |
 
 Override any type via env (`OLLAMA_MODEL`, `OLLAMA_VISION_MODEL`, `OLLAMA_IMAGE_MODEL`, etc.) or Admin settings.
 
-**Quiz images (Ollama Cloud only):** ~20% of AI-generated quiz questions get illustrations via `POST https://ollama.com/api/generate`. Study mode uses the same pipeline for hero and gallery images. Only `/uploads/quiz-images/*` URLs are shown in the UI. Configure the image model in Admin → Ollama Cloud (default `flux:cloud`) or set `OLLAMA_IMAGE_MODEL`. Override fraction with `QUIZ_IMAGE_FRACTION=0.2`. Disable quiz images with `QUIZ_IMAGES_DISABLED=true`.
+**Quiz images:** The text LLM sets `needsImage` and `imagePrompt` on each question; about 20% get illustrations generated with **x/z-image-turbo** via Ollama (`POST /api/generate`). Study mode uses the same image model for hero and gallery shots. Only `/uploads/quiz-images/*` URLs are shown. Configure in Admin → Ollama Cloud or `OLLAMA_IMAGE_MODEL=x/z-image-turbo`. Cap with `QUIZ_IMAGE_FRACTION=0.2`. Disable with `QUIZ_IMAGES_DISABLED=true`.

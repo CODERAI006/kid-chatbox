@@ -259,7 +259,10 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
             duration: 7000,
             isClosable: true,
           });
-          navigate('/quiz#library', { replace: true, state: { libraryRefresh: Date.now() } });
+          navigate('/quiz#library', {
+            replace: true,
+            state: { libraryRefresh: Date.now(), highlightQuizId: j.job.quiz_id ?? undefined },
+          });
           return;
         }
         if (st === 'failed') {

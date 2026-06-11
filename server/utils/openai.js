@@ -4,7 +4,7 @@
  */
 
 const { ollamaChat, isLlmConfigured, getOllamaLogMode } = require('./ollamaClient');
-const { enrichQuestionsWithImages } = require('./quizQuestionImages');
+const { enrichQuestionsWithImages, stripQuestionImageMeta } = require('./quizQuestionImages');
 
 /**
  * Generates quiz questions using local Ollama
@@ -129,6 +129,9 @@ async function generateQuizQuestions(config) {
   const examStyleContext = examStyle
     ? `Exam Style: ${examStyle}\n\nGenerate questions that align with ${examStyle} exam standards and patterns. For CBSE, follow CBSE curriculum and question formats. For NCERT, align with NCERT textbook style. For Olympiad, include more challenging and analytical questions. For competitive exams, focus on application-based and reasoning questions.\n`
     : '';
+
+  const targetImageCount = Math.max(1, Math.round(numberOfQuestions * 0.2));
+  const maxImageCount = Math.max(targetImageCount, Math.ceil(numberOfQuestions * 0.25));
 
   // Add timestamp for context
   const currentTimestamp = new Date().toISOString();
@@ -270,7 +273,14 @@ MANDATORY INSTRUCTIONS - MUST FOLLOW STRICTLY:
       * Ensure comprehensive coverage of the concept
       * Provide enough detail that students can learn from the explanation alone
 
-15. FINAL QUALITY ASSURANCE REQUIREMENTS:
+15. ILLUSTRATION REQUIREMENTS (you decide which questions need a picture):
+    - Set needsImage to true ONLY when a visual genuinely helps (diagrams, maps, anatomy, geometry, science scenes, objects, experiments, habitats).
+    - Do NOT mark pure grammar, vocabulary, spelling, or mental-math questions.
+    - Target about ${targetImageCount} questions (~20% of ${numberOfQuestions}). Never mark more than ${maxImageCount}.
+    - When needsImage is true, include imagePrompt: a vivid English scene for a child-friendly educational photo (no text in the image).
+    - When needsImage is false, set imagePrompt to "".
+
+16. FINAL QUALITY ASSURANCE REQUIREMENTS:
     - Review ALL questions for uniqueness - NO REPEATS
     - Verify no two questions test the same concept identically
     - Check that questions cover diverse aspects of the topic(s)
@@ -323,7 +333,9 @@ Return ONLY a valid JSON array with this EXACT structure (no markdown, no additi
       "D": "Option D text (plausible distractor)"
     },
     "correctAnswer": "A",
-    "explanation": "DETAILED and DESCRIPTIVE explanation following the depth requirements for '${difficulty}' difficulty. Must include: 1) Clear statement of the correct answer and full reasoning, 2) Why each incorrect option is wrong (address all 3 distractors), 3) Additional educational context and real-world examples. ${difficulty === 'Advanced' || difficulty === 'Expert' ? 'Write in multiple paragraphs. Be comprehensive and analytical.' : 'Be thorough and educational.'}"
+    "explanation": "DETAILED and DESCRIPTIVE explanation following the depth requirements for '${difficulty}' difficulty. Must include: 1) Clear statement of the correct answer and full reasoning, 2) Why each incorrect option is wrong (address all 3 distractors), 3) Additional educational context and real-world examples. ${difficulty === 'Advanced' || difficulty === 'Expert' ? 'Write in multiple paragraphs. Be comprehensive and analytical.' : 'Be thorough and educational.'}",
+    "needsImage": false,
+    "imagePrompt": ""
   },
   {
     "number": 2,
@@ -343,6 +355,7 @@ CRITICAL OUTPUT REQUIREMENTS:
 - CRITICAL: Ensure NO REPEATED QUESTIONS - each question must be completely unique
 - CRITICAL: Ensure NO SIMILAR QUESTIONS - avoid testing the same concept multiple times
 - CRITICAL: Ensure MAXIMUM VARIETY - different aspects, formats, and approaches
+- CRITICAL: Mark ~${targetImageCount} questions with needsImage true (max ${maxImageCount}); each needs a useful imagePrompt
 - Review all questions before finalizing to eliminate any repetition or similarity
 
 FINAL CHECKLIST BEFORE GENERATING:
@@ -356,6 +369,7 @@ FINAL CHECKLIST BEFORE GENERATING:
 ✓ CRITICAL: Explanations include examples, context, learning tips, and deep understanding
 ✓ All explanations are educational and comprehensive
 ✓ All requirements from mandatory instructions are met
+✓ About ${targetImageCount} questions have needsImage true with clear imagePrompt scenes
 
 Generate the questions now, following ALL requirements strictly. Ensure maximum variety and NO REPEATED QUESTIONS.`;
 
@@ -443,7 +457,7 @@ Generate the questions now, following ALL requirements strictly. Ensure maximum 
       String(process.env.QUIZ_IMAGES_DISABLED || '').toLowerCase() !== 'true';
 
     if (!shouldIncludeImages) {
-      return questions;
+      return stripQuestionImageMeta(questions);
     }
 
     try {
@@ -456,7 +470,7 @@ Generate the questions now, following ALL requirements strictly. Ensure maximum 
         '[quiz] illustration pass failed, saving text-only questions:',
         imgErr instanceof Error ? imgErr.message : imgErr
       );
-      return questions;
+      return stripQuestionImageMeta(questions);
     }
   } catch (error) {
     if (error instanceof SyntaxError) {
