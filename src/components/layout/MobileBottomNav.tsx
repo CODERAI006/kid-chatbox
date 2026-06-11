@@ -1,5 +1,5 @@
 /**
- * Mobile bottom navigation — quick access to Home, AI Study, AI Quiz, and Quiz Results.
+ * Mobile bottom navigation — Home, AI Study, AI Quiz, and My Schedules.
  */
 
 import { useEffect, useState } from 'react';
@@ -14,6 +14,7 @@ import {
 import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
+import { useStudyPlanPendingToday } from '@/hooks/useStudyPlanPendingToday';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
 
 interface MobileBottomNavProps {
@@ -66,13 +67,13 @@ const NAV_ITEMS: NavItem[] = [
     isDisabled: (ctx) => !ctx.hasQuizAccess,
   },
   {
-    path: '/quiz#history',
-    label: 'Quiz Results',
-    shortLabel: 'Results',
-    icon: '📊',
-    match: (pathname, hash) => pathname === '/quiz' && hash === '#history',
+    path: '/my-schedules',
+    label: 'My Schedules',
+    shortLabel: 'Schedule',
+    icon: '📅',
+    match: (pathname) => pathname === '/my-schedules',
     isVisible: () => true,
-    isDisabled: (ctx) => !ctx.hasQuizAccess,
+    isDisabled: () => false,
   },
 ];
 
@@ -90,6 +91,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
   const disabledColor = useColorModeValue('gray.400', 'gray.600');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
+  const schedulePendingToday = useStudyPlanPendingToday();
   const { showAiStudy, showAiQuiz } = usePlanAiFlags(getUserId(user as Record<string, unknown> | null));
   const isAdmin = isAppAdmin(user as Record<string, unknown> | null);
   const ctx: NavContext = {
@@ -145,10 +147,24 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
               _hover={disabled ? {} : { bg: hoverBg }}
               transition="background 0.15s"
             >
-              <VStack spacing={0.5} justify="center" h="100%">
+              <VStack spacing={0.5} justify="center" h="100%" position="relative">
                 <Text fontSize="lg" lineHeight={1} aria-hidden>
                   {item.icon}
                 </Text>
+                {item.path === '/my-schedules' && schedulePendingToday && (
+                  <Box
+                    position="absolute"
+                    top={0}
+                    right="18%"
+                    w="8px"
+                    h="8px"
+                    borderRadius="full"
+                    bg="orange.400"
+                    border="2px solid"
+                    borderColor={bg}
+                    title="Lesson scheduled for today"
+                  />
+                )}
                 <Text
                   fontSize="2xs"
                   fontWeight={active ? 'bold' : 'medium'}

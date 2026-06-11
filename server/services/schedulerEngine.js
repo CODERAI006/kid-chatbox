@@ -7,6 +7,7 @@ const { pool } = require('../config/database');
 const { runSchedulerJobUnified } = require('./quizBatchGenerator');
 const { matchesRunTime, alreadyRanToday, DEFAULT_TIMEZONE } = require('../utils/timezoneUtils');
 const { pregenerateForDate } = require('./wordOfDayService');
+const { pregenerateForDate: pregenerateDailyFacts } = require('./dailyFactsService');
 
 /**
  * @param {Object} job
@@ -98,6 +99,17 @@ async function pregenerateWordOfDay() {
   }
 }
 
+async function pregenerateFactsAndFun() {
+  try {
+    const { cacheDate, built, total } = await pregenerateDailyFacts(new Date());
+    if (built > 0) {
+      console.log(`[Scheduler] Facts & Fun pregenerated ${built}/${total} grades for ${cacheDate}`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Facts & Fun pregenerate error:', err.message);
+  }
+}
+
 function startScheduler() {
   if (started) return;
   started = true;
@@ -106,8 +118,10 @@ function startScheduler() {
   cron.schedule('*/5 * * * *', updateQuizStatuses, { timezone: 'UTC' });
   // 00:10 IST — build today's words for all grades before students open the app
   cron.schedule('10 0 * * *', pregenerateWordOfDay, { timezone: 'Asia/Kolkata' });
+  cron.schedule('20 0 * * *', pregenerateFactsAndFun, { timezone: 'Asia/Kolkata' });
   updateQuizStatuses();
   setTimeout(() => pregenerateWordOfDay(), 15_000);
+  setTimeout(() => pregenerateFactsAndFun(), 25_000);
 
   console.log('✅ Quiz Scheduler Engine started (IST-aware job matching, 1-min / 5-min ticks)');
 }

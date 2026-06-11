@@ -25,6 +25,7 @@ export function MyScheduleCard() {
   const [examDate, setExamDate] = useState('');
   const [today, setToday] = useState<StudyPlanDay | null>(null);
   const [dayCount, setDayCount] = useState(0);
+  const [scheduleCount, setScheduleCount] = useState(0);
 
   const titleColor = useColorModeValue('purple.700', 'purple.300');
   const subtitleColor = useColorModeValue('gray.600', 'gray.400');
@@ -33,17 +34,19 @@ export function MyScheduleCard() {
 
   useEffect(() => {
     const load = () => {
-      studyPlanApi.getActive().then(({ plan, today: t }) => {
-        if (!plan) {
+      studyPlanApi.list().then(({ plans, activePlan, today: t }) => {
+        const ongoing = plans.filter((p) => p.status === 'active');
+        setScheduleCount(ongoing.length || plans.length);
+        if (!activePlan) {
           setExamName('');
           setToday(null);
           setDayCount(0);
           return;
         }
-        setExamName(plan.examName);
-        setExamDate(plan.examDate);
+        setExamName(activePlan.examName);
+        setExamDate(activePlan.examDate);
         setToday(t);
-        setDayCount(plan.schedule.length);
+        setDayCount(activePlan.schedule.length);
       }).catch(() => {});
     };
     load();
@@ -85,7 +88,12 @@ export function MyScheduleCard() {
           <VStack align="stretch" spacing={2}>
             <HStack justify="space-between" flexWrap="wrap" gap={2}>
               <Text fontWeight="semibold" fontSize="sm" noOfLines={1}>{examName}</Text>
-              <Badge colorScheme="purple">{dayCount} days</Badge>
+              <HStack spacing={2}>
+                {scheduleCount > 1 && (
+                  <Badge colorScheme="green" variant="subtle">{scheduleCount} schedules</Badge>
+                )}
+                <Badge colorScheme="purple">{dayCount} days</Badge>
+              </HStack>
             </HStack>
             <Text fontSize="xs" color={subtitleColor}>
               Exam {formatPlanDate(examDate)}

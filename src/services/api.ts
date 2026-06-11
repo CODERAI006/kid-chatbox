@@ -1101,8 +1101,45 @@ export const publicApi = {
     }
   },
 
+  /** Facts & Fun — 10 facts/class/day, one AI call saved in DB */
+  getDailyFacts: async (
+    date?: string,
+    grade?: string,
+  ): Promise<import('@/types/dailyFacts').DailyFactsResponse> => {
+    try {
+      const response = await apiClient.get('/public/facts-and-fun', {
+        params: { date, grade },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get daily facts:', error);
+      return {
+        success: false,
+        date: date || '',
+        grade: grade || '',
+        facts: [],
+        message: 'Unable to load facts',
+      };
+    }
+  },
+
+  getDailyFactsDates: async (
+    grade?: string,
+    limit = 30,
+  ): Promise<import('@/types/dailyFacts').DailyFactsDatesResponse> => {
+    try {
+      const response = await apiClient.get('/public/facts-and-fun/dates', {
+        params: { grade, limit },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get fact dates:', error);
+      return { success: false, grade: grade || '', dates: [] };
+    }
+  },
+
   /**
-   * Get education news articles
+   * Aggregated education news (RSS/web scraping — no NewsAPI)
    */
   getEducationNews: async (params?: {
     page?: number;
@@ -1138,6 +1175,65 @@ export const publicApi = {
         page: 1,
         pageSize: 10,
       };
+    }
+  },
+
+  /** Topic categories for kid-friendly education news */
+  getEducationNewsTopics: async (): Promise<import('@/types/educationNews').EducationTopicsResponse> => {
+    try {
+      const response = await apiClient.get('/public/education-news/topics');
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get education news topics:', error);
+      return { success: false, categories: [], updatedAt: '' };
+    }
+  },
+
+  /** Category news — served from daily DB cache (AI runs once per day) */
+  getEducationNewsByCategory: async (params: {
+    category: import('@/types/educationNews').EducationNewsCategoryId;
+    page?: number;
+    pageSize?: number;
+    forceRefresh?: boolean;
+  }): Promise<import('@/types/educationNews').EducationNewsResponse> => {
+    try {
+      const response = await apiClient.get('/public/education-news', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get category education news:', error);
+      return {
+        success: false,
+        category: {
+          id: params.category,
+          label: '',
+          icon: '📰',
+          color: 'blue',
+          description: '',
+          topics: [],
+          exampleQuestions: [],
+        },
+        articles: [],
+        totalResults: 0,
+        page: 1,
+        pageSize: 8,
+        message: 'Unable to load stories',
+      };
+    }
+  },
+
+  /** Single formatted story from today's cache */
+  getEducationArticle: async (
+    articleId: string,
+    category: import('@/types/educationNews').EducationNewsCategoryId,
+  ): Promise<import('@/types/educationNews').EducationArticleResponse> => {
+    try {
+      const response = await apiClient.get(`/public/education-news/${articleId}`, {
+        params: { category },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get education article:', error);
+      return { success: false, message: 'Story not found' };
     }
   },
 };

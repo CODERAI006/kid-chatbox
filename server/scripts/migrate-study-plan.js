@@ -29,6 +29,11 @@ const migrateStudyPlan = async () => {
         ON study_plans(user_id, status);
     `);
 
+    await client.query(`
+      ALTER TABLE study_plans
+        ADD COLUMN IF NOT EXISTS exam_board VARCHAR(50);
+    `);
+
     await client.query('COMMIT');
     console.log('✅ Study plan tables created successfully');
   } catch (err) {

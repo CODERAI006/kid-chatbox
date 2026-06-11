@@ -50,6 +50,7 @@ export {
   extendTheme,
   Image,
   Container,
+  Icon,
   IconButton,
   Tooltip,
   useBreakpointValue,

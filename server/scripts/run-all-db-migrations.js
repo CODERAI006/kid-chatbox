@@ -20,7 +20,10 @@ const { migrateQuizAiJobs } = require('./migrate-quiz-ai-jobs');
 const { migrateQuizSubtopics } = require('./migrate-quiz-subtopics');
 const { migrateOllamaCloudSettings } = require('./migrate-ollama-cloud-settings');
 const { migrateStudyPlan } = require('./migrate-study-plan');
+const { migrateCompetitiveTopics } = require('./migrate-competitive-topics');
 const { migrateWordOfDaySettings } = require('./migrate-word-of-day-settings');
+const { migrateEducationNews } = require('./migrate-education-news');
+const { migrateDailyFacts } = require('./migrate-daily-facts');
 
 async function runAllDbMigrations() {
   await migrateSchema();
@@ -37,7 +40,10 @@ async function runAllDbMigrations() {
   await migrateQuizSubtopics();
   await migrateOllamaCloudSettings();
   await migrateStudyPlan();
+  await migrateCompetitiveTopics();
   await migrateWordOfDaySettings();
+  await migrateEducationNews();
+  await migrateDailyFacts();
 }
 
 if (require.main === module) {

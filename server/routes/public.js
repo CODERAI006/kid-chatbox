@@ -9,6 +9,12 @@ const { ollamaChat, isLlmConfigured } = require('../utils/ollamaClient');
 const { trackEvent, EVENT_TYPES } = require('../utils/eventTracker');
 const { VOCABULARY_WORDS_1000 } = require('../data/vocabulary-1000-words');
 const { SYNONYMS_ANTONYMS_FALLBACK } = require('../data/synonyms-antonyms-fallback');
+const {
+  getCategoryNews,
+  getAggregatedNews,
+  getArticleById,
+  getTopicsOverview,
+} = require('../services/educationNewsService');
 
 const router = express.Router();
 
@@ -303,81 +309,78 @@ router.get('/word-of-the-day', async (req, res, next) => {
 });
 
 /**
- * Get Education News from NewsAPI
- * GET /api/public/news
- * Optional query params: ?page=1&pageSize=10
+ * Education topic categories for kid-friendly news
+ * GET /api/public/education-news/topics
  */
-router.get('/news', async (req, res, next) => {
+router.get('/education-news/topics', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = Math.min(parseInt(req.query.pageSize) || 10, 20); // Max 20 articles per request
-    
-    // NewsAPI configuration
-    const NEWS_API_KEY = process.env.NEWS_API_KEY || '28ee1c94d3ba4e82b372e9be88d08aed';
-    const NEWS_API_URL = 'https://newsapi.org/v2/everything';
-    
-    // Fetch news from NewsAPI
-    const response = await axios.get(NEWS_API_URL, {
-      params: {
-        q: 'education',
-        apiKey: NEWS_API_KEY,
-        page: page,
-        pageSize: pageSize,
-        language: 'en',
-        sortBy: 'publishedAt',
-      },
-      timeout: 10000, // 10 second timeout
-    });
+    res.json(getTopicsOverview());
+  } catch (error) {
+    console.error('education-news topics:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to load topics' });
+  }
+});
 
-    if (response.data && response.data.status === 'ok') {
-      // Filter and sanitize articles for child-friendly content
-      const articles = response.data.articles
-        .filter((article) => {
-          // Filter out articles with null/missing required fields
-          return (
-            article.title &&
-            article.description &&
-            article.url &&
-            article.source &&
-            article.source.name
-          );
-        })
-        .map((article) => ({
-          source: {
-            id: article.source.id,
-            name: article.source.name,
-          },
-          author: article.author || 'Unknown Author',
-          title: article.title,
-          description: article.description,
-          url: article.url,
-          urlToImage: article.urlToImage || null,
-          publishedAt: article.publishedAt,
-          content: article.content || null,
-        }));
+/**
+ * Category-based education news (daily cache + AI-formatted page content)
+ * GET /api/public/education-news?category=science&page=1&pageSize=8&forceRefresh=false
+ */
+router.get('/education-news', async (req, res) => {
+  try {
+    const category = String(req.query.category || 'science').trim();
+    const page = parseInt(req.query.page, 10) || 1;
+    const pageSize = parseInt(req.query.pageSize, 10) || 8;
+    const forceRefresh = req.query.forceRefresh === 'true';
 
-      res.json({
-        success: true,
-        totalResults: response.data.totalResults,
-        articles: articles,
-        page: page,
-        pageSize: pageSize,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch news from NewsAPI',
-        articles: [],
-      });
+    const result = await getCategoryNews(category, { page, pageSize, forceRefresh });
+    if (!result.success) {
+      return res.status(result.status || 500).json(result);
     }
+    res.json(result);
+  } catch (error) {
+    console.error('education-news fetch:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch education news' });
+  }
+});
+
+/**
+ * Single formatted story from today's cache
+ * GET /api/public/education-news/:articleId?category=science
+ */
+router.get('/education-news/:articleId', async (req, res) => {
+  try {
+    const category = String(req.query.category || 'science').trim();
+    const result = await getArticleById(category, req.params.articleId);
+    if (!result.success) {
+      return res.status(result.status || 404).json(result);
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('education-news article:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to load story' });
+  }
+});
+
+/**
+ * Aggregated education news (RSS/web scraping — no NewsAPI)
+ * GET /api/public/news?page=1&pageSize=10
+ */
+router.get('/news', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const pageSize = Math.min(parseInt(req.query.pageSize, 10) || 10, 20);
+    const forceRefresh = req.query.forceRefresh === 'true';
+    const result = await getAggregatedNews({ page, pageSize, forceRefresh });
+    res.json(result);
   } catch (error) {
     console.error('Error fetching education news:', error.message);
-    
-    // Return error response
     res.status(500).json({
       success: false,
-      message: error.response?.data?.message || 'Failed to fetch education news',
+      message: 'Failed to fetch education news',
       articles: [],
+      totalResults: 0,
+      page: 1,
+      pageSize: 10,
     });
   }
 });

@@ -1,6 +1,5 @@
 /**
- * ConfigurationForm – button-first quiz setup.
- * Class & Exam Type at top; subject/difficulty/count/time as button selectors.
+ * ConfigurationForm – button-first quiz setup (mobile-first).
  */
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,6 +8,8 @@ import {
   SimpleGrid, Textarea, Input, FormControl, FormLabel, Divider, Spinner,
 } from '@/shared/design-system';
 import { ProfileQuizHint } from '@/components/quiz/ProfileQuizHint';
+import { CompetitiveExamSection } from '@/components/quiz/CompetitiveExamSection';
+import { QuizPill, QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import {
   SUBJECTS, DIFFICULTY_LEVELS,
   HINDI_SUBTOPICS, ENGLISH_SUBTOPICS, MATHS_SUBTOPICS,
@@ -16,14 +17,16 @@ import {
   GENERAL_KNOWLEDGE_SUBTOPICS, CURRENT_AFFAIRS_SUBTOPICS,
   CHESS_SUBTOPICS, MESSAGES, QUIZ_CONSTANTS,
 } from '@/constants/quiz';
+import { EXAM_BOARDS } from '@/constants/examBoard';
+import { getCompetitiveTrack } from '@/constants/competitiveExams';
 import { Subject, Difficulty } from '@/types/quiz';
 import { isValidSubject } from '@/utils/validation';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { QuizPageUpload } from '@/components/quiz/QuizPageUpload';
 import type { QuizPageImage } from '@/utils/quizImageUpload';
+import { competitiveTopicsApi } from '@/services/competitiveTopics';
 
 const CLASSES = ['1','2','3','4','5','6','7','8','9','10','11','12'];
-const EXAM_STYLES = ['CBSE', 'NCERT', 'Olympiad', 'Competitive', 'ICSE', 'State Board'];
 const QUESTION_TYPES = ['MCQ', 'Scenario Based', 'True / False', 'Fill in Blanks', 'Word Problems', 'Mixed'];
 const QUESTION_PRESETS = [5, 10, 15, 20, 25, 30, 40];
 const TIME_PRESETS = [5, 10, 15, 20, 30, 45, 60];
@@ -45,29 +48,12 @@ interface ConfigurationFormProps {
     subject: Subject; subtopics: string[]; questionCount?: number;
     difficulty: Difficulty; instructions?: string; timeLimit: number;
     gradeLevel?: string; sampleQuestion?: string; examStyle?: string;
-    sourceImages?: string[];
+    competitiveTrack?: string; sourceImages?: string[];
   }) => void;
   isGenerating?: boolean;
   generatingBatch?: { current: number; total: number } | null;
   onCancelGeneration?: () => void;
 }
-
-/** Compact uppercase section label */
-const SL = ({ children }: { children: React.ReactNode }) => (
-  <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={2} textTransform="uppercase" letterSpacing="widest">
-    {children}
-  </Text>
-);
-
-/** Toggleable pill button */
-const Pill = ({ label, active, onClick, cs = 'blue' }: {
-  label: string; active: boolean; onClick: () => void; cs?: string;
-}) => (
-  <Button size="sm" variant={active ? 'solid' : 'outline'} colorScheme={active ? cs : 'gray'}
-    borderRadius="full" onClick={onClick} fontWeight={active ? 'bold' : 'normal'} flexShrink={0}>
-    {label}
-  </Button>
-);
 
 export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   onConfigComplete, isGenerating = false, generatingBatch = null, onCancelGeneration,
@@ -82,21 +68,30 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   const [timeLimit, setTimeLimit] = useState(10);
   const [gradeLevel, setGradeLevel] = useState('');
   const [examStyle, setExamStyle] = useState('');
+  const [competitiveTrack, setCompetitiveTrack] = useState('');
+  const [competitiveTopics, setCompetitiveTopics] = useState<string[]>([]);
   const [questionType, setQuestionType] = useState('');
   const [customSubtopicInput, setCustomSubtopicInput] = useState('');
   const [profileReady, setProfileReady] = useState(false);
   const [submitLocked, setSubmitLocked] = useState(false);
   const [pageImages, setPageImages] = useState<QuizPageImage[]>([]);
   const hasPageImages = pageImages.length > 0;
+  const isCompetitive = examStyle === 'Competitive';
+
   const handleProfileReady = useCallback((ready: boolean) => {
     setProfileReady(ready);
   }, []);
 
   useEffect(() => {
-    if (!isGenerating) {
-      setSubmitLocked(false);
-    }
+    if (!isGenerating) setSubmitLocked(false);
   }, [isGenerating]);
+
+  useEffect(() => {
+    if (!isCompetitive) {
+      setCompetitiveTrack('');
+      setCompetitiveTopics([]);
+    }
+  }, [isCompetitive]);
 
   const toggleSubtopic = useCallback((st: string) =>
     setSelectedSubtopics(prev => prev.includes(st) ? prev.filter(x => x !== st) : [...prev, st]), []);
@@ -109,31 +104,43 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
     }
   }, [customSubtopicInput, selectedSubtopics]);
 
+  const competitiveValid = !isCompetitive || (competitiveTrack && competitiveTopics.length > 0);
+
   const isFormValid =
     questionCount >= QUIZ_CONSTANTS.MIN_QUESTIONS &&
     questionCount <= QUIZ_CONSTANTS.MAX_QUESTIONS &&
     timeLimit > 0 &&
+    competitiveValid &&
     (hasPageImages
       ? true
-      : isValidSubject(subject) &&
-        (subject === SUBJECTS.OTHER
-          ? customSubtopic.trim().length > 0
-          : selectedSubtopics.length > 0 || instructions.trim().length > 0));
+      : isCompetitive
+        ? true
+        : isValidSubject(subject) &&
+          (subject === SUBJECTS.OTHER
+            ? customSubtopic.trim().length > 0
+            : selectedSubtopics.length > 0 || instructions.trim().length > 0));
 
   const handleSubmit = useCallback(() => {
     if (!isFormValid || submitLocked || isGenerating) return;
-    if (!hasPageImages && !isValidSubject(subject)) return;
     setSubmitLocked(true);
     const qtHint = questionType ? `Question type: ${questionType}. ` : '';
     let finalSubject = subject;
     let finalSubtopics: string[] = [];
     let finalInstructions: string | undefined;
+    let finalTrack = competitiveTrack || undefined;
 
     if (hasPageImages) {
       finalSubject = (isValidSubject(subject) ? subject : SUBJECTS.OTHER) as Subject;
       finalSubtopics = ['Uploaded page content'];
       const pageHint = `Generate questions only from the uploaded page image(s) (${pageImages.length} page${pageImages.length === 1 ? '' : 's'}).`;
       finalInstructions = [pageHint, qtHint, instructions.trim()].filter(Boolean).join(' ').trim() || undefined;
+    } else if (isCompetitive && competitiveTrack) {
+      const track = getCompetitiveTrack(competitiveTrack);
+      finalSubject = SUBJECTS.GENERAL_KNOWLEDGE as Subject;
+      finalSubtopics = competitiveTopics;
+      const compHint = `Competitive exam: ${track?.label || competitiveTrack} (${track?.exams || ''}). Align with Indian exam pattern. `;
+      finalInstructions = `${compHint}${qtHint}${instructions.trim()}`.trim() || undefined;
+      void competitiveTopicsApi.save(competitiveTrack, [...new Set([...competitiveTopics, ...track?.defaultTopics || []])]);
     } else if (subject === SUBJECTS.OTHER) {
       finalSubtopics = customSubtopic.trim() ? [customSubtopic.trim()] : [];
       finalInstructions = `${qtHint}${instructions.trim()}`.trim() || undefined;
@@ -154,167 +161,174 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
       timeLimit,
       gradeLevel: gradeLevel.trim() || undefined,
       examStyle: examStyle.trim() || undefined,
+      competitiveTrack: finalTrack,
       sourceImages: hasPageImages ? pageImages.map((p) => p.base64) : undefined,
     });
   }, [subject, selectedSubtopics, customSubtopic, questionCount, difficulty,
-    instructions, timeLimit, gradeLevel, examStyle, questionType, onConfigComplete, isFormValid,
-    submitLocked, isGenerating, hasPageImages, pageImages]);
+    instructions, timeLimit, gradeLevel, examStyle, competitiveTrack, competitiveTopics,
+    questionType, onConfigComplete, isFormValid, submitLocked, isGenerating,
+    hasPageImages, pageImages, isCompetitive]);
 
   const subtopics = subject && subject !== SUBJECTS.OTHER ? (SUBTOPIC_MAP[subject] ?? []) : [];
   const isFormValidWithLimits = isFormValid && canTakeQuiz && profileReady;
+  const showSchoolSubjects = !hasPageImages && !isCompetitive;
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.35 }}>
-      <Card width="100%" maxWidth="960px" margin="0 auto" boxShadow="xl" borderRadius="2xl" overflow="hidden">
-        <CardBody padding={{ base: 4, md: 6 }}>
-          <VStack spacing={5} align="stretch">
+      <Card width="100%" maxWidth="960px" margin="0 auto" boxShadow="xl" borderRadius={{ base: 'xl', md: '2xl' }} overflow="hidden">
+        <CardBody padding={{ base: 3, sm: 4, md: 6 }}>
+          <VStack spacing={{ base: 4, md: 5 }} align="stretch">
 
-            <Heading size="lg" color="blue.600" textAlign="center">{MESSAGES.GREETING}</Heading>
+            <Heading size={{ base: 'md', md: 'lg' }} color="blue.600" textAlign="center" fontSize={{ base: 'lg', md: '2xl' }}>
+              {MESSAGES.GREETING}
+            </Heading>
 
             <ProfileQuizHint onReadyChange={handleProfileReady} />
 
-            <QuizPageUpload
-              pages={pageImages}
-              onChange={setPageImages}
-              isDisabled={isGenerating}
-            />
+            <QuizPageUpload pages={pageImages} onChange={setPageImages} isDisabled={isGenerating} />
 
             {hasPageImages && (
               <Box bg="purple.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="purple.100">
-                <Text fontSize="xs" color="purple.800">
+                <Text fontSize={{ base: '2xs', sm: 'xs' }} color="purple.800">
                   Page photos uploaded — quiz questions will be generated from your images.
-                  Subject and subtopics below are optional for categorization.
                 </Text>
               </Box>
             )}
 
-            {/* ── Class + Exam Type ─────────────────────────────────── */}
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={{ base: 3, md: 5 }}>
               <Box>
-                <SL>Class / Grade Level</SL>
-                <HStack flexWrap="wrap" gap={2}>
+                <QuizSectionLabel>Class / Grade</QuizSectionLabel>
+                <HStack flexWrap="wrap" gap={1.5}>
                   {CLASSES.map(c => (
-                    <Pill key={c} label={`Class ${c}`} active={gradeLevel === `Class ${c}`}
+                    <QuizPill key={c} label={c} active={gradeLevel === `Class ${c}`}
                       onClick={() => setGradeLevel(gradeLevel === `Class ${c}` ? '' : `Class ${c}`)} />
                   ))}
                 </HStack>
               </Box>
               <Box>
-                <SL>Exam Style</SL>
-                <HStack flexWrap="wrap" gap={2}>
-                  {EXAM_STYLES.map(s => (
-                    <Pill key={s} label={s} active={examStyle === s}
+                <QuizSectionLabel>Exam Style</QuizSectionLabel>
+                <HStack flexWrap="wrap" gap={1.5}>
+                  {EXAM_BOARDS.map(s => (
+                    <QuizPill key={s} label={s} active={examStyle === s}
                       onClick={() => setExamStyle(examStyle === s ? '' : s)} cs="purple" />
                   ))}
                 </HStack>
               </Box>
             </SimpleGrid>
 
-            {/* ── Question Type ─────────────────────────────────────── */}
+            <AnimatePresence>
+              {isCompetitive && !hasPageImages && (
+                <motion.div key="competitive" initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                  <CompetitiveExamSection
+                    trackId={competitiveTrack}
+                    selectedTopics={competitiveTopics}
+                    gradeLevel={gradeLevel}
+                    disabled={isGenerating}
+                    onTrackChange={setCompetitiveTrack}
+                    onTopicsChange={setCompetitiveTopics}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <Box>
-              <SL>Question Type</SL>
-              <HStack flexWrap="wrap" gap={2}>
+              <QuizSectionLabel>Question Type</QuizSectionLabel>
+              <HStack flexWrap="wrap" gap={1.5}>
                 {QUESTION_TYPES.map(qt => (
-                  <Pill key={qt} label={qt} active={questionType === qt}
+                  <QuizPill key={qt} label={qt} active={questionType === qt}
                     onClick={() => setQuestionType(questionType === qt ? '' : qt)} cs="orange" />
                 ))}
               </HStack>
             </Box>
 
-            <Divider />
+            {showSchoolSubjects && <Divider />}
 
-            {/* ── Subject grid ──────────────────────────────────────── */}
-            <Box>
-              <SL>
-                Subject {!hasPageImages && <Text as="span" color="red.400">*</Text>}
-              </SL>
-              <SimpleGrid columns={{ base: 3, sm: 4, md: 5 }} spacing={3}>
-                {Object.values(SUBJECTS).map(subj => {
-                  const active = subject === subj;
-                  return (
-                    <Box key={subj} as="button"
-                      onClick={() => { setSubject(subj as Subject); setSelectedSubtopics([]); setCustomSubtopic(''); }}
-                      p={3} borderRadius="xl" borderWidth={2}
-                      borderColor={active ? 'blue.500' : 'gray.200'} bg={active ? 'blue.50' : 'white'}
-                      display="flex" flexDir="column" alignItems="center" gap={1} transition="all 0.2s"
-                      boxShadow={active ? 'md' : 'sm'}
-                      _hover={{ borderColor: 'blue.300', bg: 'blue.50', transform: 'translateY(-1px)', boxShadow: 'md' }}>
-                      <Text fontSize="xl">{SUBJECT_ICONS[subj] ?? '📚'}</Text>
-                      <Text fontSize="xs" fontWeight={active ? 'bold' : 'medium'}
-                        color={active ? 'blue.700' : 'gray.600'} textAlign="center" lineHeight="short">
-                        {subj}
-                      </Text>
-                    </Box>
-                  );
-                })}
-              </SimpleGrid>
-            </Box>
+            {showSchoolSubjects && (
+              <Box>
+                <QuizSectionLabel>
+                  Subject <Text as="span" color="red.400">*</Text>
+                </QuizSectionLabel>
+                <SimpleGrid columns={{ base: 3, sm: 4, md: 5 }} spacing={{ base: 2, md: 3 }}>
+                  {Object.values(SUBJECTS).map(subj => {
+                    const active = subject === subj;
+                    return (
+                      <Box key={subj} as="button"
+                        onClick={() => { setSubject(subj as Subject); setSelectedSubtopics([]); setCustomSubtopic(''); }}
+                        p={{ base: 2, md: 3 }} borderRadius="xl" borderWidth={2}
+                        borderColor={active ? 'blue.500' : 'gray.200'} bg={active ? 'blue.50' : 'white'}
+                        display="flex" flexDir="column" alignItems="center" gap={0.5} transition="all 0.2s"
+                        boxShadow={active ? 'md' : 'sm'}
+                        _hover={{ borderColor: 'blue.300', bg: 'blue.50' }}>
+                        <Text fontSize={{ base: 'md', md: 'xl' }}>{SUBJECT_ICONS[subj] ?? '📚'}</Text>
+                        <Text fontSize={{ base: '2xs', sm: 'xs' }} fontWeight={active ? 'bold' : 'medium'}
+                          color={active ? 'blue.700' : 'gray.600'} textAlign="center" lineHeight="short">
+                          {subj}
+                        </Text>
+                      </Box>
+                    );
+                  })}
+                </SimpleGrid>
+              </Box>
+            )}
 
-            {/* ── Custom topic (Other) ──────────────────────────────── */}
             <AnimatePresence>
-              {subject === SUBJECTS.OTHER && (
+              {showSchoolSubjects && subject === SUBJECTS.OTHER && (
                 <motion.div key="custom" initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                   <FormControl>
-                    <FormLabel fontSize="xs" fontWeight="bold" color="gray.500" textTransform="uppercase" letterSpacing="widest">
+                    <FormLabel fontSize="xs" fontWeight="bold" color="gray.500" textTransform="uppercase">
                       Your Topic <Text as="span" color="red.400">*</Text>
                     </FormLabel>
                     <Input value={customSubtopic} onChange={e => setCustomSubtopic(e.target.value)}
-                      placeholder="e.g., Space, Robotics, Coding Basics…" size="lg" borderRadius="xl"
-                      borderWidth={2} borderColor="blue.200" _focus={{ borderColor: 'blue.500' }} />
+                      placeholder="e.g., Space, Robotics…" size={{ base: 'md', md: 'lg' }} borderRadius="xl" />
                   </FormControl>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* ── Subtopics ─────────────────────────────────────────── */}
             <AnimatePresence>
-              {subject && subject !== SUBJECTS.OTHER && subtopics.length > 0 && (
+              {showSchoolSubjects && subject && subject !== SUBJECTS.OTHER && subtopics.length > 0 && (
                 <motion.div key="subtopics" initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                   <Box>
                     <HStack justify="space-between" mb={2}>
-                      <SL>Subtopics</SL>
+                      <QuizSectionLabel>Subtopics</QuizSectionLabel>
                       {selectedSubtopics.length > 0 && (
-                        <Text fontSize="xs" color="blue.600" fontWeight="bold">{selectedSubtopics.length} selected ✓</Text>
+                        <Text fontSize="2xs" color="blue.600" fontWeight="bold">{selectedSubtopics.length} ✓</Text>
                       )}
                     </HStack>
-                    <HStack flexWrap="wrap" gap={2}>
+                    <HStack flexWrap="wrap" gap={1.5}>
                       {subtopics.map(st => (
-                        <Button key={st} size="sm" borderRadius="full" h="auto" py={1.5} px={3} fontSize="xs"
+                        <Button key={st} size="xs" borderRadius="full" h="auto" py={1} px={2} fontSize="2xs"
                           variant={selectedSubtopics.includes(st) ? 'solid' : 'outline'}
                           colorScheme={selectedSubtopics.includes(st) ? 'blue' : 'gray'}
-                          fontWeight={selectedSubtopics.includes(st) ? 'bold' : 'normal'}
                           onClick={() => toggleSubtopic(st)} whiteSpace="normal" textAlign="left">
                           {st}
                         </Button>
                       ))}
                     </HStack>
-                    {/* Custom subtopic text input */}
-                    <HStack mt={3} spacing={2}>
+                    <HStack mt={2} spacing={2}>
                       <Input size="sm" value={customSubtopicInput} borderRadius="full"
                         onChange={e => setCustomSubtopicInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomSubtopic(); } }}
-                        placeholder="Type a custom subtopic…"
-                        borderWidth={2} borderColor="blue.200" _focus={{ borderColor: 'blue.500' }} />
-                      <Button size="sm" onClick={addCustomSubtopic} colorScheme="blue" borderRadius="full"
-                        isDisabled={!customSubtopicInput.trim()} flexShrink={0}>
-                        + Add
-                      </Button>
+                        placeholder="Custom subtopic…" fontSize="xs" />
+                      <Button size="xs" onClick={addCustomSubtopic} colorScheme="blue" borderRadius="full"
+                        isDisabled={!customSubtopicInput.trim()} flexShrink={0}>+ Add</Button>
                     </HStack>
                   </Box>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* ── Difficulty ────────────────────────────────────────── */}
             <Box>
-              <SL>Difficulty</SL>
-              <SimpleGrid columns={{ base: 2, sm: 4 }} spacing={3}>
+              <QuizSectionLabel>Difficulty</QuizSectionLabel>
+              <SimpleGrid columns={{ base: 2, sm: 4 }} spacing={2}>
                 {Object.values(DIFFICULTY_LEVELS).map(d => (
                   <Button key={d} variant={difficulty === d ? 'solid' : 'outline'}
                     colorScheme={difficulty === d ? DIFF_CS[d] : 'gray'}
-                    onClick={() => setDifficulty(d)} borderRadius="xl" size="md"
+                    onClick={() => setDifficulty(d)} borderRadius="xl"
+                    size={{ base: 'sm', md: 'md' }} fontSize={{ base: 'xs', md: 'sm' }}
                     fontWeight={difficulty === d ? 'bold' : 'normal'}>
                     {d}
                   </Button>
@@ -322,79 +336,65 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
               </SimpleGrid>
             </Box>
 
-            {/* ── Questions + Time ──────────────────────────────────── */}
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={{ base: 3, md: 5 }}>
               <Box>
-                <SL>Number of Questions</SL>
-                <HStack flexWrap="wrap" gap={2}>
+                <QuizSectionLabel>Questions</QuizSectionLabel>
+                <HStack flexWrap="wrap" gap={1.5}>
                   {QUESTION_PRESETS.map(n => (
-                    <Pill key={n} label={`${n}`} active={questionCount === n} onClick={() => setQuestionCount(n)} />
+                    <QuizPill key={n} label={`${n}`} active={questionCount === n} onClick={() => setQuestionCount(n)} />
                   ))}
                 </HStack>
               </Box>
               <Box>
-                <SL>Time Limit</SL>
-                <HStack flexWrap="wrap" gap={2}>
+                <QuizSectionLabel>Time</QuizSectionLabel>
+                <HStack flexWrap="wrap" gap={1.5}>
                   {TIME_PRESETS.map(t => (
-                    <Pill key={t} label={`${t}m`} active={timeLimit === t} onClick={() => setTimeLimit(t)} cs="teal" />
+                    <QuizPill key={t} label={`${t}m`} active={timeLimit === t} onClick={() => setTimeLimit(t)} cs="teal" />
                   ))}
                 </HStack>
               </Box>
             </SimpleGrid>
 
-            {/* ── Instructions ──────────────────────────────────────── */}
             <FormControl>
-              <FormLabel fontSize="xs" fontWeight="bold" color="gray.500" textTransform="uppercase" letterSpacing="widest" mb={2}>
+              <FormLabel fontSize={{ base: '2xs', sm: 'xs' }} fontWeight="bold" color="gray.500" textTransform="uppercase" mb={2}>
                 Custom Instructions&nbsp;
-                <Text as="span" fontWeight="normal" textTransform="none" letterSpacing="normal" color="gray.400" fontSize="xs">
-                  {subject && subject !== SUBJECTS.OTHER && selectedSubtopics.length === 0
-                    ? '— or enter subtopic here' : '(optional)'}
-                </Text>
+                <Text as="span" fontWeight="normal" textTransform="none" color="gray.400">(optional)</Text>
               </FormLabel>
               <Textarea value={instructions} onChange={e => setInstructions(e.target.value)}
-                placeholder="e.g., MCQ only, scenario-based, tricky, fill in the blanks, word problems…"
-                size="md" rows={3} borderRadius="xl" borderWidth={2} borderColor="blue.200"
-                _focus={{ borderColor: 'blue.500' }} resize="vertical" />
+                placeholder="MCQ only, tricky, word problems…"
+                size="sm" rows={2} borderRadius="xl" resize="vertical" fontSize={{ base: 'sm', md: 'md' }} />
             </FormControl>
 
-            {/* ── Plan limit ────────────────────────────────────────── */}
             {!canTakeQuiz && planInfo && (
-              <Box bg="red.50" borderWidth={2} borderColor="red.200" borderRadius="xl" p={4} textAlign="center">
-                <Text fontSize="sm" color="red.700" fontWeight="bold">🚫 Daily Quiz Limit Reached</Text>
-                <Text fontSize="xs" color="red.600" mt={1}>
-                  Used {planInfo.usage.quizCount} of {planInfo.limits.dailyQuizLimit} quizzes today. Try again tomorrow or upgrade.
-                </Text>
+              <Box bg="red.50" borderWidth={1} borderColor="red.200" borderRadius="xl" p={3} textAlign="center">
+                <Text fontSize="xs" color="red.700" fontWeight="bold">Daily quiz limit reached</Text>
               </Box>
             )}
 
-            <Box bg="blue.50" borderRadius="lg" px={3} py={2} borderWidth={1} borderColor="blue.100">
-              <Text fontSize="xs" color="blue.800">
-                The AI picks which questions need a picture (~20%); images use x/z-image-turbo via Ollama Cloud.
-              </Text>
-            </Box>
-
-            {/* ── Submit ────────────────────────────────────────────── */}
-            <HStack spacing={3} pt={1}>
-              <Button colorScheme="blue" size="lg" onClick={handleSubmit}
+            <HStack spacing={2} pt={1}>
+              <Button colorScheme="blue" size={{ base: 'md', md: 'lg' }} onClick={handleSubmit}
                 isDisabled={!isFormValidWithLimits || isGenerating || submitLocked}
-                flex={1} borderRadius="xl" fontSize="lg" fontWeight="bold" py={6}
-                boxShadow={isFormValidWithLimits && !isGenerating ? 'lg' : 'none'}
-                _hover={isFormValidWithLimits && !isGenerating ? { boxShadow: 'xl', transform: 'translateY(-2px)' } : {}}
-                _disabled={{ opacity: 0.5, cursor: 'not-allowed' }} transition="all 0.3s">
-                {!canTakeQuiz ? '🚫 Limit Reached'
-                  : !profileReady ? 'Complete Profile First'
+                flex={1} borderRadius="xl" fontSize={{ base: 'sm', md: 'lg' }} fontWeight="bold"
+                py={{ base: 5, md: 6 }}>
+                {!canTakeQuiz ? 'Limit reached'
+                  : !profileReady ? 'Complete profile'
                   : isGenerating
                     ? <HStack spacing={2} justify="center">
                         <Spinner size="sm" color="white" />
-                        <Text as="span">Creating{generatingBatch != null && generatingBatch.total > 1 ? ` (${generatingBatch.current}/${generatingBatch.total})` : ''}…</Text>
+                        <Text as="span" fontSize="sm">
+                          {`Creating${
+                            generatingBatch != null && generatingBatch.total > 1
+                              ? ` (${generatingBatch.current}/${generatingBatch.total})`
+                              : ''
+                          }…`}
+                        </Text>
                       </HStack>
-                    : hasPageImages ? 'Generate Quiz from Pages! 📄'
-                    : 'Start Quiz! 🎉'}
+                    : hasPageImages ? 'Quiz from pages 📄'
+                    : isCompetitive ? 'Start competitive quiz 🎯'
+                    : 'Start Quiz 🎉'}
               </Button>
               {isGenerating && onCancelGeneration && (
-                <Button variant="outline" size="lg" onClick={onCancelGeneration} borderRadius="xl" flexShrink={0}>
-                  Cancel
-                </Button>
+                <Button variant="outline" size="sm" onClick={onCancelGeneration} borderRadius="xl">Cancel</Button>
               )}
             </HStack>
 

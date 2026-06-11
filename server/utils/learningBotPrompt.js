@@ -50,11 +50,12 @@ const FORMAT_FOCUS = {
     'Optional: one brief hook card. Do NOT include flashcard or long explanation cards.',
   'studyplan-lesson':
     '\n\nSTUDY FORMAT: Scheduled exam-prep lesson (in-page, not chat)\n' +
+    'When a board (CBSE, ICSE, etc.) or grade is given, tailor facts, tips, and quiz questions to that board syllabus and typical exam style.\n' +
     'Return ONLY these cards in order:\n' +
     '(1) hook — catchy title + 3-4 fun opener bullets that hook curiosity\n' +
     '(2) explanation — title + short body intro AND readMore as the full detailed lesson (5+ paragraphs with examples and analogies)\n' +
-    '(3) text — title "Amazing facts" with 6-10 surprising bullet facts\n' +
-    '(4) text — title "Study tips" with 5-7 practical bullet tips\n' +
+    '(3) text — title "Amazing facts" with 6-10 surprising bullet facts (include board-relevant facts when board is set)\n' +
+    '(4) text — title "Study tips" with 5-7 practical bullet tips (include exam-pattern / marking tips when board is set)\n' +
     '(5) example — at least one example card with exampleEmoji and body showing a real-world use\n' +
     '(6) exactly 15 separate quiz cards — engaging Q&A with 3-4 options each, helpful feedback (minimum 15 questions)\n' +
     'Tone: energetic, kid-friendly, never dry. Do NOT include flashcard, video, or audio cards.',

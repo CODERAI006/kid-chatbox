@@ -26,11 +26,12 @@ import { LearningWorkspaceMessage } from './LearningWorkspaceMessage';
 type Props = {
   planId: string;
   examName: string;
+  examBoard?: string | null;
   day: StudyPlanDay;
   onBack: () => void;
 };
 
-export function StudyPlanLessonView({ planId, examName, day, onBack }: Props) {
+export function StudyPlanLessonView({ planId, examName, examBoard, day, onBack }: Props) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +44,12 @@ export function StudyPlanLessonView({ planId, examName, day, onBack }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await studyPlanApi.generateLesson({ examName, day });
+      const res = await studyPlanApi.generateLesson({
+        examName,
+        day,
+        examBoard: examBoard || undefined,
+        planId,
+      });
       setContent(res.content);
       setCachedLesson(planId, day, res.content);
       setFromCache(false);
@@ -52,7 +58,7 @@ export function StudyPlanLessonView({ planId, examName, day, onBack }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [examName, day, planId]);
+  }, [examName, examBoard, day, planId]);
 
   const loadLesson = useCallback(
     async (forceRegenerate = false) => {
@@ -99,7 +105,7 @@ export function StudyPlanLessonView({ planId, examName, day, onBack }: Props) {
           Day {day.dayNumber} · {formatPlanDate(day.date)}
         </Heading>
         <Text fontSize="sm" color={muted} mt={1}>
-          {examName} — {day.focus}
+          {examName}{examBoard ? ` · ${examBoard}` : ''} — {day.focus}
         </Text>
         <Text fontSize="xs" color={muted} mt={1}>
           Topics: {day.topics.join(', ')}

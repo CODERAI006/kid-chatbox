@@ -16,7 +16,7 @@ const pool = new Pool({
   ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 120_000,
 });
 
 // Test connection
@@ -25,8 +25,7 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Database connection error:', err);
-  process.exit(-1);
+  console.error('❌ Database pool error (server keeps running):', err.message || err);
 });
 
 // Initialize database tables
@@ -46,6 +45,7 @@ const initializeDatabase = async () => {
     const { migrateQuizSubtopics } = require('../scripts/migrate-quiz-subtopics');
     const { migrateOllamaCloudSettings } = require('../scripts/migrate-ollama-cloud-settings');
     const { migrateStudyPlan } = require('../scripts/migrate-study-plan');
+    const { migrateCompetitiveTopics } = require('../scripts/migrate-competitive-topics');
     const { migrateWordOfDaySettings } = require('../scripts/migrate-word-of-day-settings');
     // Run comprehensive schema migration
     await migrateSchema();
@@ -68,11 +68,13 @@ const initializeDatabase = async () => {
     await migrateOllamaCloudSettings();
     await migrateWordOfDaySettings();
     await migrateStudyPlan();
+    await migrateCompetitiveTopics();
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
-    console.error('❌ Error initializing database:', error);
-    throw error;
+    console.error('❌ Error initializing database (server will start without DB):', error.message || error);
+    return false;
   }
+  return true;
 };
 
 module.exports = {

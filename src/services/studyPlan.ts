@@ -1,9 +1,10 @@
 import { apiClient } from './api';
-import type { StudyPlanDay } from '@/utils/studyPlanSchedule';
+import type { DailySubtopic, StudyPlanDay } from '@/utils/studyPlanSchedule';
 
 export type StudyPlanRecord = {
   id: string;
   examName: string;
+  examBoard?: string | null;
   examDate: string;
   hoursPerDay: number;
   schedule: StudyPlanDay[];
@@ -13,6 +14,24 @@ export type StudyPlanRecord = {
 };
 
 export const studyPlanApi = {
+  list: async (): Promise<{
+    plans: StudyPlanRecord[];
+    activePlan: StudyPlanRecord | null;
+    today: StudyPlanDay | null;
+  }> => {
+    const res = await apiClient.get<{
+      success: boolean;
+      plans: StudyPlanRecord[];
+      activePlan: StudyPlanRecord | null;
+      today: StudyPlanDay | null;
+    }>('/study-plan/list');
+    return {
+      plans: res.data.plans ?? [],
+      activePlan: res.data.activePlan,
+      today: res.data.today,
+    };
+  },
+
   getActive: async (): Promise<{ plan: StudyPlanRecord | null; today: StudyPlanDay | null }> => {
     const res = await apiClient.get<{
       success: boolean;
@@ -41,6 +60,8 @@ export const studyPlanApi = {
   generateLesson: async (payload: {
     examName: string;
     day: StudyPlanDay;
+    examBoard?: string | null;
+    planId?: string;
   }): Promise<{ content: string; structured?: Record<string, unknown> | null }> => {
     const res = await apiClient.post<{
       success: boolean;
@@ -54,11 +75,29 @@ export const studyPlanApi = {
     return { content: res.data.content, structured: res.data.structured ?? null };
   },
 
+  expandSchedule: async (payload: {
+    examName: string;
+    topics: string[];
+    studyDayCount: number;
+    examBoard?: string;
+  }): Promise<{ subtopics: DailySubtopic[] }> => {
+    const res = await apiClient.post<{
+      success: boolean;
+      subtopics?: DailySubtopic[];
+      message?: string;
+    }>('/study-plan/expand-schedule', payload);
+    if (!res.data.success || !Array.isArray(res.data.subtopics)) {
+      throw new Error(res.data.message || 'Could not expand topics into daily sub-topics');
+    }
+    return { subtopics: res.data.subtopics };
+  },
+
   create: async (payload: {
     examName: string;
     examDate: string;
     hoursPerDay: number;
     schedule: StudyPlanDay[];
+    examBoard?: string;
   }): Promise<{ plan: StudyPlanRecord; today: StudyPlanDay | null }> => {
     const res = await apiClient.post<{
       success: boolean;

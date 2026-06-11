@@ -10,14 +10,12 @@ import { LearningConversationalMessage } from './LearningConversationalMessage';
 import { LearningWorkspaceMessage } from './LearningWorkspaceMessage';
 import { LearningChatComposer } from './LearningChatComposer';
 import { GuruChatHeader } from './GuruChatHeader';
-import { StudyPlanTodayBanner } from './StudyPlanTodayBanner';
 import { chatMessageContainerProps, chatResponsiveTextSx } from './chatResponsiveStyles';
 import type { useVoiceConversation } from '@/hooks/useVoiceConversation';
 
 type VoiceState = ReturnType<typeof useVoiceConversation>;
 
 export interface LearningChatPanelContentProps {
-  currentTopic: string;
   userName?: string;
   messages: LearningBotUiMessage[];
   chatMode: LearningBotMode;
@@ -38,8 +36,6 @@ export interface LearningChatPanelContentProps {
   onHistoryOpen: () => void;
   onNewTopic: () => void;
   onShare?: () => void;
-  shareText?: string;
-  isNewChat?: boolean;
   onDownload?: () => void;
   onSend: () => void;
   onSendText: (
@@ -51,7 +47,6 @@ export interface LearningChatPanelContentProps {
 }
 
 export function LearningChatPanelContent({
-  currentTopic,
   userName,
   messages,
   chatMode,
@@ -72,8 +67,6 @@ export function LearningChatPanelContent({
   onHistoryOpen,
   onNewTopic,
   onShare,
-  shareText,
-  isNewChat,
   onDownload,
   onSend,
   onSendText,
@@ -88,11 +81,8 @@ export function LearningChatPanelContent({
   return (
     <Box flex={1} minH={0} minW={0} display="flex" flexDirection="column" overflow="hidden">
       <GuruChatHeader
-        currentTopic={currentTopic}
         userName={userName}
         isChatActive={isChatActive}
-        isNewChat={isNewChat}
-        shareText={shareText}
         panelBorder={panelBorder}
         onClose={onClose}
         onHistoryOpen={onHistoryOpen}
@@ -131,11 +121,6 @@ export function LearningChatPanelContent({
             </HStack>
           ) : (
             <VStack align="stretch" spacing={3} {...chatMessageContainerProps}>
-              <StudyPlanTodayBanner
-                disabled={pending}
-                onStartToday={(text) => void onSendText(text, { mode: 'workspace', format: 'studyplan' })}
-              />
-
               {showOnboarding && (
                 <LearningFormatOnboarding
                   disabled={pending}

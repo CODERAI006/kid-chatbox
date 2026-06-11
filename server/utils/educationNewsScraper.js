@@ -1,0 +1,217 @@
+/**
+ * RSS + lightweight HTML scraping for kid education news (no external news API).
+ */
+
+const Parser = require('rss-parser');
+const cheerio = require('cheerio');
+const { EDUCATION_CATEGORIES } = require('./educationNewsCategories');
+
+const parser = new Parser({
+  timeout: 12000,
+  customFields: {
+    item: [
+      ['media:content', 'mediaContent', { keepArray: true }],
+      ['media:thumbnail', 'mediaThumbnail', { keepArray: true }],
+    ],
+  },
+});
+
+const FEEDS_BY_CATEGORY = {
+  science: [
+    'https://www.nasa.gov/rss/dyn/breaking_news.rss',
+    'https://www.sciencedaily.com/rss/all.xml',
+  ],
+  history: [
+    'https://www.history.com/.rss/full',
+  ],
+  geography: [],
+  current_affairs: [
+    'https://www.isro.gov.in/rss/isro.rss',
+  ],
+  general_knowledge: [],
+};
+
+const CACHE_TTL_MS = 45 * 60 * 1000;
+const cache = new Map();
+
+function googleNewsRss(query) {
+  const q = encodeURIComponent(query);
+  return `https://news.google.com/rss/search?q=${q}&hl=en-IN&gl=IN&ceid=IN:en`;
+}
+
+function cacheKey(categoryId) {
+  return `edu_news_${categoryId}_${new Date().toISOString().slice(0, 10)}`;
+}
+
+function pickImage(item) {
+  if (item.enclosure?.url && /\.(jpg|jpeg|png|webp|gif)/i.test(item.enclosure.url)) {
+    return item.enclosure.url;
+  }
+  const media = item.mediaContent?.[0]?.$ || item.mediaThumbnail?.[0]?.$;
+  if (media?.url) return media.url;
+  const html = item.content || item['content:encoded'] || item.summary || '';
+  const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return imgMatch?.[1] || null;
+}
+
+function stripHtml(html) {
+  if (!html) return '';
+  return cheerio.load(html).text().replace(/\s+/g, ' ').trim();
+}
+
+function normalizeItem(item, categoryId, sourceName) {
+  const title = (item.title || '').trim();
+  const link = item.link || item.guid || '';
+  if (!title || !link) return null;
+
+  const rawDesc = item.contentSnippet || stripHtml(item.content) || item.summary || '';
+  const description = rawDesc.slice(0, 320);
+
+  return {
+    id: `${categoryId}_${Buffer.from(link).toString('base64url').slice(0, 16)}`,
+    category: categoryId,
+    title,
+    description,
+    summary: description,
+    url: link,
+    urlToImage: pickImage(item),
+    source: { id: null, name: sourceName || 'Education Feed' },
+    author: item.creator || item.author || sourceName || 'Editor',
+    publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
+    content: null,
+    funFact: null,
+    relatedTopics: [],
+    kidSummary: null,
+    readTimeMinutes: Math.max(2, Math.ceil(description.split(/\s+/).length / 120)),
+  };
+}
+
+async function fetchFeed(url) {
+  try {
+    const feed = await parser.parseURL(url);
+    return { title: feed.title || 'News', items: feed.items || [] };
+  } catch (err) {
+    console.warn('[educationNewsScraper] feed failed:', url, err.message);
+    return { title: 'News', items: [] };
+  }
+}
+
+async function fetchOgImage(pageUrl) {
+  try {
+    const res = await fetch(pageUrl, {
+      headers: { 'User-Agent': 'KidChatbox-EducationBot/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    return $('meta[property="og:image"]').attr('content')
+      || $('meta[name="twitter:image"]').attr('content')
+      || null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWikipediaSummaries(categoryId, limit = 4) {
+  const cat = EDUCATION_CATEGORIES.find((c) => c.id === categoryId);
+  if (!cat) return [];
+
+  try {
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cat.searchTerms)}&format=json&srlimit=${limit}&origin=*`;
+    const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(10000) });
+    const searchData = await searchRes.json();
+    const titles = (searchData.query?.search || []).map((s) => s.title).slice(0, limit);
+    if (!titles.length) return [];
+
+    const summaries = await Promise.all(titles.map(async (title) => {
+      try {
+        const sumUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const r = await fetch(sumUrl, { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) return null;
+        const data = await r.json();
+        return normalizeItem({
+          title: data.title,
+          link: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+          contentSnippet: data.extract,
+          isoDate: new Date().toISOString(),
+          creator: 'Wikipedia',
+          enclosure: data.thumbnail?.source ? { url: data.thumbnail.source } : undefined,
+        }, categoryId, 'Wikipedia');
+      } catch {
+        return null;
+      }
+    }));
+
+    return summaries.filter(Boolean);
+  } catch (err) {
+    console.warn('[educationNewsScraper] Wikipedia failed:', err.message);
+    return [];
+  }
+}
+
+function categoryFeedUrls(categoryId) {
+  const cat = EDUCATION_CATEGORIES.find((c) => c.id === categoryId);
+  const staticFeeds = FEEDS_BY_CATEGORY[categoryId] || [];
+  const googleFeed = cat ? [googleNewsRss(cat.searchTerms)] : [];
+  return [...staticFeeds, ...googleFeed];
+}
+
+async function scrapeCategory(categoryId, { maxItems = 24, bypassCache = false } = {}) {
+  const key = cacheKey(categoryId);
+  const hit = cache.get(key);
+  if (!bypassCache && hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    return hit.articles;
+  }
+
+  const feeds = categoryFeedUrls(categoryId);
+  const feedResults = await Promise.all(feeds.map(fetchFeed));
+  const wikiArticles = await fetchWikipediaSummaries(categoryId, 5);
+
+  const seen = new Set();
+  const articles = [];
+
+  for (const feed of feedResults) {
+    for (const item of feed.items) {
+      const normalized = normalizeItem(item, categoryId, feed.title);
+      if (!normalized || seen.has(normalized.url)) continue;
+      seen.add(normalized.url);
+      articles.push(normalized);
+      if (articles.length >= maxItems) break;
+    }
+    if (articles.length >= maxItems) break;
+  }
+
+  for (const w of wikiArticles) {
+    if (!seen.has(w.url)) {
+      seen.add(w.url);
+      articles.push(w);
+    }
+  }
+
+  articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+  const needImages = articles.filter((a) => !a.urlToImage).slice(0, 6);
+  await Promise.all(needImages.map(async (a) => {
+    const img = await fetchOgImage(a.url);
+    if (img) a.urlToImage = img;
+  }));
+
+  cache.set(key, { at: Date.now(), articles });
+  return articles;
+}
+
+async function scrapeAllCategories({ maxPerCategory = 8 } = {}) {
+  const all = [];
+  for (const cat of EDUCATION_CATEGORIES) {
+    const items = await scrapeCategory(cat.id, { maxItems: maxPerCategory });
+    all.push(...items);
+  }
+  all.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  return all;
+}
+
+module.exports = {
+  scrapeCategory,
+  scrapeAllCategories,
+};

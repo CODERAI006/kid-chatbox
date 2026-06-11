@@ -44,7 +44,7 @@ function pageHint(pathname: string, hash: string): string | null {
   if (pathname === '/past-chats') return 'Past Guru conversations';
   if (pathname === '/profile') return 'Account & settings';
   if (pathname === '/quiz-rankings') return 'Leaderboard';
-  if (pathname === '/news') return 'Education news';
+  if (pathname === '/news') return 'Facts & Fun';
   if (pathname.startsWith('/word-of-day')) return 'Word of the day';
   if (pathname.startsWith('/study-library')) return 'Study library';
   return 'Keep learning today';

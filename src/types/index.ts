@@ -6,3 +6,5 @@ export * from './quiz';
 export * from './auth';
 export * from './api';
 export * from './news';
+export * from './educationNews';
+export * from './dailyFacts';

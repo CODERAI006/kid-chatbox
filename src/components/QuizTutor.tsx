@@ -133,6 +133,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
     gradeLevel?: string;
     sampleQuestion?: string;
     examStyle?: string;
+    competitiveTrack?: string;
     sourceImages?: string[];
   }) => {
     // A slower duplicate invocation must not start another job after one is already running.
@@ -202,6 +203,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
         gradeLevel: quizConfig.gradeLevel,
         sampleQuestion: quizConfig.sampleQuestion,
         examStyle: quizConfig.examStyle,
+        competitiveTrack: quizConfig.competitiveTrack,
       };
 
       quizGenAbortRef.current?.abort();
@@ -1094,7 +1096,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
 
     return (
       <>
-        <Box padding={{ base: 4, md: 6 }} maxWidth="800px" marginX="auto">
+        <Box padding={{ base: 2, sm: 3, md: 6 }} maxWidth="800px" marginX="auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

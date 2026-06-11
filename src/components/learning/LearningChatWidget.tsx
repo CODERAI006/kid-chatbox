@@ -28,6 +28,9 @@ import { inferStudyFormat } from '@/utils/inferStudyFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { buildNewChatShareText, shareOrCopyText } from '@/utils/chatShare';
 import { buildStudyPlanPrompt, type StudyPlanDay } from '@/utils/studyPlanSchedule';
+import { MOBILE_BOTTOM_NAV_HEIGHT } from '@/components/layout/MobileBottomNav';
+
+const STUDENT_HEADER_HEIGHT = '73px';
 
 const WELCOME_TOPIC = 'Pick a format to start';
 
@@ -377,8 +380,6 @@ export const LearningChatWidget: FC = () => {
   };
 
   const showOnboarding = messages.length === 0 && !bootLoading;
-  const isNewChat = showOnboarding;
-  const shareText = buildNewChatShareText(currentTopic);
 
   const handleShare = useCallback(async () => {
     const result = await shareOrCopyText(buildNewChatShareText(currentTopic));
@@ -409,7 +410,6 @@ export const LearningChatWidget: FC = () => {
   });
 
   const panelProps = {
-    currentTopic,
     userName,
     messages,
     chatMode,
@@ -430,8 +430,6 @@ export const LearningChatWidget: FC = () => {
     onHistoryOpen: historyDrawer.onOpen,
     onNewTopic: () => void startNewTopic(),
     onShare: () => void handleShare(),
-    shareText,
-    isNewChat,
     onSend: () => void send(),
     onSendText: sendText,
     onKeyDown,
@@ -491,13 +489,20 @@ export const LearningChatWidget: FC = () => {
         <Box
           data-chat-overlay
           position="fixed"
-          bottom={{ base: 0, sm: 2 }}
+          top={{ base: STUDENT_HEADER_HEIGHT, sm: 'auto' }}
+          bottom={{
+            base: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + env(safe-area-inset-bottom, 0px))`,
+            sm: 2,
+          }}
           right={{ base: 0, sm: 2 }}
           left={{ base: 0, sm: 2 }}
           zIndex={1500}
           maxW="100%"
           minW={0}
-          h={{ base: '100dvh', sm: 'min(92dvh, 820px)' }}
+          h={{
+            base: `calc(100dvh - ${STUDENT_HEADER_HEIGHT} - ${MOBILE_BOTTOM_NAV_HEIGHT} - env(safe-area-inset-bottom, 0px))`,
+            sm: 'min(92dvh, 820px)',
+          }}
           bg={panelBg}
           borderWidth="1px"
           borderColor={panelBorder}

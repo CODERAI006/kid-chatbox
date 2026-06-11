@@ -16,8 +16,14 @@ import {
   VStack,
   useColorModeValue,
 } from '@/shared/design-system';
+import { EXAM_BOARDS } from '@/constants/examBoard';
 import { FiMic } from 'react-icons/fi';
-import { buildExamSchedule, buildStudyPlanPrompt } from '@/utils/studyPlanSchedule';
+import {
+  buildExamSchedule,
+  buildFallbackSubtopics,
+  buildStudyPlanPrompt,
+  getScheduleDimensions,
+} from '@/utils/studyPlanSchedule';
 import { studyPlanApi } from '@/services/studyPlan';
 import { getErrorMessage } from '@/services/api';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -41,6 +47,7 @@ export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack, skipChatL
   const [topicsRaw, setTopicsRaw] = useState('');
   const [examDate, setExamDate] = useState(defaultExamDate);
   const [hoursPerDay, setHoursPerDay] = useState(1.5);
+  const [examBoard, setExamBoard] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const keepListeningRef = useRef(false);
@@ -101,12 +108,15 @@ export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack, skipChatL
     start.setHours(0, 0, 0, 0);
     const end = new Date(examDate);
     if (end <= start) return null;
+    const { studySlotDays } = getScheduleDimensions(start, end);
+    const dailySubtopics = buildFallbackSubtopics(topics, studySlotDays);
     return buildExamSchedule({
       examName: examName.trim(),
       topics,
       startDate: start,
       examDate: end,
       hoursPerDay,
+      dailySubtopics,
     });
   }, [examName, topicsRaw, examDate, hoursPerDay]);
 
@@ -118,13 +128,36 @@ export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack, skipChatL
     setSaving(true);
     setError(null);
     try {
+      const topics = topicsRaw.split(/[\n,]+/).map((t) => t.trim()).filter(Boolean);
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(examDate);
+      const { studySlotDays } = getScheduleDimensions(start, end);
+
+      const { subtopics } = await studyPlanApi.expandSchedule({
+        examName: examName.trim(),
+        topics,
+        studyDayCount: studySlotDays,
+        examBoard: examBoard.trim() || undefined,
+      });
+
+      const schedule = buildExamSchedule({
+        examName: examName.trim(),
+        topics,
+        startDate: start,
+        examDate: end,
+        hoursPerDay,
+        dailySubtopics: subtopics,
+      });
+
       const { today } = await studyPlanApi.create({
         examName: examName.trim(),
         examDate,
         hoursPerDay,
-        schedule: preview,
+        schedule,
+        examBoard: examBoard.trim() || undefined,
       });
-      const day = today || preview[0];
+      const day = today || schedule[0];
       window.dispatchEvent(new CustomEvent('study-plan:updated'));
       onPlanCreated({
         examName: examName.trim(),
@@ -193,6 +226,26 @@ export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack, skipChatL
       )}
       {micError && <Text fontSize="xs" color="orange.600">{micError}</Text>}
 
+      <Text fontSize="sm" fontWeight="semibold">Board (optional)</Text>
+      <Text fontSize="xs" color="gray.600" mb={1}>
+        Lessons will include more board-specific facts, tips, and exam-style questions.
+      </Text>
+      <HStack spacing={2} flexWrap="wrap">
+        {EXAM_BOARDS.map((board) => (
+          <Button
+            key={board}
+            size="xs"
+            variant={examBoard === board ? 'solid' : 'outline'}
+            colorScheme={examBoard === board ? 'purple' : 'gray'}
+            borderRadius="full"
+            onClick={() => setExamBoard(examBoard === board ? '' : board)}
+            isDisabled={disabled || saving}
+          >
+            {board}
+          </Button>
+        ))}
+      </HStack>
+
       <Text fontSize="sm" fontWeight="semibold">Exam date</Text>
       <Input
         type="date"
@@ -218,7 +271,10 @@ export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack, skipChatL
         <Box fontSize="xs" color="gray.600" p={2} borderWidth="1px" borderRadius="md">
           <Text fontWeight="bold" mb={1}>{preview.length}-day plan ready</Text>
           <Text>Day 1: {preview[0].topics.join(', ')}</Text>
-          <Text>Day {preview.length}: {preview[preview.length - 1].focus}</Text>
+          <Text>Day 2: {preview[1]?.topics.join(', ') ?? '…'}</Text>
+          <Text fontSize="2xs" mt={1}>
+            AI will generate unique sub-topics for each day when you create the schedule.
+          </Text>
         </Box>
       )}
 
@@ -227,6 +283,7 @@ export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack, skipChatL
       <Button
         colorScheme="purple"
         onClick={() => void submit()}
+        loadingText="Building daily sub-topics…"
         isLoading={saving}
         isDisabled={disabled || !preview?.length}
       >

@@ -19,7 +19,8 @@ export interface QuizConfig {
   timeLimit?: number; // Optional time limit in minutes
   gradeLevel?: string; // Optional class/grade level
   sampleQuestion?: string; // Optional sample question or pattern
-  examStyle?: string; // Optional exam style (CBSE, NCERT, Olympiad, competitive)
+  examStyle?: string; // Optional exam style (CBSE, NCERT, Olympiad, Competitive)
+  competitiveTrack?: string; // e.g. engineering, mbbs — when examStyle is Competitive
 }
 
 export interface Question {

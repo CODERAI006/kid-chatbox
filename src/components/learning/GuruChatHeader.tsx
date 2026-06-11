@@ -1,8 +1,7 @@
 /**
  * Responsive Guru AI chat panel header with active-chat green animation.
  */
-import { useState } from 'react';
-import { Box, Button, Flex, HStack, IconButton, Text } from '@/shared/design-system';
+import { Box, Flex, HStack, IconButton, Text } from '@/shared/design-system';
 import { keyframes } from '@emotion/react';
 import { APP_CONSTANTS } from '@/constants/app';
 
@@ -23,21 +22,9 @@ function firstName(name?: string): string {
   return first || 'there';
 }
 
-function parseTopicDisplay(currentTopic: string): { prefix?: string; topic: string } {
-  const sep = ' · ';
-  const idx = currentTopic.indexOf(sep);
-  if (idx >= 0) {
-    return { prefix: currentTopic.slice(0, idx), topic: currentTopic.slice(idx + sep.length) };
-  }
-  return { topic: currentTopic };
-}
-
 export interface GuruChatHeaderProps {
-  currentTopic: string;
   userName?: string;
   isChatActive: boolean;
-  isNewChat?: boolean;
-  shareText?: string;
   panelBorder: string;
   onClose: () => void;
   onHistoryOpen: () => void;
@@ -47,11 +34,8 @@ export interface GuruChatHeaderProps {
 }
 
 export function GuruChatHeader({
-  currentTopic,
   userName,
   isChatActive,
-  isNewChat = false,
-  shareText,
   panelBorder,
   onClose,
   onHistoryOpen,
@@ -59,21 +43,12 @@ export function GuruChatHeader({
   onDownload,
   onShare,
 }: GuruChatHeaderProps) {
-  const [shareHint, setShareHint] = useState<string | null>(null);
   const displayName = firstName(userName);
-  const { prefix, topic } = parseTopicDisplay(currentTopic);
 
   const ghostProps = {
     variant: 'ghost' as const,
     color: 'white',
     _hover: { bg: 'whiteAlpha.200' },
-  };
-
-  const handleShare = () => {
-    if (!onShare) return;
-    onShare();
-    setShareHint('Link copied — share with a friend!');
-    window.setTimeout(() => setShareHint(null), 2500);
   };
 
   return (
@@ -91,7 +66,6 @@ export function GuruChatHeader({
       position="relative"
       overflow="hidden"
       flexWrap="nowrap"
-      flexDirection="column"
     >
       {isChatActive && (
         <Box
@@ -133,96 +107,37 @@ export function GuruChatHeader({
               {displayName}
             </Text>
           </Text>
-          <Text fontSize="xs" mt={0.5} noOfLines={1}>
-            {prefix && (
-              <Text as="span" opacity={0.85} mr={1}>
-                {prefix}
-              </Text>
-            )}
-            <Text
-              as="span"
-              fontWeight="bold"
-              px={1.5}
-              py={0.5}
-              borderRadius="md"
-              bg="whiteAlpha.300"
-              color="yellow.100"
-              boxShadow="sm"
-            >
-              {topic}
-            </Text>
-          </Text>
         </Box>
 
         <HStack spacing={{ base: 0, sm: 1 }} flexShrink={0}>
-          {onShare && (
-            <Button
-              size="xs"
-              {...ghostProps}
-              display={{ base: 'none', md: 'inline-flex' }}
-              onClick={handleShare}
-            >
-              Share
-            </Button>
-          )}
           {onShare && (
             <IconButton
               aria-label="Share chat"
               size="sm"
               {...ghostProps}
-              display={{ base: 'inline-flex', md: 'none' }}
               icon={<Text fontSize="sm">🔗</Text>}
-              onClick={handleShare}
+              onClick={onShare}
             />
           )}
-          <Button
-            size="xs"
-            {...ghostProps}
-            display={{ base: 'none', md: 'inline-flex' }}
-            onClick={onHistoryOpen}
-          >
-            Saved chats
-          </Button>
           <IconButton
             aria-label="Saved chats"
             size="sm"
             {...ghostProps}
-            display={{ base: 'inline-flex', md: 'none' }}
             icon={<Text fontSize="sm">📁</Text>}
             onClick={onHistoryOpen}
           />
-          <Button
-            size="xs"
-            {...ghostProps}
-            display={{ base: 'none', md: 'inline-flex' }}
-            onClick={onNewTopic}
-          >
-            New topic
-          </Button>
           <IconButton
             aria-label="New topic"
             size="sm"
             {...ghostProps}
-            display={{ base: 'inline-flex', md: 'none' }}
             icon={<Text fontSize="sm">➕</Text>}
             onClick={onNewTopic}
           />
-          {onDownload && (
-            <Button
-              size="xs"
-              {...ghostProps}
-              display={{ base: 'none', md: 'inline-flex' }}
-              onClick={onDownload}
-            >
-              ⬇ Export
-            </Button>
-          )}
           {onDownload && (
             <IconButton
               aria-label="Export PDF"
               size="sm"
               {...ghostProps}
-              display={{ base: 'inline-flex', md: 'none' }}
               icon={<Text fontSize="sm">⬇</Text>}
               onClick={onDownload}
             />
@@ -236,12 +151,6 @@ export function GuruChatHeader({
           />
         </HStack>
       </Flex>
-
-      {(isNewChat || shareHint) && (
-        <Text w="100%" fontSize="2xs" opacity={0.85} noOfLines={2} textAlign="left">
-          {shareHint || shareText}
-        </Text>
-      )}
     </Flex>
   );
 }

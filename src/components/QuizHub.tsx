@@ -176,16 +176,16 @@ export const QuizHub: React.FC = () => {
   return (
     <Box minH="100vh" bg="gray.50">
       {/* Page header */}
-      <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6} py={4}>
-        <HStack spacing={3} align="flex-start" justify="space-between" flexWrap="wrap" rowGap={3} w="100%">
-          <HStack spacing={3} flex={1} minW={0}>
-            <Text fontSize="2xl">🎯</Text>
-            <Box>
-              <Heading size="md" color="blue.700">
+      <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={{ base: 3, md: 6 }} py={{ base: 3, md: 4 }}>
+        <HStack spacing={{ base: 2, md: 3 }} align="flex-start" justify="space-between" flexWrap="wrap" rowGap={2} w="100%">
+          <HStack spacing={{ base: 2, md: 3 }} flex={1} minW={0}>
+            <Text fontSize={{ base: 'xl', md: '2xl' }} flexShrink={0}>🎯</Text>
+            <Box minW={0}>
+              <Heading size={{ base: 'sm', md: 'md' }} color="blue.700">
                 Quiz Hub
               </Heading>
-              <Text fontSize="sm" color="gray.500">
-                Take AI quizzes, join scheduled tests, and review your results — all in one place
+              <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="gray.500" noOfLines={2}>
+                AI quizzes, scheduled tests, and your results
               </Text>
             </Box>
           </HStack>
@@ -299,7 +299,7 @@ export const QuizHub: React.FC = () => {
         )}
       </Box>
 
-      <Box px={6} pt={4}>
+      <Box px={{ base: 2, md: 6 }} pt={{ base: 2, md: 4 }}>
         <TodaysQuizzes />
       </Box>
 
@@ -311,32 +311,55 @@ export const QuizHub: React.FC = () => {
         colorScheme="blue"
         variant="enclosed"
       >
-        <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={6}>
-          <TabList border="none">
-            {/* AI Quiz tab — always visible to admin, conditionally to students */}
+        <Box bg="white" borderBottomWidth="1px" borderColor="gray.200" px={{ base: 1, md: 6 }} overflowX="auto">
+          <TabList border="none" flexWrap={{ base: 'nowrap', md: 'wrap' }} minW="min-content">
             {(isAdmin || aiVisibleForUser) && (
-              <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
-                🤖 AI Quiz Mode
+              <Tab
+                fontWeight="semibold"
+                fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+                px={{ base: 2, md: 4 }}
+                whiteSpace="nowrap"
+                _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+              >
+                🤖 AI Quiz
                 {isAdmin && !aiGloballyVisible && (
-                  <Badge ml={2} colorScheme="orange" fontSize="xs">Hidden</Badge>
+                  <Badge ml={1} colorScheme="orange" fontSize="2xs">Hidden</Badge>
                 )}
               </Tab>
             )}
-            <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
-              📅 Scheduled Tests
+            <Tab
+              fontWeight="semibold"
+              fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+              px={{ base: 2, md: 4 }}
+              whiteSpace="nowrap"
+              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+            >
+              📅 Scheduled
               {liveCount !== null && liveCount > 0 && (
-                <Badge ml={2} colorScheme="green" borderRadius="full">
-                  {liveCount} Live
+                <Badge ml={1} colorScheme="green" borderRadius="full" fontSize="2xs">
+                  {liveCount}
                 </Badge>
               )}
             </Tab>
-            <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
-              📚 Quiz Library
+            <Tab
+              fontWeight="semibold"
+              fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+              px={{ base: 2, md: 4 }}
+              whiteSpace="nowrap"
+              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+            >
+              📚 Library
             </Tab>
-            <Tab fontWeight="semibold" _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}>
-              📋 Quiz History
+            <Tab
+              fontWeight="semibold"
+              fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+              px={{ base: 2, md: 4 }}
+              whiteSpace="nowrap"
+              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+            >
+              📋 History
               {historyCount !== null && historyCount > 0 && (
-                <Badge ml={2} colorScheme="blue" borderRadius="full">
+                <Badge ml={1} colorScheme="blue" borderRadius="full" fontSize="2xs">
                   {historyCount}
                 </Badge>
               )}
@@ -366,7 +389,7 @@ export const QuizHub: React.FC = () => {
           )}
 
           {/* Scheduled Tests */}
-          <TabPanel p={4}>
+          <TabPanel p={{ base: 2, md: 4 }}>
             <ScheduledTests />
           </TabPanel>
 

@@ -34,9 +34,11 @@ const scheduledTestsRoutes = require('./routes/scheduled-tests');
 const quizLibraryRoutes = require('./routes/quiz-library');
 const publicRoutes = require('./routes/public');
 const wordsOfDayRoutes = require('./routes/words-of-day');
+const factsAndFunRoutes = require('./routes/facts-and-fun');
 const aiRoutes = require('./routes/ai');
 const learningBotRoutes = require('./routes/learning-bot');
 const studyPlanRoutes = require('./routes/study-plan');
+const competitiveTopicsRoutes = require('./routes/competitive-topics');
 const ttsRoutes = require('./routes/tts');
 const quizSchedulerRoutes = require('./routes/quiz-scheduler');
 const bulkExamUploadRoutes = require('./routes/bulk-exam-upload');
@@ -109,10 +111,12 @@ app.use('/api/plans', plansRoutes);
 app.use('/api/scheduled-tests', scheduledTestsRoutes);
 app.use('/api/quiz-library', quizLibraryRoutes);
 app.use('/api/public/words-of-day', wordsOfDayRoutes);
+app.use('/api/public/facts-and-fun', factsAndFunRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/learning-bot', learningBotRoutes);
 app.use('/api/study-plan', studyPlanRoutes);
+app.use('/api/competitive-topics', competitiveTopicsRoutes);
 app.use('/api/tts', ttsRoutes);
 app.use('/api/quiz-scheduler', quizSchedulerRoutes);
 app.use('/api/bulk-exam-upload', bulkExamUploadRoutes);
@@ -154,20 +158,27 @@ app.use((err, req, res, next) => {
 const { loadOllamaCloudSettings } = require('./utils/ollamaCloudSettings');
 
 const startServer = async () => {
-  try {
-    await initializeDatabase();
-    await loadOllamaCloudSettings();
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
-      console.log(`🌍 Environment: ${NODE_ENV}`);
-      // Start quiz scheduler after server is up
-      startScheduler();
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+  const dbReady = await initializeDatabase();
+  if (!dbReady) {
+    console.warn('⚠️  Database unavailable — API routes needing Postgres may fail until DB is reachable.');
   }
+
+  try {
+    await loadOllamaCloudSettings();
+  } catch (error) {
+    console.warn('⚠️  Ollama settings load failed (non-fatal):', error.message || error);
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
+    console.log(`🌍 Environment: ${NODE_ENV}`);
+    if (dbReady) {
+      startScheduler();
+    } else {
+      console.warn('⚠️  Quiz scheduler skipped until database is initialized.');
+    }
+  });
 };
 
 startServer();

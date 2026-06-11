@@ -41,7 +41,7 @@ const navItems = [
   { path: '/past-chats', label: 'Past Chats', icon: '💬' },
   { path: '/my-schedules', label: 'My Schedules', icon: '📅' },
   { path: '__guru_chat__', label: 'Guru AI Chat', icon: '🧘' },
-  { path: '/news', label: 'Education News', icon: '📰' },
+  { path: '/news', label: 'Facts & Fun', icon: '💡' },
   { path: '/profile', label: 'My Profile', icon: '👤' },
 ];
 

@@ -49,11 +49,11 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
     <VStack spacing={6} width="100%" maxW="720px" mx="auto" align="stretch">
       <Box>
         <HStack justify="space-between" mb={2}>
-          <Text fontSize="sm" fontWeight="bold" color="blue.700">
-            Question {currentIndex + 1} / {questions.length}
+          <Text fontSize={{ base: 'sm', md: 'lg' }} fontWeight="bold" color="blue.700">
+            Q {currentIndex + 1}/{questions.length}
           </Text>
-          <Button size="xs" variant="link" colorScheme="blue" onClick={onShowOverview}>
-            See all questions
+          <Button size="xs" variant="link" colorScheme="blue" onClick={onShowOverview} fontSize="2xs">
+            All
           </Button>
         </HStack>
         <Progress value={progress} size="sm" colorScheme="blue" borderRadius="full" hasStripe />
@@ -72,11 +72,11 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
             bg="linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%)"
             borderWidth="1px"
             borderColor="blue.100"
-            p={{ base: 5, md: 8 }}
+            p={{ base: 3, sm: 4, md: 8 }}
             boxShadow="xl"
           >
             <Text
-              fontSize={{ base: 'lg', md: 'xl' }}
+              fontSize={{ base: 'sm', sm: 'md', md: 'xl' }}
               fontWeight="bold"
               color="gray.800"
               lineHeight="tall"
@@ -102,8 +102,8 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
                     <Button
                       width="100%"
                       height="auto"
-                      py={4}
-                      px={4}
+                      py={{ base: 3, md: 4 }}
+                      px={{ base: 3, md: 4 }}
                       justifyContent="flex-start"
                       whiteSpace="normal"
                       textAlign="left"
@@ -115,8 +115,8 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
                       onClick={() => onAnswerSelect(q.number, opt.key)}
                       leftIcon={
                         <Box
-                          minW="36px"
-                          h="36px"
+                          minW={{ base: '28px', md: '36px' }}
+                          h={{ base: '28px', md: '36px' }}
                           borderRadius="full"
                           bg={isOn ? 'whiteAlpha.300' : 'blue.50'}
                           color={isOn ? 'white' : 'blue.600'}
@@ -124,13 +124,13 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
                           alignItems="center"
                           justifyContent="center"
                           fontWeight="black"
-                          fontSize="md"
+                          fontSize={{ base: 'xs', md: 'md' }}
                         >
                           {opt.key}
                         </Box>
                       }
                     >
-                      <Text flex={1} fontSize={{ base: 'md', md: 'lg' }}>
+                      <Text flex={1} fontSize={{ base: 'xs', sm: 'sm', md: 'lg' }}>
                         {opt.label}
                       </Text>
                     </Button>
@@ -143,8 +143,7 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
       </AnimatePresence>
 
       <HStack justify="space-between" width="100%" flexWrap="wrap" gap={3}>
-        <Button
-          variant="outline"
+        <Button size={{ base: 'sm', md: 'md' }} variant="outline"
           onClick={() => onStepChange(Math.max(0, currentIndex - 1))}
           isDisabled={currentIndex === 0}
         >
@@ -162,8 +161,7 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
             />
           ))}
         </HStack>
-        <Button
-          colorScheme="blue"
+        <Button size={{ base: 'sm', md: 'md' }} colorScheme="blue"
           onClick={() => onStepChange(Math.min(questions.length - 1, currentIndex + 1))}
           isDisabled={currentIndex >= questions.length - 1}
         >
