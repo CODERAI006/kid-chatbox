@@ -13,7 +13,7 @@ import {
   ModalContent,
   useBreakpointValue,
 } from '@/shared/design-system';
-import { getErrorMessage, learningBotApi, type LearningBotUiMessage } from '@/services/api';
+import { getErrorMessage, learningBotApi, authApi, type LearningBotUiMessage } from '@/services/api';
 import { LearningChatHistoryDrawer } from './LearningChatHistoryDrawer';
 import { LearningChatPanelContent } from './LearningChatPanelContent';
 import { resolveWorkspace } from '@/utils/learningWorkspaceParser';
@@ -84,6 +84,11 @@ export const LearningChatWidget: FC = () => {
     if (formatLabel && messages.length === 0) return `${formatLabel}${quizSuffix}`;
     return topic;
   }, [messages, studyFormat, quizQuestionCount]);
+
+  const userName = useMemo(() => {
+    const { user } = authApi.getCurrentUser();
+    return (user as { name?: string } | null)?.name;
+  }, []);
 
   const loadActive = useCallback(async () => {
     setBootLoading(true);
@@ -405,6 +410,7 @@ export const LearningChatWidget: FC = () => {
 
   const panelProps = {
     currentTopic,
+    userName,
     messages,
     chatMode,
     studyFormat,

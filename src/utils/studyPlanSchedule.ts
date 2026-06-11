@@ -106,3 +106,15 @@ export function buildStudyPlanPrompt(examName: string, day: StudyPlanDay): strin
     `Create a structured lesson for today with hook, explanation, key facts, and a short quiz (3 questions).`
   );
 }
+
+/** Rich in-page lesson prompt — fun, descriptive, cards + Q&A (no chat). */
+export function buildStudyPlanLessonPrompt(examName: string, day: StudyPlanDay): string {
+  return (
+    `Exam prep lesson for "${examName}" — Day ${day.dayNumber} (${day.date}). ` +
+    `Focus: ${day.focus}. Topics: ${day.topics.join(', ')}. ` +
+    `Today's tasks: ${day.tasks.join('; ')}. ` +
+    `Make this lesson exciting for a school student — use stories, analogies, and surprising facts. ` +
+    `Avoid boring textbook tone. Cover every listed topic clearly. ` +
+    `Include exactly 15 quiz questions (15 separate quiz cards).`
+  );
+}

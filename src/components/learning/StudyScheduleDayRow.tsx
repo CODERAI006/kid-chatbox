@@ -63,9 +63,16 @@ export function StudyScheduleDayRow({ day, examName, isToday, onStartDay }: Prop
           <Text fontSize="xs" color="gray.500">
             ~{Math.round(day.durationMinutes / 60 * 10) / 10}h study time
           </Text>
-          {isToday && onStartDay && (
-            <Button size="xs" colorScheme="purple" onClick={() => onStartDay(day)}>
-              Start lesson
+          {onStartDay && (
+            <Button
+              size="xs"
+              colorScheme="purple"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartDay(day);
+              }}
+            >
+              {isToday ? 'Start lesson' : 'Study this day'}
             </Button>
           )}
         </HStack>

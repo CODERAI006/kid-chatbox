@@ -11,6 +11,7 @@ const FORMAT_ALLOWED: Record<LearningStudyFormat, Set<LearningCardType>> = {
   quiz: new Set(['quiz', 'hook', 'text']),
   chat: new Set(),
   studyplan: new Set(['hook', 'explanation', 'text', 'quiz']),
+  'studyplan-lesson': new Set(['hook', 'explanation', 'text', 'example', 'quiz']),
 };
 
 function mergeFlashcardCards(cards: LearningWorkspaceCard[]): LearningWorkspaceCard[] {

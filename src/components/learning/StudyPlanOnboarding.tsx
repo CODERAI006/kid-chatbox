@@ -24,8 +24,10 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 type Props = {
   disabled?: boolean;
-  onPlanCreated: (params: { text: string; examName: string }) => void;
+  onPlanCreated: (params: { text?: string; examName: string }) => void;
   onBack: () => void;
+  /** When true, only save schedule — do not open Guru chat lesson. */
+  skipChatLesson?: boolean;
 };
 
 function defaultExamDate(): string {
@@ -34,7 +36,7 @@ function defaultExamDate(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack }: Props) {
+export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack, skipChatLesson }: Props) {
   const [examName, setExamName] = useState('');
   const [topicsRaw, setTopicsRaw] = useState('');
   const [examDate, setExamDate] = useState(defaultExamDate);
@@ -126,7 +128,7 @@ export function StudyPlanOnboarding({ disabled, onPlanCreated, onBack }: Props) 
       window.dispatchEvent(new CustomEvent('study-plan:updated'));
       onPlanCreated({
         examName: examName.trim(),
-        text: buildStudyPlanPrompt(examName.trim(), day),
+        text: skipChatLesson ? undefined : buildStudyPlanPrompt(examName.trim(), day),
       });
     } catch (e) {
       setError(getErrorMessage(e));

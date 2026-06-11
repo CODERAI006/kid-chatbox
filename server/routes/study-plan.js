@@ -5,6 +5,9 @@
 const express = require('express');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { ollamaChat, isLlmConfigured } = require('../utils/ollamaClient');
+const { resolveSystemPrompt } = require('../utils/learningBotPrompt');
+const { parseLearningWorkspace } = require('../utils/learningWorkspaceParse');
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -130,6 +133,60 @@ router.get('/today', async (req, res, next) => {
       planId: row.id,
       examName: row.exam_name,
       today,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+function buildLessonUserText(examName, day) {
+  const topics = Array.isArray(day.topics) ? day.topics.join(', ') : '';
+  const tasks = Array.isArray(day.tasks) ? day.tasks.join('; ') : '';
+  return (
+    `Exam prep lesson for "${examName}" — Day ${day.dayNumber} (${day.date}). ` +
+    `Focus: ${day.focus || ''}. Topics: ${topics}. Today's tasks: ${tasks}. ` +
+    'Make this lesson exciting for a school student — stories, analogies, surprising facts. ' +
+    'Avoid boring textbook tone. Cover every listed topic clearly. ' +
+    'Return exactly 15 quiz cards (15 questions minimum).'
+  );
+}
+
+/**
+ * POST /api/study-plan/lesson — generate rich in-page lesson (no chat thread).
+ * Body: { examName, day }
+ */
+router.post('/lesson', async (req, res, next) => {
+  try {
+    if (!isLlmConfigured()) {
+      return res.status(503).json({ success: false, message: 'AI is disabled (OLLAMA_DISABLED).' });
+    }
+
+    const { examName, day } = req.body || {};
+    if (!examName?.trim() || !day || typeof day !== 'object') {
+      return res.status(400).json({ success: false, message: 'examName and day are required' });
+    }
+
+    const systemPrompt = resolveSystemPrompt('workspace', 'studyplan-lesson');
+    const userText = buildLessonUserText(examName.trim(), day);
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userText },
+    ];
+
+    const { content, model } = await ollamaChat({
+      messages,
+      temperature: 0.6,
+      num_predict: 8192,
+      logContext: `api.study-plan.lesson userId=${req.user.id}`,
+    });
+
+    const structured = parseLearningWorkspace(content);
+
+    res.json({
+      success: true,
+      content,
+      structured,
+      model,
     });
   } catch (err) {
     next(err);

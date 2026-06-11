@@ -17,8 +17,24 @@ const greenPulse = keyframes`
   50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 10px 2px rgba(72, 187, 120, 0.75); }
 `;
 
+function firstName(name?: string): string {
+  const raw = name?.trim() || 'there';
+  const first = raw.split(/\s+/)[0];
+  return first || 'there';
+}
+
+function parseTopicDisplay(currentTopic: string): { prefix?: string; topic: string } {
+  const sep = ' · ';
+  const idx = currentTopic.indexOf(sep);
+  if (idx >= 0) {
+    return { prefix: currentTopic.slice(0, idx), topic: currentTopic.slice(idx + sep.length) };
+  }
+  return { topic: currentTopic };
+}
+
 export interface GuruChatHeaderProps {
   currentTopic: string;
+  userName?: string;
   isChatActive: boolean;
   isNewChat?: boolean;
   shareText?: string;
@@ -32,6 +48,7 @@ export interface GuruChatHeaderProps {
 
 export function GuruChatHeader({
   currentTopic,
+  userName,
   isChatActive,
   isNewChat = false,
   shareText,
@@ -43,6 +60,8 @@ export function GuruChatHeader({
   onShare,
 }: GuruChatHeaderProps) {
   const [shareHint, setShareHint] = useState<string | null>(null);
+  const displayName = firstName(userName);
+  const { prefix, topic } = parseTopicDisplay(currentTopic);
 
   const ghostProps = {
     variant: 'ghost' as const,
@@ -104,16 +123,36 @@ export function GuruChatHeader({
             <Text fontWeight="bold" fontSize={{ base: 'sm', md: 'md' }} noOfLines={1}>
               {APP_CONSTANTS.BRAND_NAME}
             </Text>
-            <Text
-              fontSize="xs"
-              opacity={0.9}
-              noOfLines={1}
-              display={{ base: 'none', sm: 'block' }}
-            >
-              {currentTopic}
-            </Text>
           </Box>
         </HStack>
+
+        <Box flex={1} minW={0} textAlign="right" px={{ base: 1, sm: 2 }}>
+          <Text fontSize="xs" opacity={0.95} noOfLines={1}>
+            Welcome,{' '}
+            <Text as="span" fontWeight="semibold">
+              {displayName}
+            </Text>
+          </Text>
+          <Text fontSize="xs" mt={0.5} noOfLines={1}>
+            {prefix && (
+              <Text as="span" opacity={0.85} mr={1}>
+                {prefix}
+              </Text>
+            )}
+            <Text
+              as="span"
+              fontWeight="bold"
+              px={1.5}
+              py={0.5}
+              borderRadius="md"
+              bg="whiteAlpha.300"
+              color="yellow.100"
+              boxShadow="sm"
+            >
+              {topic}
+            </Text>
+          </Text>
+        </Box>
 
         <HStack spacing={{ base: 0, sm: 1 }} flexShrink={0}>
           {onShare && (

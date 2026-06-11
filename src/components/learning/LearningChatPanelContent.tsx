@@ -18,6 +18,7 @@ type VoiceState = ReturnType<typeof useVoiceConversation>;
 
 export interface LearningChatPanelContentProps {
   currentTopic: string;
+  userName?: string;
   messages: LearningBotUiMessage[];
   chatMode: LearningBotMode;
   studyFormat: LearningStudyFormat | null;
@@ -51,6 +52,7 @@ export interface LearningChatPanelContentProps {
 
 export function LearningChatPanelContent({
   currentTopic,
+  userName,
   messages,
   chatMode,
   studyFormat,
@@ -87,6 +89,7 @@ export function LearningChatPanelContent({
     <Box flex={1} minH={0} minW={0} display="flex" flexDirection="column" overflow="hidden">
       <GuruChatHeader
         currentTopic={currentTopic}
+        userName={userName}
         isChatActive={isChatActive}
         isNewChat={isNewChat}
         shareText={shareText}

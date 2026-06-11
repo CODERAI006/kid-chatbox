@@ -38,6 +38,22 @@ export const studyPlanApi = {
     return res.data;
   },
 
+  generateLesson: async (payload: {
+    examName: string;
+    day: StudyPlanDay;
+  }): Promise<{ content: string; structured?: Record<string, unknown> | null }> => {
+    const res = await apiClient.post<{
+      success: boolean;
+      content?: string;
+      structured?: Record<string, unknown> | null;
+      message?: string;
+    }>('/study-plan/lesson', payload);
+    if (!res.data.success || !res.data.content) {
+      throw new Error(res.data.message || 'Could not generate lesson');
+    }
+    return { content: res.data.content, structured: res.data.structured ?? null };
+  },
+
   create: async (payload: {
     examName: string;
     examDate: string;

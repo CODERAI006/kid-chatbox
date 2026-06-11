@@ -83,6 +83,7 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
           setFormat(null);
         }}
         onPlanCreated={({ text }) => {
+          if (!text) return;
           onStart({
             text,
             mode: 'workspace',

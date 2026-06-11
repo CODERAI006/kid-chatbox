@@ -18,10 +18,11 @@ interface Props {
 export function LearningWorkspaceMessage({ content, studyFormat, onAskPrompt }: Props) {
   const workspace = resolveWorkspace(content);
   const cards = filterCardsByStudyFormat(workspace.cards, studyFormat);
-  const detailInline = studyFormat === 'detail';
+  const detailInline = studyFormat === 'detail' || studyFormat === 'studyplan-lesson';
   const quizCards = cards.filter((c) => c.type === 'quiz');
   const nonQuizCards = cards.filter((c) => c.type !== 'quiz');
-  const useQuizDeck = studyFormat === 'quiz' && quizCards.length > 0;
+  const useQuizDeck =
+    (studyFormat === 'quiz' || studyFormat === 'studyplan-lesson') && quizCards.length > 0;
 
   return (
     <VStack align="stretch" spacing={2} {...chatMessageContainerProps}>

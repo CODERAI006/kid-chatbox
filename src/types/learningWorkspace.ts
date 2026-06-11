@@ -78,7 +78,8 @@ export type LearningStudyFormat =
   | 'flashcards'
   | 'quiz'
   | 'chat'
-  | 'studyplan';
+  | 'studyplan'
+  | 'studyplan-lesson';
 
 export interface StudyFormatOptions {
   quizCount?: number;
@@ -139,6 +140,7 @@ export function buildStudyTopicPrompt(
       'Optional: one brief hook card. No flashcards or long lesson cards.',
     chat: `Let's talk about "${t}". I may ask follow-up questions — answer naturally.`,
     studyplan: `Plan my exam prep for "${t}".`,
+    'studyplan-lesson': `Teach "${t}" as a fun scheduled exam-prep lesson with facts, tips, and Q&A.`,
   };
   return prompts[format];
 }

@@ -48,6 +48,16 @@ const FORMAT_FOCUS = {
     'The user message states how many quiz cards to create. Return that many separate quiz cards (each type "quiz"). ' +
     'Each quiz card: one question, 3-4 options, correctOptionId, correctFeedback, wrongFeedback. ' +
     'Optional: one brief hook card. Do NOT include flashcard or long explanation cards.',
+  'studyplan-lesson':
+    '\n\nSTUDY FORMAT: Scheduled exam-prep lesson (in-page, not chat)\n' +
+    'Return ONLY these cards in order:\n' +
+    '(1) hook — catchy title + 3-4 fun opener bullets that hook curiosity\n' +
+    '(2) explanation — title + short body intro AND readMore as the full detailed lesson (5+ paragraphs with examples and analogies)\n' +
+    '(3) text — title "Amazing facts" with 6-10 surprising bullet facts\n' +
+    '(4) text — title "Study tips" with 5-7 practical bullet tips\n' +
+    '(5) example — at least one example card with exampleEmoji and body showing a real-world use\n' +
+    '(6) exactly 15 separate quiz cards — engaging Q&A with 3-4 options each, helpful feedback (minimum 15 questions)\n' +
+    'Tone: energetic, kid-friendly, never dry. Do NOT include flashcard, video, or audio cards.',
 };
 
 /**
