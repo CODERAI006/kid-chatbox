@@ -17,13 +17,23 @@ import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { useStudyPlanPendingToday } from '@/hooks/useStudyPlanPendingToday';
 import { useVisualViewportBottom } from '@/hooks/useVisualViewportBottom';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
-import { GuruAvatar } from '@/components/learning/GuruAvatar';
 import { MOBILE_BOTTOM_NAV_HEIGHT } from './layoutHeights';
 
 export { MOBILE_BOTTOM_NAV_HEIGHT };
 
-function openGuruChat(): void {
-  window.dispatchEvent(new CustomEvent('learning-chat:open', { detail: { mode: 'new' } }));
+type AccessState = {
+  roles?: string[];
+  moduleAccess?: Record<string, boolean>;
+};
+
+function readCachedAccess(): AccessState | null {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    return JSON.parse(raw) as AccessState;
+  } catch {
+    return null;
+  }
 }
 
 interface MobileBottomNavProps {
@@ -35,11 +45,9 @@ type NavItem = {
   label: string;
   shortLabel: string;
   icon: string;
-  useGuruAvatar?: boolean;
   match: (pathname: string, hash: string) => boolean;
   isVisible: (ctx: NavContext) => boolean;
-  isDisabled: (ctx: NavContext) => boolean;
-  onActivate?: () => void;
+  resolvePath?: (ctx: NavContext) => string;
 };
 
 type NavContext = {
@@ -57,36 +65,26 @@ const NAV_ITEMS: NavItem[] = [
     icon: '🏠',
     match: (pathname) => pathname === '/dashboard',
     isVisible: () => true,
-    isDisabled: () => false,
-  },
-  {
-    path: '#guru-chat',
-    label: 'Guru AI',
-    shortLabel: 'Guru',
-    icon: '',
-    useGuruAvatar: true,
-    match: () => false,
-    isVisible: () => true,
-    isDisabled: () => false,
-    onActivate: openGuruChat,
   },
   {
     path: '/study#ai-study',
     label: 'AI Study',
     shortLabel: 'Study',
     icon: '📚',
-    match: (pathname, hash) => pathname === '/study' && hash === '#ai-study',
+    match: (pathname, hash) =>
+      pathname === '/study' && (hash === '#ai-study' || hash === ''),
     isVisible: (ctx) => ctx.canShowAiStudy,
-    isDisabled: (ctx) => !ctx.hasStudyAccess,
+    resolvePath: (ctx) => (ctx.hasStudyAccess ? '/study#ai-study' : '/study'),
   },
   {
     path: '/quiz#ai-quiz',
     label: 'AI Quiz',
     shortLabel: 'Quiz',
     icon: '✨',
-    match: (pathname, hash) => pathname === '/quiz' && hash === '#ai-quiz',
+    match: (pathname, hash) =>
+      pathname === '/quiz' && (hash === '#ai-quiz' || hash === ''),
     isVisible: (ctx) => ctx.canShowAiQuiz,
-    isDisabled: (ctx) => !ctx.hasQuizAccess,
+    resolvePath: (ctx) => (ctx.hasQuizAccess ? '/quiz#ai-quiz' : '/quiz'),
   },
   {
     path: '/my-schedules',
@@ -95,20 +93,18 @@ const NAV_ITEMS: NavItem[] = [
     icon: '📅',
     match: (pathname) => pathname === '/my-schedules',
     isVisible: () => true,
-    isDisabled: () => false,
   },
 ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [access, setAccess] = useState<{ roles?: string[]; moduleAccess?: Record<string, boolean> } | null>(null);
+  const [access, setAccess] = useState<AccessState | null>(readCachedAccess);
 
   const bg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const activeColor = useColorModeValue('blue.600', 'blue.300');
   const inactiveColor = useColorModeValue('gray.600', 'gray.400');
-  const disabledColor = useColorModeValue('gray.400', 'gray.600');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
   const visualViewportBottom = useVisualViewportBottom();
@@ -154,8 +150,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
     >
       <HStack justify="space-around" align="stretch" h={MOBILE_BOTTOM_NAV_HEIGHT} px={1}>
         {visibleItems.map((item) => {
-          const disabled = item.isDisabled(ctx);
-          const active = !disabled && item.match(location.pathname, location.hash);
+          const active = item.match(location.pathname, location.hash);
+          const targetPath = item.resolvePath ? item.resolvePath(ctx) : item.path;
 
           return (
             <Box
@@ -166,29 +162,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
               minW={0}
               py={2}
               px={1}
-              onClick={() => {
-                if (disabled) return;
-                if (item.onActivate) {
-                  item.onActivate();
-                  return;
-                }
-                navigate(item.path);
-              }}
+              onClick={() => navigate(targetPath)}
               aria-current={active ? 'page' : undefined}
-              aria-disabled={disabled || undefined}
-              opacity={disabled ? 0.45 : 1}
-              cursor={disabled ? 'not-allowed' : 'pointer'}
-              _hover={disabled ? {} : { bg: hoverBg }}
+              cursor="pointer"
+              _hover={{ bg: hoverBg }}
               transition="background 0.15s"
             >
               <VStack spacing={0.5} justify="center" h="100%" position="relative">
-                {item.useGuruAvatar ? (
-                  <GuruAvatar size="sm" />
-                ) : (
-                  <Text fontSize="lg" lineHeight={1} aria-hidden>
-                    {item.icon}
-                  </Text>
-                )}
+                <Text fontSize="lg" lineHeight={1} aria-hidden>
+                  {item.icon}
+                </Text>
                 {item.path === '/my-schedules' && schedulePendingToday && (
                   <Box
                     position="absolute"
@@ -206,7 +189,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
                 <Text
                   fontSize="2xs"
                   fontWeight={active ? 'bold' : 'medium'}
-                  color={disabled ? disabledColor : active ? activeColor : inactiveColor}
+                  color={active ? activeColor : inactiveColor}
                   noOfLines={1}
                   w="100%"
                   textAlign="center"

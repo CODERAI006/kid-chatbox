@@ -39,6 +39,7 @@ import { QuizAttemptPage } from '@/components/QuizAttemptPage';
 import { PastChatsPage } from '@/components/learning/PastChatsPage';
 import { MySchedulesPage } from '@/components/learning/MySchedulesPage';
 import { StudyBuddiesPage } from '@/components/study-buddy/StudyBuddiesPage';
+import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 
 /**
  * Theme configuration with dark mode support and responsive font sizes
@@ -208,10 +209,6 @@ export const App: React.FC = () => {
     setUser(currentUser as User);
   };
 
-  if (loading) {
-    return null;
-  }
-
   return (
     <ChakraProvider theme={theme}>
       <QuizTimerProvider>
@@ -221,6 +218,8 @@ export const App: React.FC = () => {
             v7_relativeSplatPath: true,
           }}
         >
+        <GoogleAnalytics />
+        {!loading && (
         <Routes>
           <Route
             path="/"
@@ -517,6 +516,7 @@ export const App: React.FC = () => {
             }
           />
         </Routes>
+        )}
         </BrowserRouter>
       </QuizTimerProvider>
     </ChakraProvider>

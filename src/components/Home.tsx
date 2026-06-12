@@ -43,60 +43,6 @@ interface HomeProps {
 }
 
 /**
- * Initialize Google Analytics
- */
-const initializeGoogleAnalytics = (): void => {
-  const gaId = APP_CONSTANTS.GOOGLE_ANALYTICS_ID;
-  if (!gaId) {
-    return;
-  }
-
-  // Check if script already exists
-  if (document.querySelector(`script[src*="gtag"]`)) {
-    return;
-  }
-
-  // Create and append Google Analytics script
-  const script1 = document.createElement('script');
-  script1.async = true;
-  script1.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
-  document.head.appendChild(script1);
-
-  // Initialize gtag
-  const script2 = document.createElement('script');
-  script2.innerHTML = `
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', '${gaId}');
-  `;
-  document.head.appendChild(script2);
-};
-
-/**
- * Track page view in Google Analytics
- */
-const trackPageView = (): void => {
-  const gaId = APP_CONSTANTS.GOOGLE_ANALYTICS_ID;
-  if (!gaId || typeof window === 'undefined' || !(window as unknown as { gtag?: unknown }).gtag) {
-    return;
-  }
-
-  try {
-    (window as unknown as { gtag: (command: string, targetId: string, config: Record<string, unknown>) => void }).gtag(
-      'config',
-      gaId,
-      {
-        page_path: window.location.pathname,
-        page_title: document.title,
-      }
-    );
-  } catch (error) {
-    console.error('Failed to track page view:', error);
-  }
-};
-
-/**
  * Unified Home page component with integrated auth modal
  */
 export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
@@ -119,14 +65,6 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
   }, [searchParams, onOpen, setSearchParams]);
 
   useEffect(() => {
-    // Initialize Google Analytics
-    initializeGoogleAnalytics();
-
-    // Track page view in Google Analytics
-    setTimeout(() => {
-      trackPageView();
-    }, 100);
-
     // Track home page view in backend
     publicApi.trackHomeView().catch((error) => {
       console.error('Failed to track home view:', error);
