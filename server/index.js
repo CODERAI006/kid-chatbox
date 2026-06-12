@@ -48,6 +48,7 @@ const feedbackRoutes = require('./routes/feedback');
 const adminFeedbackRoutes = require('./routes/admin-feedback');
 const studyBuddiesRoutes = require('./routes/study-buddies');
 const notificationsRoutes = require('./routes/notifications');
+const imagesRoutes = require('./routes/images');
 const { startScheduler } = require('./services/schedulerEngine');
 const { initializeDatabase } = require('./config/database');
 
@@ -167,6 +168,7 @@ app.use('/api/tts', ttsRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin/feedback', adminFeedbackRoutes);
 app.use('/api/study-buddies', studyBuddiesRoutes);
+app.use('/api/images', imagesRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/quiz-scheduler', quizSchedulerRoutes);
 app.use('/api/bulk-exam-upload', bulkExamUploadRoutes);

@@ -1,0 +1,50 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#a8e6cf"/>
+  <!-- Sun -->
+  <circle cx="460" cy="80" r="50" fill="#ffeb3b"/>
+  <!-- Trees -->
+  <g id="tree1">
+    <rect x="80" y="260" width="30" height="120" fill="#8d6e63"/>
+    <circle cx="95" cy="240" r="50" fill="#66bb6a"/>
+  </g>
+  <g id="tree2">
+    <rect x="200" y="280" width="30" height="100" fill="#8d6e63"/>
+    <circle cx="215" cy="260" r="45" fill="#66bb6a"/>
+  </g>
+  <g id="tree3">
+    <rect x="340" y="250" width="30" height="130" fill="#8d6e63"/>
+    <circle cx="355" cy="230" r="55" fill="#66bb6a"/>
+  </g>
+  <!-- Children -->
+  <g id="child1" transform="translate(120,340)">
+    <circle cx="0" cy="-30" r="15" fill="#ffcc80"/>
+    <rect x="-10" y="-15" width="20" height="30" fill="#ff8a80"/>
+    <line x1="-10" y1="-5" x2="-20" y2="10" stroke="#ff8a80" stroke-width="4"/>
+    <line x1="10" y1="-5" x2="20" y2="10" stroke="#ff8a80" stroke-width="4"/>
+    <line x1="-5" y1="15" x2="-12" y2="30" stroke="#ff8a80" stroke-width="4"/>
+    <line x1="5" y1="15" x2="12" y2="30" stroke="#ff8a80" stroke-width="4"/>
+  </g>
+  <g id="child2" transform="translate(300,360)">
+    <circle cx="0" cy="-30" r="15" fill="#ffcc80"/>
+    <rect x="-10" y="-15" width="20" height="30" fill="#81d4fa"/>
+    <line x1="-10" y1="-5" x2="-20" y2="10" stroke="#81d4fa" stroke-width="4"/>
+    <line x1="10" y1="-5" x2="20" y2="10" stroke="#81d4fa" stroke-width="4"/>
+    <line x1="-5" y1="15" x2="-12" y2="30" stroke="#81d4fa" stroke-width="4"/>
+    <line x1="5" y1="15" x2="12" y2="30" stroke="#81d4fa" stroke-width="4"/>
+  </g>
+  <!-- Rabbit -->
+  <g id="rabbit" transform="translate(380,380)">
+    <ellipse cx="0" cy="0" rx="20" ry="15" fill="#cfd8dc"/>
+    <circle cx="-10" cy="-10" r="5" fill="#cfd8dc"/>
+    <circle cx="10" cy="-10" r="5" fill="#cfd8dc"/>
+    <path d="M -5 5 Q 0 15 5 5" stroke="#cfd8dc" stroke-width="2" fill="none"/>
+    <path d="M -15 0 Q -25 -5 -30 -15" stroke="#cfd8dc" stroke-width="2" fill="none"/>
+    <path d="M 15 0 Q 25 -5 30 -15" stroke="#cfd8dc" stroke-width="2" fill="none"/>
+  </g>
+  <!-- Bird -->
+  <g id="bird" transform="translate(250,150)">
+    <path d="M -15 0 Q 0 -20 15 0 Q 0 10 -15 0" fill="#ff8a80"/>
+    <circle cx="0" cy="-5" r="3" fill="#ffffff"/>
+  </g>
+</svg>

@@ -766,12 +766,15 @@ export const studyApi = {
     return response.data;
   },
 
-  /** Ollama Cloud illustrations for study lessons (hero + gallery). */
+  /** Photorealistic study lesson images (hero + gallery via Ollama Cloud). */
   enrichLessonImages: async (payload: {
     subject: string;
     topic: string;
+    gradeLevel?: string;
     introductionImageKeyword?: string;
+    introductionImagePrompt?: string;
     imageKeywords?: string[];
+    imageGallery?: Array<{ keyword: string; label?: string; imagePrompt?: string }>;
   }): Promise<{
     success: boolean;
     introImageUrl: string | null;

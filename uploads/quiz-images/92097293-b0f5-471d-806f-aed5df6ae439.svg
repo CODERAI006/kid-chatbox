@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sky background -->
+  <rect width="512" height="512" fill="#a0d8f1"/>
+  <!-- Ground -->
+  <rect y="350" width="512" height="162" fill="#7cfc00"/>
+  <!-- Sun -->
+  <circle cx="460" cy="80" r="40" fill="#ffd700"/>
+  <!-- Trees -->
+  <g>
+    <rect x="70" y="260" width="30" height="90" fill="#8b5a2b"/>
+    <circle cx="85" cy="240" r="50" fill="#2e8b57"/>
+    <rect x="240" y="260" width="30" height="90" fill="#8b5a2b"/>
+    <circle cx="255" cy="240" r="50" fill="#2e8b57"/>
+    <rect x="410" y="260" width="30" height="90" fill="#8b5a2b"/>
+    <circle cx="425" cy="240" r="50" fill="#2e8b57"/>
+  </g>
+  <!-- Deer -->
+  <g>
+    <ellipse cx="150" cy="380" rx="40" ry="25" fill="#a0522d"/>
+    <ellipse cx="115" cy="360" rx="15" ry="12" fill="#a0522d"/>
+    <path d="M105 350 L115 340 L125 350" fill="#a0522d"/>
+    <path d="M115 340 L115 330" stroke="#a0522d" stroke-width="4"/>
+    <path d="M115 340 L120 335" stroke="#a0522d" stroke-width="4"/>
+    <path d="M115 340 L110 335" stroke="#a0522d" stroke-width="4"/>
+  </g>
+  <!-- Rabbit -->
+  <g>
+    <ellipse cx="350" cy="380" rx="30" ry="20" fill="#ffffff"/>
+    <ellipse cx="380" cy="360" rx="12" ry="10" fill="#ffffff"/>
+    <ellipse cx="380" cy="340" rx="5" ry="15" fill="#ffffff"/>
+    <ellipse cx="390" cy="340" rx="5" ry="15" fill="#ffffff"/>
+    <ellipse cx="380" cy="340" rx="3" ry="8" fill="#ffb6c1"/>
+    <ellipse cx="390" cy="340" rx="3" ry="8" fill="#ffb6c1"/>
+  </g>
+  <!-- Bird -->
+  <g stroke="#ff4500" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M200 150 L210 130 L220 150"/>
+  </g>
+</svg>

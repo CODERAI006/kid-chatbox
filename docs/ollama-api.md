@@ -166,10 +166,10 @@ Kid Chatbox can route AI to [Ollama Cloud](https://docs.ollama.com/cloud) instea
 |------|----------|-----------------|
 | `text` | Quiz, study, learning bot | `gpt-oss:120b` |
 | `ocr` | Page photo reading | `qwen3-vl:235b-cloud` |
-| `image` | Quiz/study illustrations (**x/z-image-turbo**; text LLM picks visual quiz questions) | `x/z-image-turbo` |
+| `image` | Photorealistic study/quiz photos via **Ollama Cloud** (`x/z-image-turbo`, same API key) | `x/z-image-turbo` |
 | `voice` | TTS narration (planned) | — |
 | `pdf` | Document export (planned) | — |
 
-Override any type via env (`OLLAMA_MODEL`, `OLLAMA_VISION_MODEL`, `OLLAMA_IMAGE_MODEL`, etc.) or Admin settings.
+Override text/OCR via env (`OLLAMA_MODEL`, `OLLAMA_VISION_MODEL`, etc.) or Admin settings.
 
-**Quiz images:** The text LLM sets `needsImage` and `imagePrompt` on each question; about 20% get illustrations generated with **x/z-image-turbo** via Ollama (`POST /api/generate`). Study mode uses the same image model for hero and gallery shots. Only `/uploads/quiz-images/*` URLs are shown. Configure in Admin → Ollama Cloud or `OLLAMA_IMAGE_MODEL=x/z-image-turbo`. Cap with `QUIZ_IMAGE_FRACTION=0.2`. Disable with `QUIZ_IMAGES_DISABLED=true`.
+**Quiz & study images (photorealistic):** The Ollama text model writes detailed `imagePrompt` scenes (National Geographic / documentary style — no cartoons or vectors). Study lessons include `introduction.imagePrompt` and `imageGallery[].imagePrompt`. Those prompts go to your **Ollama Cloud image model** (`POST /api/generate`, same Admin API key). Default model: `x/z-image-turbo`. Files save under `/uploads/quiz-images/*.png`. Quiz images use the same pipeline (~20% cap via `QUIZ_IMAGE_FRACTION`). Disable quiz images with `QUIZ_IMAGES_DISABLED=true`.

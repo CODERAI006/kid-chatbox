@@ -2,6 +2,7 @@
  * Attach Ollama Cloud illustrations to quiz questions the text LLM marks as visual.
  */
 const { generateQuizQuestionImage } = require('./ollamaImageGenerate');
+const { wrapLlmImagePrompt, expandKeywordToImagePrompt } = require('./educationalImagePrompt');
 const { sanitizeOllamaImageUrl } = require('./ollamaImageUrl');
 
 const DEFAULT_FRACTION = 0.2;
@@ -69,25 +70,13 @@ function selectImageQuestionIndices(questions, fraction = getImageFraction()) {
   return fallback;
 }
 
-function buildImagePrompt(question, ctx = {}) {
+async function buildImagePrompt(question, ctx = {}) {
   const custom = String(question.imagePrompt || '').trim();
   if (custom) {
-    const subject = String(ctx.subject || 'school subject').trim();
-    const grade = ctx.gradeLevel ? `Grade ${ctx.gradeLevel}. ` : '';
-    return (
-      `${grade}Child-friendly educational photograph for a quiz about ${subject}. ` +
-      `${custom}. Photorealistic, clean background, no text or letters in the image, suitable for children.`
-    );
+    return wrapLlmImagePrompt(custom, ctx);
   }
-
-  const subject = String(ctx.subject || 'school subject').trim();
-  const grade = ctx.gradeLevel ? `Grade ${ctx.gradeLevel}. ` : '';
   const qText = String(question.question || '').replace(/\s+/g, ' ').slice(0, 220);
-  return (
-    `${grade}Bright child-friendly educational illustration for a quiz. Subject: ${subject}. ` +
-    `Visual scene related to: ${qText}. Clean colorful diagram, simple background, ` +
-    `no text or letters in the image, suitable for children.`
-  );
+  return expandKeywordToImagePrompt(qText, ctx);
 }
 
 function stripImageMeta(question) {
@@ -108,8 +97,8 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
   const generateOne = async (idx) => {
     const q = questions[idx];
     try {
-      const prompt = buildImagePrompt(q, ctx);
-      const imageUrl = sanitizeOllamaImageUrl(await generateQuizQuestionImage(prompt));
+      const prompt = await buildImagePrompt(q, ctx);
+      const imageUrl = sanitizeOllamaImageUrl(await generateQuizQuestionImage(prompt, ctx));
       if (!imageUrl) return false;
       enriched[idx] = { ...enriched[idx], imageUrl };
       console.info('[quiz-images] saved', {
@@ -138,7 +127,7 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
   console.info('[quiz-images] complete', { requested: indices.length, saved });
   if (indices.length > 0 && saved === 0) {
     console.warn(
-      '[quiz-images] no illustrations saved — enable Ollama Cloud and set image model x/z-image-turbo in Admin'
+      '[quiz-images] no illustrations saved — enable Ollama Cloud API key and set image model in Admin'
     );
   }
 

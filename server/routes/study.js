@@ -176,7 +176,15 @@ router.post(
   checkPlanAiStudy,
   async (req, res, next) => {
     try {
-      const { subject, topic, introductionImageKeyword, imageKeywords } = req.body || {};
+      const {
+        subject,
+        topic,
+        gradeLevel,
+        introductionImageKeyword,
+        introductionImagePrompt,
+        imageKeywords,
+        imageGallery,
+      } = req.body || {};
       if (!subject || !topic) {
         return res.status(400).json({ success: false, message: 'subject and topic are required' });
       }
@@ -184,9 +192,15 @@ router.post(
       const images = await enrichLessonWithImages(
         {
           introductionImageKeyword,
+          introductionImagePrompt,
           imageKeywords: Array.isArray(imageKeywords) ? imageKeywords : [],
+          imageGallery: Array.isArray(imageGallery) ? imageGallery : [],
         },
-        { subject: String(subject), topic: String(topic) }
+        {
+          subject: String(subject),
+          topic: String(topic),
+          gradeLevel: gradeLevel ? String(gradeLevel) : undefined,
+        }
       );
       res.json({ success: true, ...images });
     } catch (error) {

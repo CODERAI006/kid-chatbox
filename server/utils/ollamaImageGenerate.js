@@ -1,5 +1,5 @@
 /**
- * Quiz image entry point — Ollama Cloud only via /api/generate.
+ * Quiz & study image entry point — photorealistic photos via Ollama Cloud API key.
  */
 const {
   generateQuizQuestionImage,

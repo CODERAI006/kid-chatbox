@@ -44,7 +44,7 @@ Rules:
 10. Avoid technical jargon unless defined in keyTerms.
 11. Ensure factual correctness for ${board} curriculum.
 12. Write in ${language}.
-13. Pick visuals only where a photo helps learning (diagrams, anatomy, maps, experiments). imageKeyword: specific English phrase for hero photo. imageKeywords: exactly 2 visual concepts for gallery (not grammar/vocabulary).
+13. Pick visuals only where a real photograph helps learning (wildlife, geography, science scenes, experiments, historical places). For each visual, write a full photorealistic imagePrompt (National Geographic / documentary style). Never ask for cartoons, clipart, vectors, or flat illustrations.
 
 Output JSON only with this exact shape:
 {
@@ -53,7 +53,8 @@ Output JSON only with this exact shape:
   "quickSummary": "3-5 sentence overview a student can read in 30 seconds",
   "introduction": {
     "text": "Hook paragraph(s) separated by \\n\\n",
-    "imageKeyword": "specific English phrase for hero image",
+    "imageKeyword": "short label for hero image",
+    "imagePrompt": "Photorealistic wildlife scene showing a Bengal tiger in the Sundarbans, spotted deer grazing nearby, mangrove trees, sunlight filtering through leaves, National Geographic photography, ultra realistic, high detail, natural colors, educational image for children, no cartoons, no illustrations",
     "imageCaption": "Short caption for intro image"
   },
   "explanation": ["Detailed step 1...", "Detailed step 2...", "At least 4 steps"],
@@ -72,7 +73,14 @@ Output JSON only with this exact shape:
   "askAiTeacherPrompts": ["Can you explain ...?", "At least 4 starter questions"],
   "keyPoints": ["Exactly 20 short key points"],
   "summary": "One encouraging closing paragraph",
-  "imageKeywords": ["specific keyword 1", "keyword 2"]
+  "imageKeywords": ["gallery keyword 1", "gallery keyword 2"],
+  "imageGallery": [
+    {
+      "keyword": "short label",
+      "label": "Gallery caption label",
+      "imagePrompt": "Full photorealistic scene description for this gallery image — National Geographic quality, real-world photography, natural lighting, high detail, no cartoons, no vectors, no text in image"
+    }
+  ]
 }
 
 Minimum counts: flashcards 20, keyPoints 20, keyTerms 8, quizQuestions 5.`;

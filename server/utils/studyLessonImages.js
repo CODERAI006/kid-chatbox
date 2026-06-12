@@ -1,47 +1,80 @@
 /**
- * Study lesson illustrations via Ollama (same pipeline as quiz images).
- * Default: 1 hero + 2 gallery = 3 images. Override count with STUDY_GALLERY_IMAGES (1–3).
+ * Study lesson hero + gallery — photorealistic images from LLM imagePrompts (Ollama Cloud).
  */
 const { generateQuizQuestionImage } = require('./ollamaImageGenerate');
+const {
+  wrapLlmImagePrompt,
+  expandKeywordToImagePrompt,
+} = require('./educationalImagePrompt');
 
-/** Hero intro + this many gallery shots (3 images total by default). */
 const MAX_GALLERY = Math.min(Math.max(Number(process.env.STUDY_GALLERY_IMAGES) || 2, 1), 3);
 const IMAGE_CONCURRENCY = 2;
 
-function buildStudyImagePrompt(keyword, ctx = {}) {
-  const subject = String(ctx.subject || 'school subject').trim();
-  const topic = String(ctx.topic || 'lesson topic').trim();
-  const scene = String(keyword || topic).replace(/\s+/g, ' ').slice(0, 200);
-  return (
-    `Bright child-friendly educational illustration for a study lesson. Subject: ${subject}. ` +
-    `Topic: ${topic}. Visual scene: ${scene}. Clean colorful diagram, simple background, ` +
-    `no text or letters in the image, suitable for children.`
-  );
+/**
+ * @param {{ introductionImagePrompt?: string, introductionImageKeyword?: string, imageGallery?: Array<{ keyword?: string, imagePrompt?: string, label?: string }>, imageKeywords?: string[] }} input
+ * @param {{ subject?: string, topic?: string, gradeLevel?: string }} ctx
+ */
+async function resolveImageTasks(input, ctx) {
+  const tasks = [];
+
+  const introPrompt = String(input.introductionImagePrompt || '').trim();
+  const introKeyword = String(
+    input.introductionImageKeyword || ctx.topic || 'classroom learning'
+  ).trim();
+
+  tasks.push({
+    type: 'intro',
+    label: introKeyword,
+    keyword: introKeyword,
+    imagePrompt: introPrompt,
+  });
+
+  const gallery = Array.isArray(input.imageGallery) ? input.imageGallery : [];
+  if (gallery.length > 0) {
+    for (const item of gallery.slice(0, MAX_GALLERY)) {
+      const keyword = String(item?.keyword || item?.label || '').trim();
+      if (!keyword && !item?.imagePrompt) continue;
+      tasks.push({
+        type: 'gallery',
+        label: String(item?.label || keyword || 'Gallery').trim(),
+        keyword: keyword || ctx.topic,
+        imagePrompt: String(item?.imagePrompt || '').trim(),
+      });
+    }
+  } else {
+    const keywords = [...new Set((input.imageKeywords || []).map((k) => String(k).trim()).filter(Boolean))].slice(
+      0,
+      MAX_GALLERY
+    );
+    for (const keyword of keywords) {
+      tasks.push({ type: 'gallery', label: keyword, keyword, imagePrompt: '' });
+    }
+  }
+
+  return tasks;
+}
+
+async function resolvePromptForTask(task, ctx) {
+  if (task.imagePrompt) {
+    return wrapLlmImagePrompt(task.imagePrompt, ctx);
+  }
+  return expandKeywordToImagePrompt(task.keyword, ctx);
 }
 
 /**
- * @param {{ introductionImageKeyword?: string, imageKeywords?: string[] }} input
- * @param {{ subject?: string, topic?: string }} ctx
+ * @param {object} input
+ * @param {{ subject?: string, topic?: string, gradeLevel?: string }} ctx
  */
 async function enrichLessonWithImages(input, ctx = {}) {
-  const introKeyword = String(input.introductionImageKeyword || ctx.topic || 'classroom learning').trim();
-  const keywords = [...new Set((input.imageKeywords || []).map((k) => String(k).trim()).filter(Boolean))].slice(
-    0,
-    MAX_GALLERY
-  );
-
+  const tasks = await resolveImageTasks(input, ctx);
   let introImageUrl = null;
   const galleryImages = [];
-
-  const tasks = [
-    { type: 'intro', keyword: introKeyword, label: introKeyword },
-    ...keywords.map((keyword) => ({ type: 'gallery', keyword, label: keyword })),
-  ];
 
   let cursor = 0;
   const runOne = async (task) => {
     try {
-      const url = await generateQuizQuestionImage(buildStudyImagePrompt(task.keyword, ctx));
+      const prompt = await resolvePromptForTask(task, ctx);
+      const url = await generateQuizQuestionImage(prompt, ctx);
       if (task.type === 'intro') introImageUrl = url;
       else galleryImages.push({ url, label: task.label, keyword: task.keyword });
     } catch (err) {
@@ -67,4 +100,4 @@ async function enrichLessonWithImages(input, ctx = {}) {
   return { introImageUrl, galleryImages };
 }
 
-module.exports = { enrichLessonWithImages, buildStudyImagePrompt };
+module.exports = { enrichLessonWithImages };

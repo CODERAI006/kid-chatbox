@@ -33,7 +33,15 @@ export interface VideoRecommendation {
 export interface LessonIntroduction {
   text: string;
   imageKeyword: string;
+  /** Full photorealistic scene for Ollama image model — generated from lesson content */
+  imagePrompt?: string;
   imageCaption?: string;
+}
+
+export interface StudyImageGalleryItem {
+  keyword: string;
+  label?: string;
+  imagePrompt?: string;
 }
 
 export interface StudyGalleryImage {
@@ -62,6 +70,7 @@ export interface Lesson {
   askAiTeacherPrompts?: string[];
   practiceQuestions?: PracticeQuestion[];
   imageKeywords?: string[];
+  imageGallery?: StudyImageGalleryItem[];
   /** Ollama Cloud hero image for introduction */
   introImageUrl?: string | null;
   /** Ollama Cloud gallery images */
@@ -102,6 +111,7 @@ function normalizeIntroduction(raw: unknown): LessonIntroduction {
     return {
       text: String(o.text || '').trim(),
       imageKeyword: String(o.imageKeyword || 'classroom learning').trim(),
+      imagePrompt: o.imagePrompt ? String(o.imagePrompt).trim() : undefined,
       imageCaption: o.imageCaption ? String(o.imageCaption).trim() : undefined,
     };
   }
@@ -115,6 +125,23 @@ function normalizeIntroduction(raw: unknown): LessonIntroduction {
 
 function normalizeStringList(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.map(String).filter(Boolean) : [];
+}
+
+function normalizeImageGallery(raw: unknown): StudyImageGalleryItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StudyImageGalleryItem[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as StudyImageGalleryItem;
+    const keyword = String(o.keyword || o.label || '').trim();
+    if (!keyword && !o.imagePrompt) continue;
+    out.push({
+      keyword: keyword || 'gallery scene',
+      label: o.label ? String(o.label).trim() : keyword || undefined,
+      imagePrompt: o.imagePrompt ? String(o.imagePrompt).trim() : undefined,
+    });
+  }
+  return out;
 }
 
 function normalizeKeyTerms(raw: unknown): KeyTerm[] {
@@ -165,6 +192,7 @@ function normalizeLesson(raw: Record<string, unknown>, topic: string): Lesson {
     askAiTeacherPrompts: normalizeStringList(raw.askAiTeacherPrompts),
     practiceQuestions: quizQuestions,
     imageKeywords: normalizeStringList(raw.imageKeywords),
+    imageGallery: normalizeImageGallery(raw.imageGallery),
     funFacts: normalizeStringList(raw.funFacts),
     visualLearningDescription: visualDesc.length ? visualDesc : visualLegacy,
     visualLearningSuggestions: visualLegacy.length ? visualLegacy : visualDesc,
@@ -209,6 +237,10 @@ export function getIntroductionImageKeyword(intro: Lesson['introduction']): stri
 
 export function getIntroductionCaption(intro: Lesson['introduction']): string | undefined {
   return typeof intro === 'string' ? undefined : intro.imageCaption;
+}
+
+export function getIntroductionImagePrompt(intro: Lesson['introduction']): string | undefined {
+  return typeof intro === 'string' ? undefined : intro.imagePrompt;
 }
 
 export async function generateLesson(
@@ -261,8 +293,11 @@ export async function generateLesson(
         const images = await studyApi.enrichLessonImages({
           subject: config.subject,
           topic,
+          gradeLevel: classLevel,
           introductionImageKeyword: getIntroductionImageKeyword(lesson.introduction),
+          introductionImagePrompt: getIntroductionImagePrompt(lesson.introduction),
           imageKeywords: lesson.imageKeywords,
+          imageGallery: lesson.imageGallery,
         });
         lesson.introImageUrl = images.introImageUrl;
         lesson.galleryImages = images.galleryImages || [];

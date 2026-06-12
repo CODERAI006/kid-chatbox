@@ -12,7 +12,7 @@ export const STUDY_MODE_MESSAGES = {
   DIFFICULTY_PROMPT: 'Choose difficulty level:',
   START_STUDYING: 'Start Learning',
   LOADING_MESSAGE: 'Creating your personalized lesson...',
-  LOADING_IMAGES_HINT: 'Drawing study illustrations with Ollama…',
+  LOADING_IMAGES_HINT: 'Generating photorealistic study photos…',
   ERROR_PROFILE_INCOMPLETE: 'Please complete your profile first. Go to Profile to set your age and preferred language.',
   ERROR_GENERATION_FAILED: 'Failed to generate lesson. Please try again.',
 } as const;

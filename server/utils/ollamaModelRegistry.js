@@ -38,19 +38,17 @@ const OLLAMA_MODEL_TYPES = [
     id: 'image',
     label: 'Image generation',
     description:
-      'Study lesson (hero + gallery) and quiz illustrations via Ollama /api/generate. Pick speed vs quality; override with OLLAMA_IMAGE_MODEL.',
+      'Study hero/gallery and quiz photos via Ollama Cloud (same API key). ' +
+      'Text model writes imagePrompt scenes; image model renders photorealistic photos.',
     emoji: '🖼️',
     defaultCloud: 'x/z-image-turbo',
-    defaultLocal: 'flux-schnell',
+    defaultLocal: 'x/z-image-turbo',
     envVar: 'OLLAMA_IMAGE_MODEL',
     implemented: true,
     presets: [
-      { id: 'x/z-image-turbo', label: 'Z-Image Turbo — Ollama Cloud default (recommended)' },
-      { id: 'x/flux2-klein:4b', label: 'FLUX.2 Klein 4B — quality + speed (Apache 2.0)' },
-      { id: 'x/flux2-klein:9b', label: 'FLUX.2 Klein 9B — highest FLUX.2 quality' },
-      { id: 'flux-dev', label: 'FLUX.1 Dev — local only (ollama pull)' },
-      { id: 'flux-schnell', label: 'FLUX.1 Schnell — local only (ollama pull)' },
-      { id: 'sdxl', label: 'SDXL — local only (ollama pull)' },
+      { id: 'x/z-image-turbo', label: 'Z-Image Turbo — photorealistic (recommended)' },
+      { id: 'x/flux2-klein:4b', label: 'FLUX.2 Klein 4B' },
+      { id: 'x/flux2-klein:9b', label: 'FLUX.2 Klein 9B' },
     ],
   },
   {
@@ -100,8 +98,19 @@ function normalizeProfiles(raw, legacy = {}) {
       if (typeof v === 'string') merged[t.id] = v.trim();
     }
   }
-  // flux:cloud was never a valid Ollama Cloud model name
-  if (merged.image === 'flux:cloud') {
+  if (merged.image === 'flux:cloud' || merged.image === 'dall-e-3') {
+    merged.image = 'x/z-image-turbo';
+  }
+  const img = String(merged.image || '').toLowerCase();
+  const notImage =
+    img.includes('minicpm') ||
+    img.includes('qwen3-vl') ||
+    img.includes('moondream') ||
+    img.includes('llava') ||
+    img.includes('gpt-oss') ||
+    img.includes('qwen3.5') ||
+    (img.includes('qwen3:') && !img.includes('z-image'));
+  if (notImage && !img.includes('flux') && !img.includes('z-image') && !img.includes('sdxl')) {
     merged.image = 'x/z-image-turbo';
   }
   return merged;

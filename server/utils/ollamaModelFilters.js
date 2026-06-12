@@ -3,7 +3,7 @@
  */
 
 const IMAGE_HINTS = ['flux', 'z-image', 'sdxl', 'stable-diffusion', 'dall', 'image-turbo'];
-const VISION_HINTS = ['-vl', 'vision', 'llava', 'moondream', 'minicpm-v', 'bakllava', 'gemma4', 'gemma3'];
+const VISION_HINTS = ['-vl', 'vision', 'llava', 'moondream', 'minicpm', 'bakllava', 'gemma4', 'gemma3'];
 
 function normalizeName(name) {
   return String(name || '').trim().toLowerCase();

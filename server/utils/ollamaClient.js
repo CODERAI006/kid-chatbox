@@ -266,16 +266,12 @@ async function ollamaChat({
   return { content, model: data.model };
 }
 
-/** @returns {Promise<string[]>} installed model names */
-async function listOllamaModels() {
-  const runtime = getOllamaRuntimeConfig();
-  if (!runtime.configured) {
-    throw new Error('Ollama is not configured');
-  }
-  const url = `${runtime.baseUrl}/api/tags`;
+/** @returns {Promise<string[]>} model names at a specific Ollama host */
+async function listOllamaModelsAt(baseUrl, headers = {}) {
+  const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/tags`;
   const res = await fetch(url, {
     method: 'GET',
-    headers: { ...runtime.headers },
+    headers: { ...headers },
     signal: createFetchSignal(30_000),
   });
   const text = await res.text();
@@ -287,9 +283,20 @@ async function listOllamaModels() {
   return models.map((m) => String(m.name || '').trim()).filter(Boolean);
 }
 
+/** @returns {Promise<string[]>} installed model names for active runtime (cloud or local) */
+async function listOllamaModels() {
+  const runtime = getOllamaRuntimeConfig();
+  if (!runtime.configured) {
+    throw new Error('Ollama is not configured');
+  }
+  return listOllamaModelsAt(runtime.baseUrl, runtime.headers);
+}
+
 module.exports = {
   ollamaChat,
   listOllamaModels,
+  listOllamaModelsAt,
+  getLocalOllamaBaseUrl,
   getOllamaBaseUrl,
   getOllamaModel,
   getOllamaMode,
