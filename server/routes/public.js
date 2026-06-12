@@ -389,6 +389,32 @@ router.get('/news', async (req, res) => {
  * GET /api/public/plans
  * Active pricing plans for landing page (no auth)
  */
+/**
+ * GET /api/public/analytics-config
+ * Google Analytics measurement ID (from DB cache; no auth)
+ */
+router.get('/analytics-config', async (req, res, next) => {
+  try {
+    const {
+      getCachedGoogleAnalyticsSettings,
+      loadGoogleAnalyticsSettings,
+    } = require('../utils/googleAnalyticsSettings');
+
+    let settings = getCachedGoogleAnalyticsSettings();
+    if (!settings.googleAnalyticsId) {
+      settings = await loadGoogleAnalyticsSettings();
+    }
+
+    res.json({
+      success: true,
+      googleAnalyticsId: settings.enabled ? settings.googleAnalyticsId : '',
+      enabled: settings.enabled,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/plans', async (req, res, next) => {
   try {
     const result = await pool.query(

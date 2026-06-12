@@ -11,7 +11,18 @@ declare global {
   }
 }
 
-const getMeasurementId = (): string => APP_CONSTANTS.GOOGLE_ANALYTICS_ID;
+let measurementId = APP_CONSTANTS.GOOGLE_ANALYTICS_ID.trim();
+let initialized = false;
+let initializedForId: string | null = null;
+
+export const setGoogleAnalyticsMeasurementId = (id: string): void => {
+  const next = id.trim();
+  if (next) {
+    measurementId = next;
+  }
+};
+
+const getMeasurementId = (): string => measurementId;
 
 export const isGoogleAnalyticsEnabled = (): boolean => Boolean(getMeasurementId());
 
@@ -22,17 +33,25 @@ export const buildAnalyticsPagePath = (
   hash = ''
 ): string => `${pathname}${search}${hash}`;
 
-let initialized = false;
-
-/** Load gtag.js once. Manual page views — React Router handles navigation. */
+/** Load gtag.js once per measurement ID. Manual page views — React Router handles navigation. */
 export const initGoogleAnalytics = (): void => {
   const gaId = getMeasurementId();
-  if (!gaId || typeof document === 'undefined' || initialized) {
+  if (!gaId || typeof document === 'undefined') {
     return;
   }
 
-  if (document.querySelector(`script[src*="gtag/js"]`)) {
+  if (initialized && initializedForId === gaId) {
+    return;
+  }
+
+  if (initializedForId && initializedForId !== gaId) {
+    initialized = false;
+    document.querySelectorAll('script[src*="googletagmanager.com/gtag"]').forEach((el) => el.remove());
+  }
+
+  if (document.querySelector(`script[src*="gtag/js?id=${gaId}"]`)) {
     initialized = true;
+    initializedForId = gaId;
     return;
   }
 
@@ -50,9 +69,10 @@ export const initGoogleAnalytics = (): void => {
   window.gtag('config', gaId, { send_page_view: false });
 
   initialized = true;
+  initializedForId = gaId;
 };
 
-/** Record a virtual page view (pathname + query). */
+/** Record a virtual page view (pathname + query + hash). */
 export const trackGoogleAnalyticsPageView = (pagePath?: string): void => {
   const gaId = getMeasurementId();
   if (!gaId || typeof window === 'undefined' || !window.gtag) {

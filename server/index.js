@@ -164,6 +164,7 @@ app.use((err, req, res, next) => {
 
 // Initialize database and start server
 const { loadOllamaCloudSettings } = require('./utils/ollamaCloudSettings');
+const { loadGoogleAnalyticsSettings } = require('./utils/googleAnalyticsSettings');
 
 const startServer = async () => {
   const dbReady = await initializeDatabase();
@@ -175,6 +176,12 @@ const startServer = async () => {
     await loadOllamaCloudSettings();
   } catch (error) {
     console.warn('⚠️  Ollama settings load failed (non-fatal):', error.message || error);
+  }
+
+  try {
+    await loadGoogleAnalyticsSettings();
+  } catch (error) {
+    console.warn('⚠️  Google Analytics settings load failed (non-fatal):', error.message || error);
   }
 
   app.listen(PORT, '0.0.0.0', () => {

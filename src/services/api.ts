@@ -964,6 +964,22 @@ export const planApi = {
  */
 export const publicApi = {
   /**
+   * Google Analytics measurement ID (public, cached on server)
+   */
+  getAnalyticsConfig: async (): Promise<{
+    success: boolean;
+    googleAnalyticsId: string;
+    enabled: boolean;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      googleAnalyticsId: string;
+      enabled: boolean;
+    }>('/public/analytics-config');
+    return response.data;
+  },
+
+  /**
    * Track home page view
    */
   trackHomeView: async (): Promise<{ success: boolean; message: string }> => {

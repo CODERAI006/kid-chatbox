@@ -3,17 +3,10 @@
  */
 
 const { Pool } = require('pg');
-const dotenv = require('dotenv');
-
-dotenv.config();
+const { resolveDatabaseConfig } = require('../utils/resolveDatabaseConfig');
 
 const pool = new Pool({
-  host: process.env.DATABASE_HOST || process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || process.env.DB_PORT || '5432', 10),
-  database: process.env.DATABASE_NAME || process.env.DB_NAME || 'kidchatbox',
-  user: process.env.DATABASE_USERNAME || process.env.DB_USER || 'postgres',
-  password: process.env.DATABASE_PASSWORD || process.env.DB_PASSWORD || 'postgres',
-  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  ...resolveDatabaseConfig(),
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 120_000,
@@ -50,6 +43,7 @@ const initializeDatabase = async () => {
     const { migrateAppFeedback } = require('../scripts/migrate-app-feedback');
     const { migrateStudyBuddies } = require('../scripts/migrate-study-buddies');
     const { migrateUserNotifications } = require('../scripts/migrate-user-notifications');
+    const { migrateAppAnalyticsSettings } = require('../scripts/migrate-app-analytics-settings');
     // Run comprehensive schema migration
     await migrateSchema();
     // Analytics columns/indexes on activity_logs (depends on migrateSchema)
@@ -75,6 +69,7 @@ const initializeDatabase = async () => {
     await migrateAppFeedback();
     await migrateStudyBuddies();
     await migrateUserNotifications();
+    await migrateAppAnalyticsSettings();
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing database (server will start without DB):', error.message || error);

@@ -27,6 +27,7 @@ const { migrateDailyFacts } = require('./migrate-daily-facts');
 const { migrateAppFeedback } = require('./migrate-app-feedback');
 const { migrateStudyBuddies } = require('./migrate-study-buddies');
 const { migrateUserNotifications } = require('./migrate-user-notifications');
+const { migrateAppAnalyticsSettings } = require('./migrate-app-analytics-settings');
 
 async function runAllDbMigrations() {
   await migrateSchema();
@@ -50,6 +51,7 @@ async function runAllDbMigrations() {
   await migrateAppFeedback();
   await migrateStudyBuddies();
   await migrateUserNotifications();
+  await migrateAppAnalyticsSettings();
 }
 
 if (require.main === module) {
