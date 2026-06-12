@@ -17,6 +17,11 @@ export interface FactSubject {
   emoji: string;
 }
 
+export interface RelatedFact {
+  title: string;
+  fact: string;
+}
+
 export interface DailyFact {
   id: string;
   subject: FactSubjectId;
@@ -27,6 +32,7 @@ export interface DailyFact {
   reasoning?: string;
   didYouKnow?: string;
   realLifeLink?: string;
+  moreFacts?: RelatedFact[];
 }
 
 export interface DailyFactDetailContent {
@@ -64,6 +70,27 @@ export interface DailyFactsDatesResponse {
   grade: string;
   dates: string[];
 }
+
+export interface ArchivedFactItem {
+  editionDate: string;
+  fact: DailyFact;
+}
+
+export interface DailyFactsArchiveResponse {
+  success: boolean;
+  grade: string;
+  untilDate: string;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+  items: ArchivedFactItem[];
+  subjects?: FactSubject[];
+  message?: string;
+}
+
+export const FACTS_ARCHIVE_PAGE_SIZE = 20;
 
 export const SUBJECT_COLORS: Record<string, string> = {
   science: 'bg-blue-50 text-blue-800 border-blue-100',

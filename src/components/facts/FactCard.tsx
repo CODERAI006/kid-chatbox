@@ -1,4 +1,4 @@
-import { useRef, useCallback, type KeyboardEvent } from 'react';
+import { type KeyboardEvent } from 'react';
 import { Badge, Box, Text, VStack } from '@/shared/design-system';
 import type { DailyFact, FactSubject } from '@/types/dailyFacts';
 
@@ -14,35 +14,29 @@ const BADGE_STYLE: Record<string, { bg: string; color: string; borderColor: stri
   math: { bg: 'indigo.50', color: 'indigo.800', borderColor: 'indigo.100' },
 };
 
-const DOUBLE_TAP_MS = 400;
-
 interface Props {
   fact: DailyFact;
   subjectMeta?: FactSubject;
   index: number;
+  editionDate?: string;
   onOpenDetail?: (fact: DailyFact) => void;
 }
 
-export default function FactCard({ fact, subjectMeta, index, onOpenDetail }: Props) {
+function formatEditionDate(dateStr: string) {
+  try {
+    return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+export default function FactCard({ fact, subjectMeta, index, editionDate, onOpenDetail }: Props) {
   const badge = BADGE_STYLE[fact.subject] || BADGE_STYLE.general_knowledge;
   const label = subjectMeta?.label || fact.subject.replace(/_/g, ' ');
-  const lastTapRef = useRef(0);
-
-  const openDetail = useCallback(() => {
-    onOpenDetail?.(fact);
-  }, [fact, onOpenDetail]);
-
-  const handleActivate = useCallback(() => {
-    if (!onOpenDetail) return;
-    const now = Date.now();
-    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
-      lastTapRef.current = 0;
-      openDetail();
-      return;
-    }
-    lastTapRef.current = now;
-  }, [onOpenDetail, openDetail]);
-
   return (
     <Box
       as="button"
@@ -60,13 +54,13 @@ export default function FactCard({ fact, subjectMeta, index, onOpenDetail }: Pro
       boxShadow="sm"
       overflow="hidden"
       cursor={onOpenDetail ? 'pointer' : 'default'}
-      aria-label={onOpenDetail ? `${fact.title}. Double-tap for full details.` : undefined}
-      onClick={handleActivate}
+      aria-label={onOpenDetail ? `${fact.title}. Tap for full details.` : undefined}
+      onClick={() => onOpenDetail?.(fact)}
       onKeyDown={(e: KeyboardEvent) => {
         if (!onOpenDetail) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          openDetail();
+          onOpenDetail(fact);
         }
       }}
       _hover={onOpenDetail ? { boxShadow: 'md', borderColor: 'orange.200' } : undefined}
@@ -116,7 +110,7 @@ export default function FactCard({ fact, subjectMeta, index, onOpenDetail }: Pro
         w="100%"
       >
         <Text fontSize={{ base: '2xs', sm: 'xs' }} fontWeight="semibold" color="gray.400">
-          Fact #{index + 1}
+          {editionDate ? formatEditionDate(editionDate) : `Fact #${index + 1}`}
         </Text>
         <Text
           fontSize={{ base: 'sm', md: 'md' }}
@@ -139,7 +133,7 @@ export default function FactCard({ fact, subjectMeta, index, onOpenDetail }: Pro
         </Text>
         {onOpenDetail && (
           <Text fontSize="2xs" color="orange.500" fontWeight="semibold" pt={1}>
-            Double-tap for the full story →
+            Tap for the full story →
           </Text>
         )}
       </VStack>

@@ -1,16 +1,27 @@
 /**
- * Generate 10 daily facts via Ollama ONLY — no external APIs, no static pool.
+ * Generate 10 daily facts via Ollama — each with detail fields + 10 related facts.
  */
 
 const { ollamaChat, isLlmConfigured } = require('./ollamaClient');
 const { getCbseVocabularyGuidance } = require('./cbseGradeHints');
-const { DAILY_FACT_SUBJECTS, FACT_COUNT } = require('./dailyFactsSubjects');
+const { DAILY_FACT_SUBJECTS, FACT_COUNT, MORE_FACTS_COUNT } = require('./dailyFactsSubjects');
 
 class FactsGenerationError extends Error {
   constructor(message) {
     super(message);
     this.name = 'FactsGenerationError';
   }
+}
+
+function parseMoreFacts(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item, idx) => ({
+      title: String(item?.title || `Related fact ${idx + 1}`).slice(0, 80),
+      fact: String(item?.fact || '').slice(0, 280),
+    }))
+    .filter((m) => m.fact.length > 12)
+    .slice(0, MORE_FACTS_COUNT);
 }
 
 function parseFactsJson(raw) {
@@ -38,6 +49,7 @@ function parseFactsJson(raw) {
           reasoning: String(item.reasoning || '').slice(0, 900),
           didYouKnow: String(item.didYouKnow || '').slice(0, 420),
           realLifeLink: String(item.realLifeLink || '').slice(0, 420),
+          moreFacts: parseMoreFacts(item.moreFacts),
         };
       })
       .filter((f) => f.fact.length > 20)
@@ -52,12 +64,12 @@ function buildPrompt(dateStr, gradeLabel, cbse, strict = false) {
   const strictNote = strict
     ? '\nIMPORTANT: Return ONLY a raw JSON array. No markdown, no explanation.'
     : '';
-  return `You are an expert CBSE teacher. Using ONLY your own knowledge (do NOT browse the web or cite URLs), invent exactly ${FACT_COUNT} original, true, kid-friendly facts for ${cbse.classLevel} students (age ~${cbse.age}).
+  return `You are an expert CBSE teacher. Using ONLY your own knowledge (do NOT browse the web), invent exactly ${FACT_COUNT} original, true, kid-friendly facts for ${cbse.classLevel} students (age ~${cbse.age}).
 Cover ALL subjects — at least one fact each: ${subjectList}.
 Simple English, Indian school context where relevant, no scary or adult content.
 Date seed: ${dateStr} — make today's set unique.${strictNote}
 
-Return ONLY a JSON array of ${FACT_COUNT} objects:
+Return ONLY a JSON array of ${FACT_COUNT} objects. EACH object MUST include a "moreFacts" array with EXACTLY ${MORE_FACTS_COUNT} bonus facts on the SAME topic:
 [
   {
     "id": "1",
@@ -65,27 +77,30 @@ Return ONLY a JSON array of ${FACT_COUNT} objects:
     "emoji": "🔬",
     "title": "Short catchy title",
     "fact": "2-4 sentences a child can understand.",
-    "explanation": "3-5 sentences explaining the fact more clearly",
-    "reasoning": "2-4 sentences on WHY this is true",
+    "explanation": "3-4 sentences explaining the main fact more clearly",
+    "reasoning": "2-3 sentences on WHY this is true",
     "didYouKnow": "one surprising related fun fact",
-    "realLifeLink": "how this connects to school or daily life in India"
+    "realLifeLink": "how this connects to school or daily life in India",
+    "moreFacts": [
+      { "title": "Short title", "fact": "1-2 sentences on the same topic." }
+    ]
   }
 ]
 "subject" must be one of: ${DAILY_FACT_SUBJECTS.map((s) => s.id).join(', ')}.
-Every object MUST include explanation, reasoning, didYouKnow, and realLifeLink.`;
+Each "moreFacts" array must have exactly ${MORE_FACTS_COUNT} items related to that fact's topic.`;
 }
 
-async function callOllama(prompt, gradeLabel, dateStr) {
+async function callOllama(prompt, gradeLabel, dateStr, numPredict = 12000) {
   const { content } = await ollamaChat({
     messages: [
       {
         role: 'system',
-        content: 'You create educational facts for Indian school children from your training knowledge only. Return valid JSON arrays.',
+        content: 'You create educational facts for Indian school children. Return valid JSON arrays only.',
       },
       { role: 'user', content: prompt },
     ],
     temperature: 0.65,
-    num_predict: 4500,
+    num_predict: numPredict,
     logContext: `dailyFacts ollama grade=${gradeLabel} date=${dateStr}`,
   });
   return content;
@@ -94,7 +109,6 @@ async function callOllama(prompt, gradeLabel, dateStr) {
 /**
  * @param {Date} date
  * @param {string} gradeLabel
- * @returns {Promise<Array<{id,subject,emoji,title,fact}>>}
  */
 async function generateDailyFacts(date, gradeLabel) {
   if (!isLlmConfigured()) {
@@ -116,7 +130,7 @@ async function generateDailyFacts(date, gradeLabel) {
 
     if (!facts || facts.length < 8) {
       console.warn('[dailyFactsAi] retrying Ollama with strict JSON prompt');
-      raw = await callOllama(buildPrompt(dateStr, gradeLabel, cbse, true), gradeLabel, dateStr);
+      raw = await callOllama(buildPrompt(dateStr, gradeLabel, cbse, true), gradeLabel, dateStr, 14000);
       facts = parseFactsJson(raw);
     }
 
@@ -135,4 +149,4 @@ async function generateDailyFacts(date, gradeLabel) {
   }
 }
 
-module.exports = { generateDailyFacts, FactsGenerationError, FACT_COUNT };
+module.exports = { generateDailyFacts, FactsGenerationError, FACT_COUNT, MORE_FACTS_COUNT };

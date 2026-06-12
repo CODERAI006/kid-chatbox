@@ -26,7 +26,7 @@ async function areBuddies(userId, otherUserId) {
 
 async function findUserByBuddyId(buddyId) {
   const res = await pool.query(
-    `SELECT id, name, buddy_id, grade, age FROM users WHERE LOWER(buddy_id) = LOWER($1) AND status = 'enabled'`,
+    `SELECT id, name, buddy_id, grade, age FROM users WHERE LOWER(buddy_id) = LOWER($1) AND status IN ('approved', 'enabled')`,
     [String(buddyId || '').trim()]
   );
   return res.rows[0] || null;
@@ -244,36 +244,51 @@ router.post('/requests', authenticateToken, checkModuleAccess('quiz'), async (re
 
 /** PATCH /api/study-buddies/requests/:id { action: accept|reject|cancel } */
 router.patch('/requests/:id', authenticateToken, checkModuleAccess('quiz'), async (req, res, next) => {
+  const { action } = req.body;
+  if (!['accept', 'reject', 'cancel'].includes(action)) {
+    return res.status(400).json({ success: false, message: 'action must be accept, reject, or cancel' });
+  }
+
   const client = await pool.connect();
-  try {
-    const { action } = req.body;
-    if (!['accept', 'reject', 'cancel'].includes(action)) {
-      return res.status(400).json({ success: false, message: 'action must be accept, reject, or cancel' });
+  let inTransaction = false;
+
+  const abort = async (status, message) => {
+    if (inTransaction) {
+      await client.query('ROLLBACK').catch(() => {});
+      inTransaction = false;
     }
+    res.status(status).json({ success: false, message });
+  };
+
+  try {
+    const userId = String(req.user.id);
     await client.query('BEGIN');
+    inTransaction = true;
+
     const reqRes = await client.query(
       'SELECT * FROM study_buddy_requests WHERE id = $1 FOR UPDATE',
       [req.params.id]
     );
     if (!reqRes.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ success: false, message: 'Request not found' });
-    }
-    const row = reqRes.rows[0];
-    if (row.status !== 'pending') {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ success: false, message: 'Request is no longer pending' });
+      await abort(404, 'Request not found');
+      return;
     }
 
-    const isRecipient = row.to_user_id === req.user.id;
-    const isSender = row.from_user_id === req.user.id;
+    const row = reqRes.rows[0];
+    if (row.status !== 'pending') {
+      await abort(409, 'Request is no longer pending');
+      return;
+    }
+
+    const isRecipient = String(row.to_user_id) === userId;
+    const isSender = String(row.from_user_id) === userId;
     if (action === 'cancel' && !isSender) {
-      await client.query('ROLLBACK');
-      return res.status(403).json({ success: false, message: 'Only the sender can cancel' });
+      await abort(403, 'Only the sender can cancel');
+      return;
     }
     if ((action === 'accept' || action === 'reject') && !isRecipient) {
-      await client.query('ROLLBACK');
-      return res.status(403).json({ success: false, message: 'Only the recipient can accept or reject' });
+      await abort(403, 'Only the recipient can accept or reject');
+      return;
     }
 
     const newStatus = action === 'accept' ? 'accepted' : action === 'reject' ? 'rejected' : 'cancelled';
@@ -283,14 +298,16 @@ router.patch('/requests/:id', authenticateToken, checkModuleAccess('quiz'), asyn
     );
 
     if (action === 'accept') {
-      const [userA, userB] = pairIds(row.from_user_id, row.to_user_id);
       await client.query(
         `INSERT INTO study_buddy_connections (user_a_id, user_b_id)
-         VALUES ($1, $2) ON CONFLICT (user_a_id, user_b_id) DO NOTHING`,
-        [userA, userB]
+         SELECT LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid)
+         ON CONFLICT (user_a_id, user_b_id) DO NOTHING`,
+        [row.from_user_id, row.to_user_id]
       );
     }
+
     await client.query('COMMIT');
+    inTransaction = false;
 
     res.json({
       success: true,
@@ -298,7 +315,21 @@ router.patch('/requests/:id', authenticateToken, checkModuleAccess('quiz'), asyn
       message: action === 'accept' ? 'You are now study buddies!' : `Request ${newStatus}`,
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (inTransaction) {
+      await client.query('ROLLBACK').catch(() => {});
+    }
+    if (error.code === '42P01') {
+      return res.status(503).json({
+        success: false,
+        message: 'Study buddy tables are missing. Run database migrations and try again.',
+      });
+    }
+    if (error.code === '42703') {
+      return res.status(503).json({
+        success: false,
+        message: 'Study buddy database schema is out of date. Run database migrations and try again.',
+      });
+    }
     next(error);
   } finally {
     client.release();

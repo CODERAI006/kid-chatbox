@@ -15,7 +15,13 @@ import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { useStudyPlanPendingToday } from '@/hooks/useStudyPlanPendingToday';
+import { useVisualViewportBottom } from '@/hooks/useVisualViewportBottom';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
+import { GURU_CHAT_ICON } from '@/constants/app';
+
+function openGuruChat(): void {
+  window.dispatchEvent(new CustomEvent('learning-chat:open', { detail: { mode: 'new' } }));
+}
 
 interface MobileBottomNavProps {
   user?: User | null;
@@ -29,6 +35,7 @@ type NavItem = {
   match: (pathname: string, hash: string) => boolean;
   isVisible: (ctx: NavContext) => boolean;
   isDisabled: (ctx: NavContext) => boolean;
+  onActivate?: () => void;
 };
 
 type NavContext = {
@@ -49,10 +56,20 @@ const NAV_ITEMS: NavItem[] = [
     isDisabled: () => false,
   },
   {
+    path: '#guru-chat',
+    label: 'Guru AI',
+    shortLabel: 'Guru',
+    icon: GURU_CHAT_ICON,
+    match: () => false,
+    isVisible: () => true,
+    isDisabled: () => false,
+    onActivate: openGuruChat,
+  },
+  {
     path: '/study#ai-study',
     label: 'AI Study',
     shortLabel: 'Study',
-    icon: '🤖',
+    icon: '📚',
     match: (pathname, hash) => pathname === '/study' && hash === '#ai-study',
     isVisible: (ctx) => ctx.canShowAiStudy,
     isDisabled: (ctx) => !ctx.hasStudyAccess,
@@ -91,6 +108,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
   const disabledColor = useColorModeValue('gray.400', 'gray.600');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
+  const visualViewportBottom = useVisualViewportBottom();
   const schedulePendingToday = useStudyPlanPendingToday();
   const { showAiStudy, showAiQuiz } = usePlanAiFlags(getUserId(user as Record<string, unknown> | null));
   const isAdmin = isAppAdmin(user as Record<string, unknown> | null);
@@ -114,9 +132,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
       as="nav"
       aria-label="Mobile navigation"
       position="fixed"
-      bottom={0}
+      bottom={`${visualViewportBottom}px`}
       left={0}
       right={0}
+      w="100%"
       zIndex={1400}
       bg={bg}
       borderTopWidth="1px"
@@ -124,6 +143,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
       boxShadow="0 -2px 10px rgba(0,0,0,0.06)"
       pb="env(safe-area-inset-bottom, 0px)"
       display={{ base: 'block', md: 'none' }}
+      sx={{
+        transform: 'translateZ(0)',
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
+      }}
     >
       <HStack justify="space-around" align="stretch" h={MOBILE_BOTTOM_NAV_HEIGHT} px={1}>
         {visibleItems.map((item) => {
@@ -139,7 +163,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
               minW={0}
               py={2}
               px={1}
-              onClick={() => !disabled && navigate(item.path)}
+              onClick={() => {
+                if (disabled) return;
+                if (item.onActivate) {
+                  item.onActivate();
+                  return;
+                }
+                navigate(item.path);
+              }}
               aria-current={active ? 'page' : undefined}
               aria-disabled={disabled || undefined}
               opacity={disabled ? 0.45 : 1}

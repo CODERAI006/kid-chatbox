@@ -40,6 +40,9 @@ async function migrateStudyBuddies() {
       ON study_buddy_requests (from_user_id, to_user_id)
       WHERE status = 'pending';
 
+    ALTER TABLE study_buddy_requests
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+
     CREATE TABLE IF NOT EXISTS study_buddy_connections (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_a_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

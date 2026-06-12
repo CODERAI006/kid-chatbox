@@ -13,9 +13,10 @@ const DAILY_FACT_SUBJECTS = [
 ];
 
 const FACT_COUNT = 10;
+const MORE_FACTS_COUNT = 10;
 
 function subjectById(id) {
   return DAILY_FACT_SUBJECTS.find((s) => s.id === id) || DAILY_FACT_SUBJECTS[4];
 }
 
-module.exports = { DAILY_FACT_SUBJECTS, FACT_COUNT, subjectById };
+module.exports = { DAILY_FACT_SUBJECTS, FACT_COUNT, MORE_FACTS_COUNT, subjectById };

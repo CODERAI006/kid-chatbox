@@ -5,7 +5,13 @@
  */
 
 const express = require('express');
-const { getDailyFacts, getFactDetail, listArchiveDates } = require('../services/dailyFactsService');
+const {
+  getDailyFacts,
+  getFactDetail,
+  listArchiveDates,
+  listFactsArchive,
+  ARCHIVE_PAGE_SIZE,
+} = require('../services/dailyFactsService');
 
 const router = express.Router();
 
@@ -17,6 +23,28 @@ router.get('/dates', async (req, res) => {
   } catch (error) {
     console.error('[facts-and-fun/dates]', error.message);
     res.status(500).json({ success: false, dates: [] });
+  }
+});
+
+router.get('/archive', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || ARCHIVE_PAGE_SIZE));
+    const body = await listFactsArchive(req.query.grade, {
+      page,
+      limit,
+      subject: req.query.subject,
+      untilDate: req.query.untilDate,
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('[facts-and-fun/archive]', error.message);
+    res.status(500).json({
+      success: false,
+      items: [],
+      total: 0,
+      message: 'Failed to load fact archive',
+    });
   }
 });
 

@@ -13,7 +13,10 @@ import { publicApi } from '@/services/api';
 import { QuizPill, QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import FactCard from './FactCard';
 import FactDetailModal from './FactDetailModal';
+import FactsArchivePanel from './FactsArchivePanel';
 import type { DailyFact, DailyFactsResponse, FactSubjectId } from '@/types/dailyFacts';
+
+type ViewMode = 'today' | 'archive';
 
 const toYMD = (d: Date) => [
   d.getFullYear(),
@@ -57,6 +60,7 @@ export default function FactsAndFunPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailFact, setDetailFact] = useState<DailyFact | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('today');
 
   const loadFacts = useCallback(async (dateStr: string) => {
     setLoading(true);
@@ -78,8 +82,8 @@ export default function FactsAndFunPanel() {
   }, [gradeLabel]);
 
   useEffect(() => {
-    loadFacts(selectedDate);
-  }, [selectedDate, loadFacts]);
+    if (viewMode === 'today') loadFacts(selectedDate);
+  }, [selectedDate, loadFacts, viewMode]);
 
   useEffect(() => {
     publicApi.getDailyFactsDates(gradeLabel).then((res) => {
@@ -137,24 +141,50 @@ export default function FactsAndFunPanel() {
               <Text>{gradeLabel}</Text>
               {data?.cached && <Text opacity={0.85}>· saved edition</Text>}
             </HStack>
-            <Box minW={{ base: '100%', sm: '180px' }}>
-              <QuizSectionLabel>Pick a day</QuizSectionLabel>
-              <Input
-                type="date"
-                value={selectedDate}
-                max={today}
-                size="sm"
-                bg="white"
-                color="gray.900"
-                borderRadius="lg"
-                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-              />
-            </Box>
+            {viewMode === 'today' && (
+              <Box minW={{ base: '100%', sm: '180px' }}>
+                <QuizSectionLabel>Pick a day</QuizSectionLabel>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  max={today}
+                  size="sm"
+                  bg="white"
+                  color="gray.900"
+                  borderRadius="lg"
+                  onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+                />
+              </Box>
+            )}
           </HStack>
         </VStack>
       </Box>
 
-      {archiveDates.length > 1 && (
+      <Box minW={0}>
+        <QuizSectionLabel>View</QuizSectionLabel>
+        <HStack
+          spacing={2}
+          flexWrap="wrap"
+          overflowX="auto"
+          pb={1}
+          css={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <QuizPill
+            label="Today's edition"
+            active={viewMode === 'today'}
+            onClick={() => setViewMode('today')}
+            cs="orange"
+          />
+          <QuizPill
+            label="All facts till today"
+            active={viewMode === 'archive'}
+            onClick={() => setViewMode('archive')}
+            cs="gray"
+          />
+        </HStack>
+      </Box>
+
+      {viewMode === 'today' && archiveDates.length > 1 && (
         <Box>
           <QuizSectionLabel>Earlier editions</QuizSectionLabel>
           <HStack flexWrap="wrap" spacing={2}>
@@ -179,7 +209,9 @@ export default function FactsAndFunPanel() {
       )}
 
       <Text fontSize={{ base: 'xs', sm: 'sm' }} color="gray.500">
-        {formatDisplayDate(selectedDate)}
+        {viewMode === 'archive'
+          ? `Every saved fact for your class until ${formatDisplayDate(today)}`
+          : formatDisplayDate(selectedDate)}
       </Text>
 
       <Box minW={0}>
@@ -214,7 +246,15 @@ export default function FactsAndFunPanel() {
         </Box>
       </Box>
 
-      {loading ? (
+      {viewMode === 'archive' ? (
+        <FactsArchivePanel
+          gradeLabel={gradeLabel}
+          untilDate={today}
+          subjectFilter={subjectFilter}
+          subjects={subjects}
+          onOpenDetail={setDetailFact}
+        />
+      ) : loading ? (
         <VStack spacing={4} align="stretch">
           <Text fontSize={{ base: 'xs', sm: 'sm' }} color="gray.500" textAlign="center">
             {selectedDate === today
@@ -269,7 +309,7 @@ export default function FactsAndFunPanel() {
         </SimpleGrid>
       )}
 
-      {!loading && filtered.length === 0 && !error && (
+      {viewMode === 'today' && !loading && filtered.length === 0 && !error && (
         <Text textAlign="center" fontSize={{ base: 'sm', md: 'md' }} color="gray.500" py={8}>
           No facts in this area for the selected day.
         </Text>

@@ -111,7 +111,7 @@ const checkModuleAccess = (moduleName) => {
 
       const user = userResult.rows[0];
 
-      if (user.status !== 'approved') {
+      if (user.status !== 'approved' && user.status !== 'enabled') {
         return res.status(403).json({
           success: false,
           message: 'Account pending approval. Please wait for admin approval.',

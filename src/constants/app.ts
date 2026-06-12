@@ -2,6 +2,8 @@
  * Application-wide constants
  */
 
+export const GURU_CHAT_ICON = '🤖';
+
 export const APP_CONSTANTS = {
   APP_NAME: 'Guru AI',
   BRAND_NAME: 'Guru AI',

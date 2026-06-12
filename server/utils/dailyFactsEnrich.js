@@ -82,6 +82,16 @@ Keep language simple, accurate, and age-appropriate. No scary content.`;
   }
 }
 
+function normalizeMoreFacts(moreFacts) {
+  if (!Array.isArray(moreFacts)) return [];
+  return moreFacts
+    .map((item, idx) => ({
+      title: String(item?.title || `Bonus fact ${idx + 1}`).slice(0, 80),
+      fact: String(item?.fact || '').slice(0, 280),
+    }))
+    .filter((m) => m.fact.length > 12);
+}
+
 function normalizeFactDetail(fact) {
   const base = fallbackDetail(fact);
   return {
@@ -90,6 +100,7 @@ function normalizeFactDetail(fact) {
     reasoning: String(fact.reasoning || base.reasoning).slice(0, 900),
     didYouKnow: String(fact.didYouKnow || base.didYouKnow).slice(0, 420),
     realLifeLink: String(fact.realLifeLink || base.realLifeLink).slice(0, 420),
+    moreFacts: normalizeMoreFacts(fact.moreFacts),
   };
 }
 

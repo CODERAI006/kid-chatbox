@@ -6,7 +6,7 @@ const { pool } = require('../config/database');
 const { generateDailyFacts } = require('../utils/dailyFactsAi');
 const { DAILY_FACT_SUBJECTS } = require('../utils/dailyFactsSubjects');
 const { resolveGradeLabel, parseDateParam } = require('./wordOfDayService');
-const { generateFactDetail, normalizeFactDetail } = require('../utils/dailyFactsEnrich');
+const { normalizeFactDetail } = require('../utils/dailyFactsEnrich');
 const {
   formatCacheDate,
   gradeCacheKey,
@@ -14,7 +14,11 @@ const {
   readCache,
   writeCache,
   listCachedDates,
+  countArchivedFacts,
+  listArchivedFacts,
 } = require('../utils/dailyFactsDbCache');
+
+const ARCHIVE_PAGE_SIZE = 20;
 
 function withDetailFields(facts) {
   return (facts || []).map((f) => normalizeFactDetail(f));
@@ -80,6 +84,44 @@ async function listArchiveDates(grade, limit = 30) {
   return { success: true, grade: gradeLabel, dates };
 }
 
+async function listFactsArchive(grade, options = {}) {
+  const gradeLabel = await resolveGradeLabel(grade);
+  const key = gradeCacheKey(gradeLabel);
+  const maxDate = formatCacheDate(parseDateParam(options.untilDate));
+  const page = Math.max(1, parseInt(options.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(options.limit, 10) || ARCHIVE_PAGE_SIZE));
+  const subjectRaw = String(options.subject || '').trim();
+  const subject = subjectRaw && subjectRaw !== 'all' ? subjectRaw : null;
+
+  const [total, rows] = await Promise.all([
+    countArchivedFacts(key, maxDate, subject),
+    listArchivedFacts(key, maxDate, { page, limit, subject }),
+  ]);
+
+  const items = rows.map(({ editionDate, fact }) => ({
+    editionDate,
+    fact: normalizeFactDetail({
+      ...fact,
+      id: String(fact.id || `${editionDate}-fact`),
+    }),
+  }));
+
+  const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+
+  return {
+    success: true,
+    grade: gradeLabel,
+    untilDate: maxDate,
+    page,
+    limit,
+    total,
+    totalPages,
+    hasMore: page < totalPages,
+    items,
+    subjects: DAILY_FACT_SUBJECTS,
+  };
+}
+
 async function getFactDetail(dateInput, grade, factIdParam) {
   const factId = String(factIdParam || '').trim();
   if (!factId) {
@@ -110,13 +152,18 @@ async function getFactDetail(dateInput, grade, factIdParam) {
     return { success: false, status: 404, message: 'Fact not found for this date and class' };
   }
 
-  const detail = await generateFactDetail(fact, gradeLabel);
+  const enriched = normalizeFactDetail(fact);
   const body = {
     success: true,
     date: cacheDate,
     grade: gradeLabel,
-    fact,
-    detail,
+    fact: enriched,
+    detail: {
+      explanation: enriched.explanation,
+      reasoning: enriched.reasoning,
+      didYouKnow: enriched.didYouKnow,
+      realLifeLink: enriched.realLifeLink,
+    },
     cached: false,
     source: 'ollama',
   };
@@ -160,6 +207,8 @@ module.exports = {
   getDailyFacts,
   getFactDetail,
   listArchiveDates,
+  listFactsArchive,
   pregenerateForDate,
   parseDateParam,
+  ARCHIVE_PAGE_SIZE,
 };

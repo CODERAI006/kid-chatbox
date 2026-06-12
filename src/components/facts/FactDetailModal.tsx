@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   Badge,
   Box,
@@ -13,6 +13,7 @@ import {
 } from '@/shared/design-system';
 import type { DailyFact, FactSubject } from '@/types/dailyFacts';
 import { getFactDetailContent } from './factDetailHelpers';
+import FactMoreFactsList from './FactMoreFactsList';
 
 const BADGE_STYLE: Record<string, { bg: string; color: string; borderColor: string }> = {
   science: { bg: 'blue.50', color: 'blue.800', borderColor: 'blue.100' },
@@ -77,21 +78,27 @@ export default function FactDetailModal({ fact, subjectMeta, isOpen, onClose }: 
     };
   }, [isOpen, onClose]);
 
-  if (!fact) return null;
+  const badge = fact ? BADGE_STYLE[fact.subject] || BADGE_STYLE.general_knowledge : null;
+  const label = fact
+    ? subjectMeta?.label || fact.subject.replace(/_/g, ' ')
+    : '';
+  const detail = useMemo(
+    () => (fact ? getFactDetailContent(fact) : null),
+    [fact],
+  );
 
-  const badge = BADGE_STYLE[fact.subject] || BADGE_STYLE.general_knowledge;
-  const label = subjectMeta?.label || fact.subject.replace(/_/g, ' ');
-  const detail = getFactDetailContent(fact);
+  if (!fact || !detail || !badge) return null;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       size="full"
-      motionPreset="slideInBottom"
+      motionPreset="none"
       scrollBehavior="inside"
+      blockScrollOnMount
     >
-      <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(6px)" />
+      <ModalOverlay bg="blackAlpha.600" />
       <ModalContent
         m={0}
         borderRadius={0}
@@ -167,6 +174,11 @@ export default function FactDetailModal({ fact, subjectMeta, isOpen, onClose }: 
             <DetailSection icon="🧠" title="Why is this true?" body={detail.reasoning} accent="purple" />
             <DetailSection icon="✨" title="Did you know?" body={detail.didYouKnow} accent="orange" />
             <DetailSection icon="🏫" title="In real life" body={detail.realLifeLink} accent="teal" />
+
+            <FactMoreFactsList
+              items={fact.moreFacts || []}
+              topicTitle={fact.title}
+            />
 
             <Button
               size="lg"

@@ -72,6 +72,59 @@ async function listCachedDates(gradeKey, limit = 30) {
   }
 }
 
+function archiveFactsWhere(gradeKey, maxDate, subject) {
+  const params = [gradeKey, maxDate];
+  let subjectClause = '';
+  if (subject) {
+    subjectClause = `AND elem->>'subject' = $3`;
+    params.push(subject);
+  }
+  const base = `
+    FROM daily_facts_cache d
+    CROSS JOIN LATERAL jsonb_array_elements(d.payload->'facts') WITH ORDINALITY AS t(elem, ord)
+    WHERE d.grade_key = $1
+      AND d.cache_date <= $2::date
+      AND jsonb_typeof(d.payload->'facts') = 'array'
+      ${subjectClause}`;
+  return { base, params };
+}
+
+async function countArchivedFacts(gradeKey, maxDate, subject) {
+  try {
+    const { base, params } = archiveFactsWhere(gradeKey, maxDate, subject);
+    const r = await pool.query(`SELECT COUNT(*)::int AS total ${base}`, params);
+    return r.rows[0]?.total ?? 0;
+  } catch (err) {
+    console.error('[dailyFactsCache] count archive failed:', err.message);
+    return 0;
+  }
+}
+
+async function listArchivedFacts(gradeKey, maxDate, { page = 1, limit = 20, subject } = {}) {
+  try {
+    const safeLimit = Math.min(50, Math.max(1, limit));
+    const safePage = Math.max(1, page);
+    const offset = (safePage - 1) * safeLimit;
+    const { base, params } = archiveFactsWhere(gradeKey, maxDate, subject);
+    const limitIdx = params.length + 1;
+    const offsetIdx = params.length + 2;
+    const r = await pool.query(
+      `SELECT d.cache_date::text AS edition_date, t.elem AS fact_json
+       ${base}
+       ORDER BY d.cache_date DESC, t.ord ASC
+       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      [...params, safeLimit, offset],
+    );
+    return r.rows.map((row) => ({
+      editionDate: row.edition_date,
+      fact: row.fact_json,
+    }));
+  } catch (err) {
+    console.error('[dailyFactsCache] list archive failed:', err.message);
+    return [];
+  }
+}
+
 module.exports = {
   formatCacheDate,
   gradeCacheKey,
@@ -79,4 +132,6 @@ module.exports = {
   readCache,
   writeCache,
   listCachedDates,
+  countArchivedFacts,
+  listArchivedFacts,
 };

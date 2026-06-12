@@ -26,9 +26,11 @@ import { formatOptionLabel } from '@/types/learningWorkspace';
 import { DEFAULT_QUIZ_COUNT } from '@/constants/learningQuiz';
 import { inferStudyFormat } from '@/utils/inferStudyFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useVisualViewportBottom } from '@/hooks/useVisualViewportBottom';
 import { buildNewChatShareText, shareOrCopyText } from '@/utils/chatShare';
 import { buildStudyPlanPrompt, type StudyPlanDay } from '@/utils/studyPlanSchedule';
 import { MOBILE_BOTTOM_NAV_HEIGHT } from '@/components/layout/MobileBottomNav';
+import { GURU_CHAT_ICON } from '@/constants/app';
 
 const STUDENT_HEADER_HEIGHT = '73px';
 
@@ -60,6 +62,7 @@ export const LearningChatWidget: FC = () => {
   bootLoadingRef.current = bootLoading;
   const { showAiStudy } = usePlanAiFlags();
   const isDesktopModal = useBreakpointValue({ base: false, lg: true }) ?? false;
+  const visualViewportBottom = useVisualViewportBottom();
 
   const panelBg = useColorModeValue('white', 'gray.800');
   const panelBorder = useColorModeValue('gray.200', 'gray.600');
@@ -442,10 +445,11 @@ export const LearningChatWidget: FC = () => {
       {!open && (
         <IconButton
           aria-label="Open Guru AI"
-          icon={<Text fontSize="xl">🧘</Text>}
+          icon={<Text fontSize="xl">{GURU_CHAT_ICON}</Text>}
+          display={{ base: 'none', md: 'inline-flex' }}
           position="fixed"
-          bottom={{ base: 'calc(4.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem)', md: 8 }}
-          right={{ base: 5, md: 8 }}
+          bottom={8}
+          right={8}
           zIndex={1500}
           size="lg"
           rounded="full"
@@ -491,7 +495,7 @@ export const LearningChatWidget: FC = () => {
           position="fixed"
           top={{ base: STUDENT_HEADER_HEIGHT, sm: 'auto' }}
           bottom={{
-            base: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + env(safe-area-inset-bottom, 0px))`,
+            base: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + env(safe-area-inset-bottom, 0px) + ${visualViewportBottom}px)`,
             sm: 2,
           }}
           right={{ base: 0, sm: 2 }}

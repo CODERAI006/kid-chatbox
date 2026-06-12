@@ -111,7 +111,16 @@ export const StudyBuddiesPage: React.FC = () => {
     try {
       const res = await studyBuddyApi.respondToRequest(id, action);
       toast({ title: res.message, status: 'success' });
-      await load();
+      try {
+        await load();
+      } catch (refreshError) {
+        console.error('Study buddies refresh failed after respond:', refreshError);
+        toast({
+          title: 'Request updated — refresh the page if the list looks stale.',
+          status: 'warning',
+          duration: 5000,
+        });
+      }
       if (action === 'accept' && buddyId) {
         focusShareForBuddy(buddyId);
         toast({

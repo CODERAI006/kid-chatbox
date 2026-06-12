@@ -1144,6 +1144,45 @@ export const publicApi = {
     }
   },
 
+  getDailyFactsArchive: async (
+    grade?: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      subject?: string;
+      untilDate?: string;
+    },
+  ): Promise<import('@/types/dailyFacts').DailyFactsArchiveResponse> => {
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 20;
+    try {
+      const response = await apiClient.get('/public/facts-and-fun/archive', {
+        params: {
+          grade,
+          page,
+          limit,
+          subject: options?.subject,
+          untilDate: options?.untilDate,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get facts archive:', error);
+      return {
+        success: false,
+        grade: grade || '',
+        untilDate: options?.untilDate || '',
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
+        items: [],
+        message: 'Unable to load fact archive.',
+      };
+    }
+  },
+
   getDailyFactDetail: async (
     factId: string,
     date?: string,
