@@ -24,7 +24,7 @@ import {
 } from '@/shared/design-system';
 import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 import { BuddySharePanel } from '@/components/study-buddy/BuddySharePanel';
-import { getErrorMessage, quizLibraryApi, studyBuddyApi } from '@/services/api';
+import { getErrorMessage, quizApi, quizLibraryApi, studyBuddyApi } from '@/services/api';
 import type { AcceptedStudyBuddy, QuizLibraryListItem, StudyBuddyDashboard } from '@/types';
 
 function connectionLabel(via?: AcceptedStudyBuddy['connectedVia']) {
@@ -154,7 +154,8 @@ export const StudyBuddiesPage: React.FC = () => {
     setBusy(true);
     try {
       const { quizId } = await studyBuddyApi.startSharedQuiz(shareId);
-      navigate(`/quiz/attempt/${quizId}`);
+      const attempt = await quizApi.startQuizAttempt(quizId);
+      navigate(`/quiz/attempt/${attempt.attempt.id}`);
     } catch (e) {
       toast({ title: getErrorMessage(e), status: 'error' });
     } finally {

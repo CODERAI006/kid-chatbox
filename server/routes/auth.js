@@ -7,12 +7,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
-const { getFreemiumPlan, assignPlanToUser } = require('../utils/plans');
 const { trackEvent, EVENT_TYPES } = require('../utils/eventTracker');
 const { sendWelcomeEmail, sendGoogleWelcomeEmail } = require('../utils/email');
 const { generateUniqueBuddyId } = require('../utils/buddyId');
 const { parseBirthDate, calculateAgeFromBirthDate, formatBirthDateValue } = require('../utils/birthDate');
 const { ageFromNumber } = require('../utils/resolveQuizAgeGroup');
+const { parseEmail } = require('../utils/normalizeEmail');
+const {
+  DUPLICATE_EMAIL_MESSAGE,
+  emailExists,
+  isDuplicateEmailError,
+  setupNewUserAccount,
+} = require('../utils/registerNewUser');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -21,16 +27,27 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
  * Register a new user
  */
 router.post('/register', async (req, res, next) => {
-  try {
-    const { email, password, name, birthDate, grade, preferredLanguage } = req.body;
+  const client = await pool.connect();
 
-    // Validate input
-    if (!email || !password || !name) {
+  try {
+    const { email: rawEmail, password, name, birthDate, grade, preferredLanguage } = req.body;
+
+    if (!password || !name) {
       return res.status(400).json({
         success: false,
         message: 'Email, password, and name are required',
       });
     }
+
+    const emailResult = parseEmail(rawEmail);
+    if (emailResult.error) {
+      return res.status(400).json({
+        success: false,
+        message: emailResult.error,
+      });
+    }
+
+    const email = emailResult.email;
 
     if (!birthDate) {
       return res.status(400).json({
@@ -47,36 +64,32 @@ router.post('/register', async (req, res, next) => {
       });
     }
 
-    const normalizedBirthDate = birthDateResult.value;
-    const derivedAge = calculateAgeFromBirthDate(normalizedBirthDate);
-    const derivedAgeGroup = derivedAge != null ? ageFromNumber(derivedAge) : null;
-
-    // Check if user already exists
-    const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (existingUser.rows.length > 0) {
+    if (await emailExists(email)) {
       return res.status(409).json({
         success: false,
-        message: 'User with this email already exists',
+        message: DUPLICATE_EMAIL_MESSAGE,
       });
     }
 
-    // Hash password
+    const normalizedBirthDate = birthDateResult.value;
+    const derivedAge = calculateAgeFromBirthDate(normalizedBirthDate);
+    const derivedAgeGroup = derivedAge != null ? ageFromNumber(derivedAge) : null;
     const passwordHash = await bcrypt.hash(password, 10);
     const buddyId = await generateUniqueBuddyId(pool, name);
 
-    // Create user with default status 'enabled' (auto-approved)
-    const result = await pool.query(
-      `INSERT INTO users (email, password_hash, name, age, age_group, birth_date, grade, preferred_language, status, buddy_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'enabled', $9)
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `INSERT INTO users (
+         email, password_hash, name, age, age_group, birth_date, grade,
+         preferred_language, status, approved_at, buddy_id
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', CURRENT_TIMESTAMP, $9)
        RETURNING id, email, name, age, age_group, birth_date, grade, preferred_language, status, buddy_id, created_at`,
       [
         email,
         passwordHash,
-        name,
+        name.trim(),
         derivedAge,
         derivedAgeGroup,
         normalizedBirthDate,
@@ -87,36 +100,15 @@ router.post('/register', async (req, res, next) => {
     );
 
     const user = result.rows[0];
+    await setupNewUserAccount(client, user.id);
+    await client.query('COMMIT');
 
-    // Assign default 'student' role
-    const studentRoleResult = await pool.query(
-      "SELECT id FROM roles WHERE name = 'student'"
-    );
-
-    if (studentRoleResult.rows.length > 0) {
-      await pool.query(
-        'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)',
-        [user.id, studentRoleResult.rows[0].id]
-      );
-    }
-
-    // Assign Freemium plan to new user
-    try {
-      const freemiumPlan = await getFreemiumPlan();
-      await assignPlanToUser(user.id, freemiumPlan.id);
-    } catch (error) {
-      console.error(`Error assigning Freemium plan to user ${user.id} (${user.email}):`, error.message || error);
-      // Don't fail registration if plan assignment fails
-    }
-
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
 
-    // Track registration event
     await trackEvent({
       userId: user.id,
       eventType: EVENT_TYPES.USER_REGISTER,
@@ -130,17 +122,14 @@ router.post('/register', async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
-    // Send welcome email with credentials
     try {
       await sendWelcomeEmail({
         email: user.email,
         name: user.name,
-        password: password, // Send plain password in email
+        password,
       });
     } catch (emailError) {
-      // Log error but don't fail registration if email fails
       console.error(`Failed to send welcome email to ${user.email}:`, emailError.message);
-      // Registration still succeeds even if email fails
     }
 
     res.status(201).json({
@@ -158,10 +147,21 @@ router.post('/register', async (req, res, next) => {
         createdAt: user.created_at,
       },
       token,
-      message: 'Registration successful. Your account is enabled and ready to use!',
+      message: 'Registration successful. Your account is enabled with the Freemium plan.',
     });
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+
+    if (isDuplicateEmailError(error)) {
+      return res.status(409).json({
+        success: false,
+        message: DUPLICATE_EMAIL_MESSAGE,
+      });
+    }
+
     next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -170,19 +170,26 @@ router.post('/register', async (req, res, next) => {
  */
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email: rawEmail, password } = req.body;
 
-    if (!email || !password) {
+    if (!rawEmail || !password) {
       return res.status(400).json({
         success: false,
         message: 'Email and password are required',
       });
     }
 
-    // Find user
+    const emailResult = parseEmail(rawEmail);
+    if (emailResult.error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
     const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
+      'SELECT * FROM users WHERE LOWER(email) = $1',
+      [emailResult.email]
     );
 
     if (result.rows.length === 0) {
@@ -263,23 +270,30 @@ router.post('/login', async (req, res, next) => {
  * Google OAuth callback - Verify Google token and create/login user
  */
 router.post('/google', async (req, res, next) => {
-  try {
-    const { token: googleToken, email, name, picture } = req.body;
+  const client = await pool.connect();
 
-    if (!googleToken || !email || !name) {
+  try {
+    const { token: googleToken, email: rawEmail, name, picture } = req.body;
+
+    if (!googleToken || !rawEmail || !name) {
       return res.status(400).json({
         success: false,
         message: 'Google token, email, and name are required',
       });
     }
 
-    // Verify Google token (in production, verify with Google API)
-    // For now, we'll trust the token from frontend
-    // In production, use: https://www.npmjs.com/package/google-auth-library
+    const emailResult = parseEmail(rawEmail);
+    if (emailResult.error) {
+      return res.status(400).json({
+        success: false,
+        message: emailResult.error,
+      });
+    }
 
-    // Find or create user
+    const email = emailResult.email;
+
     let result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
+      'SELECT * FROM users WHERE LOWER(email) = $1',
       [email]
     );
 
@@ -287,37 +301,20 @@ router.post('/google', async (req, res, next) => {
 
     if (result.rows.length === 0) {
       const buddyId = await generateUniqueBuddyId(pool, name);
-      // Create new user with enabled status (auto-approved for Google login)
-      result = await pool.query(
-        `INSERT INTO users (email, name, password_hash, status, avatar_url, buddy_id)
-         VALUES ($1, $2, $3, 'enabled', $4, $5)
+
+      await client.query('BEGIN');
+
+      result = await client.query(
+        `INSERT INTO users (email, name, password_hash, status, approved_at, avatar_url, buddy_id)
+         VALUES ($1, $2, $3, 'approved', CURRENT_TIMESTAMP, $4, $5)
          RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
-        [email, name, null, picture || null, buddyId]
+        [email, name.trim(), null, picture || null, buddyId]
       );
       user = result.rows[0];
 
-      // Assign default 'student' role
-      const studentRoleResult = await pool.query(
-        "SELECT id FROM roles WHERE name = 'student'"
-      );
+      await setupNewUserAccount(client, user.id);
+      await client.query('COMMIT');
 
-      if (studentRoleResult.rows.length > 0) {
-        await pool.query(
-          'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)',
-          [user.id, studentRoleResult.rows[0].id]
-        );
-      }
-
-      // Assign Freemium plan to new OAuth user
-      try {
-        const freemiumPlan = await getFreemiumPlan();
-        await assignPlanToUser(user.id, freemiumPlan.id);
-      } catch (error) {
-        console.error(`Error assigning Freemium plan to OAuth user ${user.id} (${user.email}):`, error.message || error);
-        // Don't fail registration if plan assignment fails
-      }
-
-      // Track registration event
       try {
         await trackEvent({
           userId: user.id,
@@ -330,31 +327,26 @@ router.post('/google', async (req, res, next) => {
           userAgent: req.get('user-agent'),
         });
       } catch (error) {
-        console.error(`Error tracking Google registration event:`, error.message || error);
+        console.error('Error tracking Google registration event:', error.message || error);
       }
 
-      // Send welcome email for Google login users (no password needed)
       try {
         await sendGoogleWelcomeEmail({
           email: user.email,
           name: user.name,
         });
       } catch (emailError) {
-        // Log error but don't fail registration if email fails
         console.error(`Failed to send welcome email to ${user.email}:`, emailError.message || emailError);
-        // Registration still succeeds even if email fails
       }
     } else {
       user = result.rows[0];
-      
-      // Update last login
+
       await pool.query(
         'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
         [user.id]
       );
     }
 
-    // Generate JWT token
     const jwtToken = jwt.sign(
       { userId: user.id, email: user.email },
       JWT_SECRET,
@@ -376,7 +368,18 @@ router.post('/google', async (req, res, next) => {
       token: jwtToken,
     });
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+
+    if (isDuplicateEmailError(error)) {
+      return res.status(409).json({
+        success: false,
+        message: DUPLICATE_EMAIL_MESSAGE,
+      });
+    }
+
     next(error);
+  } finally {
+    client.release();
   }
 });
 
@@ -385,84 +388,92 @@ router.post('/google', async (req, res, next) => {
  */
 router.post('/social', async (req, res, next) => {
   try {
-    const { provider, token, email, name } = req.body;
+    const { provider, token, email: rawEmail, name } = req.body;
 
-    if (!provider || !email || !name) {
+    if (!provider || !rawEmail || !name) {
       return res.status(400).json({
         success: false,
         message: 'Provider, email, and name are required',
       });
     }
 
-    // For Google, use the /google endpoint
     if (provider === 'google') {
       return router.handle({ ...req, url: '/google', method: 'POST' }, res, next);
     }
 
-    // Find or create user
-    let result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
+    const client = await pool.connect();
 
-    let user;
+    try {
+      const emailResult = parseEmail(rawEmail);
+      if (emailResult.error) {
+        return res.status(400).json({
+          success: false,
+          message: emailResult.error,
+        });
+      }
 
-    if (result.rows.length === 0) {
-      const buddyId = await generateUniqueBuddyId(pool, name);
-      // Create new user with enabled status
-      result = await pool.query(
-        `INSERT INTO users (email, name, password_hash, status, buddy_id)
-         VALUES ($1, $2, $3, 'enabled', $4)
-         RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
-        [email, name, null, buddyId]
-      );
-      user = result.rows[0];
+      const email = emailResult.email;
 
-      // Assign default 'student' role
-      const studentRoleResult = await pool.query(
-        "SELECT id FROM roles WHERE name = 'student'"
+      let result = await pool.query(
+        'SELECT * FROM users WHERE LOWER(email) = $1',
+        [email]
       );
 
-      if (studentRoleResult.rows.length > 0) {
-        await pool.query(
-          'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)',
-          [user.id, studentRoleResult.rows[0].id]
+      let user;
+
+      if (result.rows.length === 0) {
+        const buddyId = await generateUniqueBuddyId(pool, name);
+
+        await client.query('BEGIN');
+
+        result = await client.query(
+          `INSERT INTO users (email, name, password_hash, status, approved_at, buddy_id)
+           VALUES ($1, $2, $3, 'approved', CURRENT_TIMESTAMP, $4)
+           RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
+          [email, name.trim(), null, buddyId]
         );
+        user = result.rows[0];
+
+        await setupNewUserAccount(client, user.id);
+        await client.query('COMMIT');
+      } else {
+        user = result.rows[0];
       }
 
-      // Assign Freemium plan to new user
-      try {
-        const freemiumPlan = await getFreemiumPlan();
-        await assignPlanToUser(user.id, freemiumPlan.id);
-      } catch (error) {
-        console.error(`Error assigning Freemium plan to social login user ${user.id} (${user.email}):`, error.message || error);
-        // Don't fail registration if plan assignment fails
+      const jwtToken = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          age: user.age,
+          grade: user.grade,
+          preferredLanguage: user.preferred_language,
+          buddyId: user.buddy_id,
+          createdAt: user.created_at,
+        },
+        token: jwtToken,
+      });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+
+      if (isDuplicateEmailError(error)) {
+        return res.status(409).json({
+          success: false,
+          message: DUPLICATE_EMAIL_MESSAGE,
+        });
       }
-    } else {
-      user = result.rows[0];
+
+      next(error);
+    } finally {
+      client.release();
     }
-
-    // Generate JWT token
-    const jwtToken = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        age: user.age,
-        grade: user.grade,
-        preferredLanguage: user.preferred_language,
-        buddyId: user.buddy_id,
-        createdAt: user.created_at,
-      },
-      token: jwtToken,
-    });
   } catch (error) {
     next(error);
   }

@@ -37,9 +37,15 @@ interface WordOfTheDayProps {
   grade?: string;
   /** Compact cards in AI Study/Quiz — tap any word for full detail page. */
   variant?: 'full' | 'dashboard';
+  /** Phrases + Facts & Fun preview — hidden on AI Quiz / AI Study sidebars. */
+  showAttachedSections?: boolean;
 }
 
-export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'full' }) => {
+export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
+  grade,
+  variant = 'full',
+  showAttachedSections = true,
+}) => {
   const isDashboard = variant === 'dashboard';
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [data, setData] = useState<WordOfDayResponse | null>(null);
@@ -153,7 +159,9 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'fu
                   grade={data.grade}
                   date={data.date}
                 />
-                <CommonPhrasesSection phrases={data.phrases ?? []} compact />
+                {showAttachedSections && (
+                  <CommonPhrasesSection phrases={data.phrases ?? []} compact />
+                )}
               </VStack>
             ) : (
               <VStack spacing={4} align="stretch">
@@ -180,7 +188,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'fu
     return (
       <VStack spacing={3} align="stretch">
         {wordCard}
-        <FactsAndFunPreview grade={gradeLabel} />
+        {showAttachedSections && <FactsAndFunPreview grade={gradeLabel} />}
       </VStack>
     );
   }

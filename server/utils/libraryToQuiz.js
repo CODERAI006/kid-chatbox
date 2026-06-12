@@ -21,7 +21,13 @@ async function copyLibraryToQuiz(libraryId, userId) {
   const lib = libRes.rows[0];
 
   if (lib.linked_quiz_id) {
-    return lib.linked_quiz_id;
+    const linked = await pool.query(
+      'SELECT id FROM quizzes WHERE id = $1 AND created_by = $2',
+      [lib.linked_quiz_id, userId]
+    );
+    if (linked.rows.length) {
+      return lib.linked_quiz_id;
+    }
   }
 
   let questions = lib.questions;

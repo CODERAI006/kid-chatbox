@@ -42,7 +42,6 @@ const navItems = [
   { path: '/past-chats', label: 'Past Chats', icon: '💬' },
   { path: '/my-schedules', label: 'My Schedules', icon: '📅' },
   { path: '/study-buddies', label: 'Study Buddy', icon: '👫' },
-  { path: '/profile', label: 'My Profile', icon: '👤' },
 ];
 
 const aiNavItems = [

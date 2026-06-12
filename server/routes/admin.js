@@ -55,6 +55,27 @@ function generatePassword(length = 12) {
   return passwordArray.join('');
 }
 
+/** Map DB user row to camelCase API shape (excludes password_hash). */
+function mapAdminUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    age: row.age,
+    ageGroup: row.age_group,
+    grade: row.grade,
+    status: row.status,
+    avatarUrl: row.avatar_url,
+    parentContact: row.parent_contact,
+    buddyId: row.buddy_id,
+    createdAt: row.created_at,
+    approvedAt: row.approved_at,
+    lastLogin: row.last_login,
+    roles: row.roles || [],
+  };
+}
+
 /**
  * Get all users with filters
  * GET /api/admin/users?status=pending&role=student&page=1&limit=20
@@ -139,7 +160,7 @@ router.get('/users', checkPermission('manage_users'), async (req, res, next) => 
 
     res.json({
       success: true,
-      users,
+      users: users.map(mapAdminUser),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -222,7 +243,7 @@ router.get('/users/:id', checkPermission('manage_users'), async (req, res, next)
 
     res.json({
       success: true,
-      user,
+      user: mapAdminUser(user),
       analytics: {
         ...analyticsResult.rows[0],
         mostVisitedTopics: topicsResult.rows,
@@ -578,8 +599,11 @@ router.post('/users/create', checkPermission('manage_users'), async (req, res, n
       });
     }
 
-    // Check if user already exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    // Check if user already exists (case-insensitive)
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE LOWER(email) = $1',
+      [email.trim().toLowerCase()]
+    );
 
     if (existingUser.rows.length > 0) {
       return res.status(409).json({
@@ -698,7 +722,7 @@ router.post('/users/create', checkPermission('manage_users'), async (req, res, n
     res.status(201).json({
       success: true,
       message: 'User created successfully. Welcome email sent.',
-      user,
+      user: mapAdminUser(user),
     });
   } catch (error) {
     next(error);

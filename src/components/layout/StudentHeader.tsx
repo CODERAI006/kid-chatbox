@@ -129,60 +129,70 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
         top={0}
         zIndex={1000}
       >
-        <Box maxW="1400px" mx="auto" py={{ base: 2, md: 2.5 }} px={{ base: 4, md: 6 }}>
-          <HStack align="center" spacing={3} flexWrap="wrap">
-            {showMenuButton && onMenuOpen && (
-              <Text
-                as="span"
-                fontSize="sm"
-                color={accent}
-                cursor="pointer"
-                flexShrink={0}
-                onClick={onMenuOpen}
-                onKeyDown={(e) => e.key === 'Enter' && onMenuOpen()}
-                role="button"
-                tabIndex={0}
-                aria-label="Open navigation menu"
-              >
-                ☰
-              </Text>
-            )}
-
-            {showSidebarToggle && onSidebarToggle && (
-              <Text
-                as="span"
-                fontSize="xs"
-                color={accent}
-                cursor="pointer"
-                flexShrink={0}
-                onClick={onSidebarToggle}
-                onKeyDown={(e) => e.key === 'Enter' && onSidebarToggle()}
-                role="button"
-                tabIndex={0}
-                aria-label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
-              >
-                {sidebarVisible ? 'Hide nav' : 'Show nav'}
-              </Text>
-            )}
-
-            {location.pathname !== '/dashboard' && (
-              <VStack align="start" spacing={0} flex={1} minW={0}>
-                <Text fontSize="xs" color={muted} lineHeight="short">
-                  {greeting},{' '}
-                  <Text as="span" fontWeight="semibold" color={nameColor}>
-                    {displayName}
-                  </Text>
+        <Box maxW="1400px" mx="auto" py={{ base: 2, md: 2.5 }} px={{ base: 4, md: 6 }} position="relative">
+          <HStack align="center" justify="space-between" spacing={3} minH="32px">
+            <HStack spacing={2} minW={0} zIndex={1}>
+              {showMenuButton && onMenuOpen && (
+                <Text
+                  as="span"
+                  fontSize="sm"
+                  color={accent}
+                  cursor="pointer"
+                  flexShrink={0}
+                  onClick={onMenuOpen}
+                  onKeyDown={(e) => e.key === 'Enter' && onMenuOpen()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Open navigation menu"
+                >
+                  ☰
                 </Text>
-                {hint && (
-                  <Text fontSize="sm" color={muted} noOfLines={1}>
-                    {hint}
-                  </Text>
-                )}
-              </VStack>
-            )}
+              )}
 
-            {location.pathname === '/dashboard' && <Box flex={1} minW={0} />}
+              {showSidebarToggle && onSidebarToggle && (
+                <Text
+                  as="span"
+                  fontSize="xs"
+                  color={accent}
+                  cursor="pointer"
+                  flexShrink={0}
+                  onClick={onSidebarToggle}
+                  onKeyDown={(e) => e.key === 'Enter' && onSidebarToggle()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+                >
+                  {sidebarVisible ? 'Hide nav' : 'Show nav'}
+                </Text>
+              )}
+            </HStack>
 
+            <VStack
+              align="center"
+              spacing={0}
+              position="absolute"
+              left="50%"
+              top="50%"
+              transform="translate(-50%, -50%)"
+              maxW={{ base: 'calc(100% - 5rem)', md: '50%' }}
+              px={2}
+              textAlign="center"
+              pointerEvents="none"
+            >
+              <Text fontSize={{ base: 'sm', md: 'md' }} color={muted} lineHeight="short" noOfLines={1}>
+                {greeting},{' '}
+                <Text as="span" fontWeight="semibold" color={nameColor}>
+                  {displayName}
+                </Text>
+              </Text>
+              {hint && (
+                <Text fontSize="xs" color={muted} noOfLines={1}>
+                  {hint}
+                </Text>
+              )}
+            </VStack>
+
+            <HStack spacing={2} justify="flex-end" minW={0} zIndex={1}>
             {quizTimer?.isQuizActive && location.pathname === '/quiz' && (
               <HStack
                 spacing={2}
@@ -225,6 +235,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
                 </Text>
               </HStack>
             )}
+            </HStack>
           </HStack>
         </Box>
       </Box>

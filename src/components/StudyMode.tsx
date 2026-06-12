@@ -5,9 +5,8 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Box, VStack, Text, Spinner, Alert, AlertIcon, Container, SimpleGrid,
+  Box, VStack, Text, Spinner, Alert, AlertIcon, Container,
 } from '@/shared/design-system';
-import { AiModeDailyLearning } from '@/components/learning/AiModeDailyLearning';
 import { StudyModeForm, StudyTopicConfig } from './StudyModeForm';
 import { StudyLessonView } from './study/StudyLessonView';
 import { generateLesson, getIntroductionText } from '@/services/study';
@@ -145,24 +144,19 @@ export const StudyMode: React.FC = () => {
   if (phase === 'config') {
     return (
       <Container maxW="container.xl" py={{ base: 4, md: 8 }} px={{ base: 2, md: 4 }}>
-        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={{ base: 6, lg: 8 }} alignItems="start">
-          <Box>
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <StudyModeForm
-                onTopicSubmit={handleTopicSubmit}
-                userGrade={getProfileGrade()}
-                isGenerating={isGenerating}
-              />
-              {error && (
-                <Alert status="error" maxWidth="960px" borderRadius="lg" mt={4}>
-                  <AlertIcon />
-                  {error}
-                </Alert>
-              )}
-            </motion.div>
-          </Box>
-          <AiModeDailyLearning grade={getProfileGrade()} />
-        </SimpleGrid>
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <StudyModeForm
+            onTopicSubmit={handleTopicSubmit}
+            userGrade={getProfileGrade()}
+            isGenerating={isGenerating}
+          />
+          {error && (
+            <Alert status="error" maxWidth="960px" borderRadius="lg" mt={4}>
+              <AlertIcon />
+              {error}
+            </Alert>
+          )}
+        </motion.div>
       </Container>
     );
   }

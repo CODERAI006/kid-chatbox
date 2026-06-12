@@ -35,32 +35,38 @@ const getFreemiumPlan = async () => {
  * @param {string} assignedBy - Admin user ID who assigned the plan
  * @returns {Promise<Object>} Assignment record
  */
-const assignPlanToUser = async (userId, planId, assignedBy = null) => {
-  const client = await pool.connect();
+const assignPlanToUser = async (userId, planId, assignedBy = null, externalClient = null) => {
+  const client = externalClient || (await pool.connect());
+  const ownsClient = !externalClient;
+
   try {
-    await client.query('BEGIN');
-    
-    // Remove existing plan assignments (user can only have one active plan)
-    await client.query(
-      'DELETE FROM user_plans WHERE user_id = $1',
-      [userId]
-    );
-    
-    // Assign new plan
+    if (ownsClient) {
+      await client.query('BEGIN');
+    }
+
+    await client.query('DELETE FROM user_plans WHERE user_id = $1', [userId]);
+
     const result = await client.query(
       `INSERT INTO user_plans (user_id, plan_id, assigned_by)
        VALUES ($1, $2, $3)
        RETURNING *`,
       [userId, planId, assignedBy]
     );
-    
-    await client.query('COMMIT');
+
+    if (ownsClient) {
+      await client.query('COMMIT');
+    }
+
     return result.rows[0];
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (ownsClient) {
+      await client.query('ROLLBACK');
+    }
     throw error;
   } finally {
-    client.release();
+    if (ownsClient) {
+      client.release();
+    }
   }
 };
 
