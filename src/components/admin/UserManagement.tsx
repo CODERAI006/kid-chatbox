@@ -48,6 +48,7 @@ import {
 } from '@/shared/design-system';
 import { adminApi, User, Role } from '@/services/admin';
 import { apiClient } from '@/services/api';
+import { UserPasswordModal } from '@/components/admin/UserPasswordModal';
 
 /**
  * User Management component
@@ -82,6 +83,7 @@ export const UserManagement: React.FC = () => {
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const { isOpen: isBulkRolesOpen, onOpen: onBulkRolesOpen, onClose: onBulkRolesClose } = useDisclosure();
   const { isOpen: isBulkPlansOpen, onOpen: onBulkPlansOpen, onClose: onBulkPlansClose } = useDisclosure();
+  const { isOpen: isPasswordOpen, onOpen: onPasswordOpen, onClose: onPasswordClose } = useDisclosure();
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [bulkSelectedRoles, setBulkSelectedRoles] = useState<string[]>([]);
   const [bulkSelectedPlan, setBulkSelectedPlan] = useState<string>('');
@@ -348,6 +350,33 @@ export const UserManagement: React.FC = () => {
     } finally {
       setEditLoading(false);
     }
+  };
+
+  /**
+   * Open password create/reset modal
+   */
+  const handleOpenPassword = (user: User) => {
+    setSelectedUser(user);
+    onPasswordOpen();
+  };
+
+  const handlePasswordComplete = (result: {
+    isCreate: boolean;
+    emailSent?: boolean;
+    hadGeneratedPassword: boolean;
+  }) => {
+    loadUsers();
+    const action = result.isCreate ? 'created' : 'reset';
+    let description = `Password ${action} successfully`;
+    if (result.emailSent) {
+      description += '. Credentials emailed to the user';
+    }
+    toast({
+      title: 'Success',
+      description,
+      status: 'success',
+      duration: 4000,
+    });
   };
 
   /**
@@ -702,7 +731,16 @@ export const UserManagement: React.FC = () => {
                         />
                       </Td>
                       <Td>{user.name}</Td>
-                      <Td>{user.email}</Td>
+                      <Td>
+                        <VStack align="start" spacing={1}>
+                          <Text>{user.email}</Text>
+                          {!user.hasPassword && (
+                            <Badge colorScheme="orange" fontSize="xs">
+                              No password
+                            </Badge>
+                          )}
+                        </VStack>
+                      </Td>
                       <Td>
                         <Badge colorScheme={getStatusColor(user.status)}>{user.status}</Badge>
                       </Td>
@@ -745,6 +783,9 @@ export const UserManagement: React.FC = () => {
                           </MenuButton>
                           <MenuList>
                             <MenuItem onClick={() => handleOpenEdit(user)}>Edit User</MenuItem>
+                            <MenuItem onClick={() => handleOpenPassword(user)}>
+                              {user.hasPassword ? 'Reset Password' : 'Create Password'}
+                            </MenuItem>
                             {user.status === 'pending' && (
                               <>
                                 <MenuItem onClick={() => handleApprove(user.id, 'approved')}>
@@ -805,6 +846,9 @@ export const UserManagement: React.FC = () => {
                           </MenuButton>
                           <MenuList>
                             <MenuItem onClick={() => handleOpenEdit(user)}>Edit User</MenuItem>
+                            <MenuItem onClick={() => handleOpenPassword(user)}>
+                              {user.hasPassword ? 'Reset Password' : 'Create Password'}
+                            </MenuItem>
                             {user.status === 'pending' && (
                               <>
                                 <MenuItem onClick={() => handleApprove(user.id, 'approved')}>
@@ -843,6 +887,11 @@ export const UserManagement: React.FC = () => {
                         <Text fontSize="sm" color="gray.600">
                           {user.email}
                         </Text>
+                        {!user.hasPassword && (
+                          <Badge colorScheme="orange" fontSize="xs" alignSelf="flex-start">
+                            No password
+                          </Badge>
+                        )}
                         <HStack justify="space-between" flexWrap="wrap">
                           <Text fontSize="sm" color="gray.600">
                             Created: {new Date(user.createdAt).toLocaleDateString()}
@@ -1286,6 +1335,13 @@ export const UserManagement: React.FC = () => {
             </ModalFooter>
           </ModalContent>
         </Modal>
+
+        <UserPasswordModal
+          user={selectedUser}
+          isOpen={isPasswordOpen}
+          onClose={onPasswordClose}
+          onComplete={handlePasswordComplete}
+        />
       </VStack>
     </Box>
   );

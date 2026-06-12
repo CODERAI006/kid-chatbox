@@ -5,10 +5,10 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { CLOUD_BASE_URL, getConfiguredModel } = require('./ollamaCloudSettings');
+const { CLOUD_BASE_URL } = require('./ollamaCloudSettings');
 const { getOllamaRuntimeConfig } = require('./ollamaClient');
+const { resolveImageModel, CLOUD_IMAGE_FALLBACK } = require('./ollamaImageModel');
 
-const DEFAULT_CLOUD_IMAGE_MODEL = 'x/z-image-turbo';
 const DEPRECATED_IMAGE_MODELS = new Set(['gemini-2.5-flash-image', 'gemini-3.1-flash-image']);
 const UPLOAD_DIR = path.join(__dirname, '../../uploads/quiz-images');
 const IMAGE_TIMEOUT_MS = Number(process.env.QUIZ_IMAGE_TIMEOUT_MS) || 180_000;
@@ -28,21 +28,7 @@ function createTimeoutSignal(ms) {
   return controller.signal;
 }
 
-function resolveImageModel() {
-  const fromEnv = (process.env.OLLAMA_IMAGE_MODEL || '').trim();
-  const fromAdmin = (getConfiguredModel('image') || '').trim();
-  const raw = fromEnv || fromAdmin || DEFAULT_CLOUD_IMAGE_MODEL;
-  if (DEPRECATED_IMAGE_MODELS.has(raw) || raw.startsWith('gemini-')) {
-    console.warn('[quiz-images] deprecated image model; using Ollama Cloud default', {
-      requested: raw,
-      using: DEFAULT_CLOUD_IMAGE_MODEL,
-    });
-    return DEFAULT_CLOUD_IMAGE_MODEL;
-  }
-  return raw;
-}
-
-function assertImageGenReady() {
+async function assertImageGenReady() {
   const runtime = getOllamaRuntimeConfig();
   if (!runtime.configured) {
     throw new Error(
@@ -54,17 +40,15 @@ function assertImageGenReady() {
       'Ollama Cloud is enabled but no API key is set. Add a key in Admin → Ollama Cloud.'
     );
   }
-  const model = resolveImageModel();
-  if (!model) {
-    throw new Error(
-      'No image model configured. Set Admin → Ollama Cloud → Image generation or OLLAMA_IMAGE_MODEL.'
-    );
+  let model = await resolveImageModel();
+  if (DEPRECATED_IMAGE_MODELS.has(model) || model.startsWith('gemini-')) {
+    console.warn('[quiz-images] deprecated image model; using x/z-image-turbo', { requested: model });
+    model = 'x/z-image-turbo';
   }
-  return runtime;
+  return { runtime, model };
 }
 
-async function generateViaOllama(prompt, model) {
-  const runtime = assertImageGenReady();
+async function generateViaOllama(prompt, model, runtime) {
   const base = (runtime.mode === 'cloud' ? CLOUD_BASE_URL : runtime.baseUrl).replace(/\/$/, '');
   const url = `${base}/api/generate`;
 
@@ -77,6 +61,18 @@ async function generateViaOllama(prompt, model) {
 
   const text = await res.text();
   if (!res.ok) {
+    const notFound =
+      res.status === 404 &&
+      /model.*not found/i.test(text) &&
+      model !== CLOUD_IMAGE_FALLBACK &&
+      runtime.mode === 'cloud';
+    if (notFound) {
+      console.warn('[quiz-images] model not found on Ollama Cloud; retrying', {
+        requested: model,
+        fallback: CLOUD_IMAGE_FALLBACK,
+      });
+      return generateViaOllama(prompt, CLOUD_IMAGE_FALLBACK, runtime);
+    }
     throw new Error(`Ollama image API ${res.status}: ${text.slice(0, 280)}`);
   }
 
@@ -113,8 +109,8 @@ function saveQuizImageBase64(base64) {
 }
 
 async function cloudGenerateImage(prompt) {
-  const model = resolveImageModel();
-  return generateViaOllama(prompt, model);
+  const { runtime, model } = await assertImageGenReady();
+  return generateViaOllama(prompt, model, runtime);
 }
 
 /** @param {string} prompt */
@@ -129,5 +125,4 @@ module.exports = {
   generateQuizQuestionImage,
   cloudGenerateImage,
   saveQuizImageBase64,
-  resolveImageModel,
 };

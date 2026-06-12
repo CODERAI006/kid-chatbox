@@ -252,17 +252,26 @@ export async function generateLesson(
       throw new Error('Invalid lesson structure received');
     }
 
-    try {
-      const images = await studyApi.enrichLessonImages({
-        subject: config.subject,
-        topic,
-        introductionImageKeyword: getIntroductionImageKeyword(lesson.introduction),
-        imageKeywords: lesson.imageKeywords,
-      });
-      lesson.introImageUrl = images.introImageUrl;
-      lesson.galleryImages = images.galleryImages || [];
-    } catch (imgErr) {
-      console.warn('[Study] Ollama Cloud images skipped:', imgErr);
+    const wantsVisuals =
+      studyOptions?.lessonStyle === 'Visual' ||
+      (studyOptions?.contentFocus?.includes('Diagrams & Images') ?? true);
+
+    if (wantsVisuals) {
+      try {
+        const images = await studyApi.enrichLessonImages({
+          subject: config.subject,
+          topic,
+          introductionImageKeyword: getIntroductionImageKeyword(lesson.introduction),
+          imageKeywords: lesson.imageKeywords,
+        });
+        lesson.introImageUrl = images.introImageUrl;
+        lesson.galleryImages = images.galleryImages || [];
+      } catch (imgErr) {
+        console.warn('[Study] Ollama images skipped:', imgErr);
+        lesson.introImageUrl = null;
+        lesson.galleryImages = [];
+      }
+    } else {
       lesson.introImageUrl = null;
       lesson.galleryImages = [];
     }

@@ -19,6 +19,7 @@ export interface User {
   createdAt: string;
   approvedAt?: string;
   lastLogin?: string;
+  hasPassword?: boolean;
   roles?: Array<{ name: string }>;
 }
 
@@ -169,10 +170,17 @@ export const adminApi = {
   },
 
   /**
-   * Reset user password
+   * Create or reset password for an existing user
    */
-  resetPassword: async (id: string, newPassword: string): Promise<void> => {
-    await apiClient.put(`/admin/users/${id}/reset-password`, { newPassword });
+  resetPassword: async (
+    id: string,
+    options?: { newPassword?: string; sendEmail?: boolean }
+  ): Promise<{ message: string; emailSent?: boolean; generatedPassword?: string }> => {
+    const response = await apiClient.put(`/admin/users/${id}/reset-password`, {
+      newPassword: options?.newPassword,
+      sendEmail: options?.sendEmail ?? true,
+    });
+    return response.data;
   },
 
   /**

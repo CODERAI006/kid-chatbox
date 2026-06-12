@@ -47,7 +47,7 @@ fi
 
 # Restart PM2 application
 echo -e "${YELLOW}🔄 Restarting application...${NC}"
-pm2 restart ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production
+pm2 reload ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production
 
 # Save PM2 configuration
 pm2 save

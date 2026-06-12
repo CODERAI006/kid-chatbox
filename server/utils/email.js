@@ -708,9 +708,105 @@ This is an automated email. Please do not reply to this message.
   `.trim();
 }
 
+/**
+ * Send login credentials to an existing user (password created or reset by admin)
+ */
+async function sendCredentialsEmail({ email, name, password, isReset = false }) {
+  if (!email || !name || !password) {
+    throw new Error('Email, name, and password are required to send credentials email');
+  }
+
+  const transport = getTransporter();
+  const actionLabel = isReset ? 'reset' : 'created';
+  const subject = isReset
+    ? 'Guru ID - Your Password Has Been Reset'
+    : 'Guru ID - Your Login Password Has Been Set';
+
+  const mailOptions = {
+    from: `"Guru ID Team" <${EMAIL_FROM_ADDRESS}>`,
+    to: email,
+    subject,
+    html: getCredentialsEmailTemplate(name, email, password, isReset),
+    text: getCredentialsEmailTextTemplate(name, email, password, isReset),
+  };
+
+  try {
+    const info = await transport.sendMail(mailOptions);
+    console.log(`Credentials email sent to ${email} (${actionLabel}):`, info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error(`Failed to send credentials email to ${email}:`, error.message);
+    throw error;
+  }
+}
+
+function getCredentialsEmailTemplate(name, email, password, isReset) {
+  const intro = isReset
+    ? 'Your Guru ID login password has been reset by an administrator.'
+    : 'A login password has been created for your Guru ID account by an administrator.';
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guru ID Login Credentials</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+  <div style="background: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
+    ${getEmailHeader()}
+  <div style="background: #ffffff; padding: 40px 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px; margin-bottom: 20px;">Dear ${name},</p>
+    <p style="font-size: 16px; margin-bottom: 20px;">${intro}</p>
+    <p style="font-size: 16px; margin-bottom: 20px;">You can sign in with email and password using the credentials below:</p>
+    <div style="background: #ffffff; border: 2px solid #667eea; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 10px 0; font-size: 14px;"><strong>Email:</strong> <span style="color: #667eea;">${email}</span></p>
+      <p style="margin: 10px 0; font-size: 14px;"><strong>Password:</strong> <span style="color: #667eea; font-family: monospace;">${password}</span></p>
+    </div>
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>Important:</strong> Keep these credentials secure. Change your password after signing in if you can.
+      </p>
+    </div>
+    <p style="font-size: 16px; margin-top: 30px;">
+      Best regards,<br>
+      <strong style="color: #667eea;">The Guru ID Team</strong>
+    </p>
+  </div>
+  ${getEmailFooter()}
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+function getCredentialsEmailTextTemplate(name, email, password, isReset) {
+  const intro = isReset
+    ? 'Your Guru ID login password has been reset by an administrator.'
+    : 'A login password has been created for your Guru ID account by an administrator.';
+
+  return `
+Guru ID Login Credentials
+
+Dear ${name},
+
+${intro}
+
+Email: ${email}
+Password: ${password}
+
+Important: Keep these credentials secure. Change your password after signing in if you can.
+
+Best regards,
+The Guru ID Team
+  `.trim();
+}
+
 module.exports = {
   sendWelcomeEmail,
   sendGoogleWelcomeEmail,
+  sendCredentialsEmail,
   sendApprovalEmail,
   sendQuizCompletionEmail,
   verifyConnection,

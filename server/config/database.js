@@ -12,52 +12,58 @@ const pool = new Pool({
   connectionTimeoutMillis: 120_000,
 });
 
-// Test connection
-pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
-});
-
 pool.on('error', (err) => {
   console.error('❌ Database pool error (server keeps running):', err.message || err);
 });
 
-// Initialize database tables
-const initializeDatabase = async () => {
+const shouldRunStartupMigrations = () => {
+  if (process.env.RUN_STARTUP_MIGRATIONS === '1') return true;
+  if (process.env.SKIP_STARTUP_MIGRATIONS === '1') return false;
+  return process.env.NODE_ENV !== 'production';
+};
+
+async function verifyDatabaseConnection() {
+  const client = await pool.connect();
   try {
-    // Dynamically require to avoid circular dependency
-    const { migrateSchema } = require('../scripts/migrate-schema');
-    const { migrateAnalyticsSchema } = require('../scripts/migrate-analytics-schema');
-    const { migratePlansSchema } = require('../scripts/migrate-plans-schema');
-    const { migrateScheduledTests } = require('../scripts/migrate-scheduled-tests');
-    const { migrateStudyLibraryContent } = require('../scripts/migrate-study-library-content');
-    const { migrateStudyLibraryContentV2 } = require('../scripts/migrate-study-library-content-v2');
-    const { migrateQuizLibrary } = require('../scripts/migrate-quiz-library');
-    const { migrateQuizScheduler } = require('../scripts/migrate-quiz-scheduler');
-    const { migrateQuizSchedulerV2 } = require('../scripts/migrate-quiz-scheduler-v2');
-    const { migrateQuizAiJobs } = require('../scripts/migrate-quiz-ai-jobs');
-    const { migrateQuizSubtopics } = require('../scripts/migrate-quiz-subtopics');
-    const { migrateOllamaCloudSettings } = require('../scripts/migrate-ollama-cloud-settings');
-    const { migrateStudyPlan } = require('../scripts/migrate-study-plan');
-    const { migrateCompetitiveTopics } = require('../scripts/migrate-competitive-topics');
-    const { migrateWordOfDaySettings } = require('../scripts/migrate-word-of-day-settings');
-    const { migrateAppFeedback } = require('../scripts/migrate-app-feedback');
-    const { migrateStudyBuddies } = require('../scripts/migrate-study-buddies');
-    const { migrateUserNotifications } = require('../scripts/migrate-user-notifications');
-    const { migrateAppAnalyticsSettings } = require('../scripts/migrate-app-analytics-settings');
-    // Run comprehensive schema migration
+    await client.query('SELECT 1');
+    return true;
+  } finally {
+    client.release();
+  }
+}
+
+async function runStartupMigrations() {
+  process.env.KIDCHATBOX_MIGRATION_QUIET = '1';
+  const { runMigrationsQuietly } = require('../utils/migrateQuietly');
+
+  const { migrateSchema } = require('../scripts/migrate-schema');
+  const { migrateAnalyticsSchema } = require('../scripts/migrate-analytics-schema');
+  const { migratePlansSchema } = require('../scripts/migrate-plans-schema');
+  const { migrateScheduledTests } = require('../scripts/migrate-scheduled-tests');
+  const { migrateStudyLibraryContent } = require('../scripts/migrate-study-library-content');
+  const { migrateStudyLibraryContentV2 } = require('../scripts/migrate-study-library-content-v2');
+  const { migrateQuizLibrary } = require('../scripts/migrate-quiz-library');
+  const { migrateQuizScheduler } = require('../scripts/migrate-quiz-scheduler');
+  const { migrateQuizSchedulerV2 } = require('../scripts/migrate-quiz-scheduler-v2');
+  const { migrateQuizAiJobs } = require('../scripts/migrate-quiz-ai-jobs');
+  const { migrateQuizSubtopics } = require('../scripts/migrate-quiz-subtopics');
+  const { migrateOllamaCloudSettings } = require('../scripts/migrate-ollama-cloud-settings');
+  const { migrateStudyPlan } = require('../scripts/migrate-study-plan');
+  const { migrateCompetitiveTopics } = require('../scripts/migrate-competitive-topics');
+  const { migrateWordOfDaySettings } = require('../scripts/migrate-word-of-day-settings');
+  const { migrateAppFeedback } = require('../scripts/migrate-app-feedback');
+  const { migrateStudyBuddies } = require('../scripts/migrate-study-buddies');
+  const { migrateUserNotifications } = require('../scripts/migrate-user-notifications');
+  const { migrateAppAnalyticsSettings } = require('../scripts/migrate-app-analytics-settings');
+
+  await runMigrationsQuietly(async () => {
     await migrateSchema();
-    // Analytics columns/indexes on activity_logs (depends on migrateSchema)
     await migrateAnalyticsSchema();
-    // Run plans schema migration
     await migratePlansSchema();
-    // Run scheduled tests schema migration
     await migrateScheduledTests();
-    // Run study library content migration
     await migrateStudyLibraryContent();
     await migrateStudyLibraryContentV2();
-    // Run quiz library migration
     await migrateQuizLibrary();
-    // Run quiz scheduler migration
     await migrateQuizScheduler();
     await migrateQuizSchedulerV2();
     await migrateQuizAiJobs();
@@ -70,7 +76,20 @@ const initializeDatabase = async () => {
     await migrateStudyBuddies();
     await migrateUserNotifications();
     await migrateAppAnalyticsSettings();
-    console.log('✅ Database tables initialized successfully');
+  });
+}
+
+// Initialize database tables
+const initializeDatabase = async () => {
+  try {
+    await verifyDatabaseConnection();
+
+    if (shouldRunStartupMigrations()) {
+      await runStartupMigrations();
+      console.log('✅ Database ready (migrations applied on startup)');
+    } else {
+      console.log('✅ Database connected (startup migrations skipped — use npm run db:migrate-all on deploy)');
+    }
   } catch (error) {
     console.error('❌ Error initializing database (server will start without DB):', error.message || error);
     return false;

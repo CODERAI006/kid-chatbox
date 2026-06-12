@@ -10,7 +10,7 @@ const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission, checkRole } = require('../middleware/rbac');
 const { getFreemiumPlan, assignPlanToUser } = require('../utils/plans');
-const { sendWelcomeEmail } = require('../utils/email');
+const { sendWelcomeEmail, sendCredentialsEmail } = require('../utils/email');
 const { generateUniqueBuddyId } = require('../utils/buddyId');
 const { deleteUserById } = require('../utils/deleteUser');
 
@@ -73,6 +73,7 @@ function mapAdminUser(row) {
     createdAt: row.created_at,
     approvedAt: row.approved_at,
     lastLogin: row.last_login,
+    hasPassword: Boolean(row.password_hash),
     roles: row.roles || [],
   };
 }
@@ -97,6 +98,7 @@ router.get('/users', checkPermission('manage_users'), async (req, res, next) => 
         u.status,
         u.avatar_url,
         u.parent_contact,
+        u.password_hash,
         u.created_at,
         u.approved_at,
         u.last_login,
@@ -439,32 +441,72 @@ router.put('/users/:id', checkPermission('manage_users'), async (req, res, next)
 });
 
 /**
- * Reset user password
+ * Create or reset password for an existing user
  * PUT /api/admin/users/:id/reset-password
+ * Body: { newPassword?: string, sendEmail?: boolean }
  */
 router.put('/users/:id/reset-password', checkPermission('manage_users'), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { newPassword } = req.body;
+    const { newPassword, sendEmail = true } = req.body;
 
-    if (!newPassword || newPassword.length < 6) {
+    const userResult = await pool.query(
+      'SELECT id, email, name, password_hash FROM users WHERE id = $1',
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const user = userResult.rows[0];
+    const hadPassword = Boolean(user.password_hash);
+    const trimmedPassword = typeof newPassword === 'string' ? newPassword.trim() : '';
+    const password = trimmedPassword || generatePassword(12);
+
+    if (password.length < 6) {
       return res.status(400).json({
         success: false,
         message: 'Password must be at least 6 characters',
       });
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     await pool.query(
       'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [passwordHash, id]
     );
 
-    res.json({
+    let emailSent = false;
+    if (sendEmail) {
+      try {
+        await sendCredentialsEmail({
+          email: user.email,
+          name: user.name,
+          password,
+          isReset: hadPassword,
+        });
+        emailSent = true;
+      } catch (emailError) {
+        console.error(`Failed to send credentials email to ${user.email}:`, emailError.message);
+      }
+    }
+
+    const response = {
       success: true,
-      message: 'Password reset successfully',
-    });
+      message: hadPassword ? 'Password reset successfully' : 'Password created successfully',
+      emailSent,
+    };
+
+    if (!sendEmail && !trimmedPassword) {
+      response.generatedPassword = password;
+    }
+
+    res.json(response);
   } catch (error) {
     next(error);
   }

@@ -14,6 +14,7 @@ process.on('warning', (warning) => {
 });
 
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const fs = require('fs');
@@ -59,10 +60,24 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // CORS — API routes only (global CORS breaks crossorigin modulepreload /assets/*.js with 500)
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
   'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'http://localhost:3001',
+  'http://127.0.0.1:3001',
   'http://localhost:5174',
+  'http://127.0.0.1:5174',
 ];
+
+/** Allow Vite when opened via 127.0.0.1 while NODE_ENV=production (common on Windows). */
+function isLoopbackOrigin(origin) {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  } catch {
+    return false;
+  }
+}
 
 function addOriginVariants(url) {
   try {
@@ -87,7 +102,9 @@ if (process.env.CORS_ORIGINS) {
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || NODE_ENV === 'development') return callback(null, true);
+    if (!origin || NODE_ENV === 'development' || isLoopbackOrigin(origin)) {
+      return callback(null, true);
+    }
     if (allowedOrigins.includes(origin)) return callback(null, true);
     try {
       const originHost = new URL(origin).hostname.replace(/^www\./, '');
@@ -228,7 +245,30 @@ const startServer = async () => {
     console.warn('⚠️  Google Analytics settings load failed (non-fatal):', error.message || error);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = http.createServer(app);
+
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use. Stop the other process first:`);
+      console.error(`   pm2 stop kidchatbox-api   OR   lsof -i :${PORT} / fuser -k ${PORT}/tcp`);
+      process.exit(1);
+    }
+    console.error('❌ Server failed to start:', error.message || error);
+    process.exit(1);
+  });
+
+  const shutdown = (signal) => {
+    console.log(`${signal} received — closing HTTP server on port ${PORT}`);
+    server.close(() => {
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 10_000).unref();
+  };
+
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
+
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
     console.log(`🌍 Environment: ${NODE_ENV}`);

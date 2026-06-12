@@ -41,17 +41,16 @@ const OLLAMA_MODEL_TYPES = [
       'Study lesson (hero + gallery) and quiz illustrations via Ollama /api/generate. Pick speed vs quality; override with OLLAMA_IMAGE_MODEL.',
     emoji: '🖼️',
     defaultCloud: 'x/z-image-turbo',
-    defaultLocal: 'x/z-image-turbo',
+    defaultLocal: 'flux-schnell',
     envVar: 'OLLAMA_IMAGE_MODEL',
     implemented: true,
     presets: [
-      { id: 'x/z-image-turbo', label: 'Z-Image Turbo — fastest (official Ollama default)' },
+      { id: 'x/z-image-turbo', label: 'Z-Image Turbo — Ollama Cloud default (recommended)' },
       { id: 'x/flux2-klein:4b', label: 'FLUX.2 Klein 4B — quality + speed (Apache 2.0)' },
       { id: 'x/flux2-klein:9b', label: 'FLUX.2 Klein 9B — highest FLUX.2 quality' },
-      { id: 'flux:cloud', label: 'FLUX Cloud — hosted FLUX' },
-      { id: 'flux-dev', label: 'FLUX.1 Dev — best open-source quality (ollama pull)' },
-      { id: 'flux-schnell', label: 'FLUX.1 Schnell — fast FLUX.1 (ollama pull)' },
-      { id: 'sdxl', label: 'SDXL — mature ecosystem (ollama pull)' },
+      { id: 'flux-dev', label: 'FLUX.1 Dev — local only (ollama pull)' },
+      { id: 'flux-schnell', label: 'FLUX.1 Schnell — local only (ollama pull)' },
+      { id: 'sdxl', label: 'SDXL — local only (ollama pull)' },
     ],
   },
   {
@@ -100,6 +99,10 @@ function normalizeProfiles(raw, legacy = {}) {
       const v = raw[t.id];
       if (typeof v === 'string') merged[t.id] = v.trim();
     }
+  }
+  // flux:cloud was never a valid Ollama Cloud model name
+  if (merged.image === 'flux:cloud') {
+    merged.image = 'x/z-image-turbo';
   }
   return merged;
 }

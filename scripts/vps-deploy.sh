@@ -52,8 +52,8 @@ fi
 
 if [[ "${SKIP_PM2:-}" != "1" ]]; then
   if command -v pm2 >/dev/null 2>&1; then
-    echo "==> pm2 reload"
-    pm2 restart ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production
+    echo "==> pm2 reload (graceful — releases port before new process binds)"
+    pm2 reload ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production
     pm2 save
   else
     echo "WARN: pm2 not in PATH — start the API manually (e.g. npm run start)." >&2

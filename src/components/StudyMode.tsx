@@ -173,6 +173,11 @@ export const StudyMode: React.FC = () => {
             <Text fontSize={baseFontSize} color="gray.600">
               Building your {studyMeta?.lessonStyle?.toLowerCase() || 'personalized'} lesson…
             </Text>
+            {(studyMeta?.contentFocus?.includes('Diagrams & Images') ?? true) && (
+              <Text fontSize={baseFontSize} color="gray.500">
+                {STUDY_MODE_MESSAGES.LOADING_IMAGES_HINT}
+              </Text>
+            )}
           </VStack>
         </VStack>
       </Box>
