@@ -28,9 +28,10 @@ if [[ ! -f .env ]]; then
 fi
 
 if [[ -d .git && "${SKIP_GIT:-}" != "1" ]]; then
-  echo "==> git fetch && pull ($BRANCH)"
+  echo "==> git fetch && sync to origin/$BRANCH"
   git fetch origin "$BRANCH"
-  git pull origin "$BRANCH"
+  # VPS should match GitHub exactly — avoids "divergent branches" without git config.
+  git reset --hard "origin/$BRANCH"
 fi
 
 echo "==> npm install (including devDependencies for tsc/vite — avoid NODE_ENV=production here)"

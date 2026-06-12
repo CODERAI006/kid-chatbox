@@ -16,6 +16,7 @@ process.on('warning', (warning) => {
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const fs = require('fs');
 const path = require('path');
 const authRoutes = require('./routes/auth');
 const quizRoutes = require('./routes/quiz');
@@ -55,7 +56,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// CORS configuration - allow production domain
+// CORS — API routes only (global CORS breaks crossorigin modulepreload /assets/*.js with 500)
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -63,26 +64,50 @@ const allowedOrigins = [
   'http://localhost:5174',
 ];
 
-// Add production domain from environment variable
-if (process.env.VITE_FRONTEND_URL) {
-  allowedOrigins.push(process.env.VITE_FRONTEND_URL);
+function addOriginVariants(url) {
+  try {
+    const parsed = new URL(url);
+    const port = parsed.port ? `:${parsed.port}` : '';
+    allowedOrigins.push(`${parsed.protocol}//${parsed.hostname}${port}`);
+    const bare = parsed.hostname.replace(/^www\./, '');
+    const withWww = parsed.hostname.startsWith('www.') ? parsed.hostname : `www.${parsed.hostname}`;
+    allowedOrigins.push(`${parsed.protocol}//${bare}${port}`);
+    allowedOrigins.push(`${parsed.protocol}//${withWww}${port}`);
+  } catch {
+    allowedOrigins.push(url);
+  }
 }
 
-// Middleware
-app.use(cors({
+if (process.env.VITE_FRONTEND_URL) {
+  addOriginVariants(process.env.VITE_FRONTEND_URL);
+}
+if (process.env.CORS_ORIGINS) {
+  process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean).forEach(addOriginVariants);
+}
+
+const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    if (!origin || NODE_ENV === 'development') return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    try {
+      const originHost = new URL(origin).hostname.replace(/^www\./, '');
+      const matched = allowedOrigins.some((allowed) => {
+        const allowedHost = new URL(allowed).hostname.replace(/^www\./, '');
+        return allowedHost === originHost;
+      });
+      if (matched) return callback(null, true);
+    } catch {
+      /* ignore malformed Origin */
     }
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
+
+// Middleware
+app.use('/api', cors(corsOptions));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
@@ -131,16 +156,35 @@ app.use('/api/bulk-exam-upload', bulkExamUploadRoutes);
 
 // Serve static files from React app in production
 if (NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '../dist');
-  app.use(express.static(distPath));
-  
-  // Handle React routing - return all requests to React app
-  app.get('*', (req, res) => {
-    // Don't serve index.html for API routes
+  const distPath = path.resolve(__dirname, '../dist');
+  const indexHtml = path.join(distPath, 'index.html');
+
+  if (!fs.existsSync(indexHtml)) {
+    console.warn('⚠️  Production build missing. Run: npm run build');
+  }
+
+  app.use(
+    express.static(distPath, {
+      maxAge: '1y',
+      immutable: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    })
+  );
+
+  app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ success: false, message: 'API endpoint not found' });
     }
-    res.sendFile(path.join(distPath, 'index.html'));
+    if (/\.[a-z0-9]+$/i.test(req.path)) {
+      return res.status(404).type('text/plain').send('Not found');
+    }
+    res.sendFile(indexHtml, (err) => {
+      if (err) next(err);
+    });
   });
 }
 
