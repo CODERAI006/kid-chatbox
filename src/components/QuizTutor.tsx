@@ -46,6 +46,7 @@ import { isValidAnswer } from '@/utils/validation';
 import { isOllamaGeneratedImageUrl } from '@/utils/ollamaImageUrl';
 import { User } from '@/types';
 import { useQuizTimer } from '@/contexts/QuizTimerContext';
+import { AiModeDailyLearning } from '@/components/learning/AiModeDailyLearning';
 
 type QuizPhase = 'config' | 'loading' | 'checking' | 'quiz' | 'results';
 type QuizLayoutMode = 'steps' | 'overview';
@@ -1094,43 +1095,64 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
       );
     }
 
+    const profileGrade = (() => {
+      try {
+        const { user } = authApi.getCurrentUser();
+        return (user as User | null)?.grade;
+      } catch {
+        return undefined;
+      }
+    })();
+
     return (
       <>
-        <Box padding={{ base: 2, sm: 3, md: 6 }} maxWidth="800px" marginX="auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+        <Box padding={{ base: 2, sm: 3, md: 6 }} maxWidth="1400px" marginX="auto">
+          <Box
+            display={{ base: 'block', lg: 'flex' }}
+            gap={{ base: 6, lg: 8 }}
+            alignItems="flex-start"
+            flexDirection={{ base: 'column', lg: 'row' }}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 }}
-            >
-              <ConfigurationForm
-                onConfigComplete={handleConfigComplete}
-                isGenerating={isAiGenerating}
-                generatingBatch={isAiGenerating ? genBatchProgress : null}
-                onCancelGeneration={handleCancelQuizGeneration}
-              />
-            </motion.div>
-            <AnimatePresence>
-              {error && (
+            <Box flex={1} minW={0} maxW={{ lg: '960px' }}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
                 <motion.div
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
                 >
-                  <Alert status="error" marginTop={4} maxWidth="600px" marginX="auto" borderRadius="xl">
-                    <AlertIcon />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+                  <ConfigurationForm
+                    onConfigComplete={handleConfigComplete}
+                    isGenerating={isAiGenerating}
+                    generatingBatch={isAiGenerating ? genBatchProgress : null}
+                    onCancelGeneration={handleCancelQuizGeneration}
+                  />
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Alert status="error" marginTop={4} maxWidth="600px" marginX="auto" borderRadius="xl">
+                        <AlertIcon />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            </Box>
+            <Box w={{ base: '100%', lg: '340px' }} flexShrink={0}>
+              <AiModeDailyLearning grade={profileGrade} />
+            </Box>
+          </Box>
         </Box>
         {/* Confirmation Modal for Navigation */}
         <Modal isOpen={isConfirmOpen} onClose={handleCancelLeave} isCentered>

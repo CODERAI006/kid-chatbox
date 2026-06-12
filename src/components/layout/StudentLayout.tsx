@@ -15,7 +15,9 @@ import {
 } from '@/shared/design-system';
 import { StudentHeader } from './StudentHeader';
 import { Footer } from './Footer';
-import { MobileBottomNav, MOBILE_BOTTOM_NAV_HEIGHT } from './MobileBottomNav';
+import { MobileBottomNav } from './MobileBottomNav';
+import { TabletFooterBar } from './TabletFooterBar';
+import { COMPACT_FOOTER_HEIGHT, MOBILE_BOTTOM_NAV_HEIGHT } from './layoutHeights';
 import { StudentSidebar } from './StudentSidebar';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
 import { AppFeedbackModal } from '@/components/feedback/AppFeedbackModal';
@@ -50,7 +52,9 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
 }) => {
   const location = useLocation();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isCompactLayout = useBreakpointValue({ base: true, lg: false });
+  const showTabletFooter = showFooter && useBreakpointValue({ base: false, md: true, lg: false });
+  const showFullFooter = showFooter && useBreakpointValue({ base: false, lg: true });
   const isWideView = isStudentWideView(location.pathname, location.hash);
   const [sidebarVisible, setSidebarVisible] = useState(() => !isWideView);
   const bgColor = useColorModeValue('gray.50', 'gray.900');
@@ -60,10 +64,10 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
   useInAppNotifications({ enabled: Boolean(user) });
 
   useEffect(() => {
-    if (!isMobile) {
+    if (!isCompactLayout) {
       setSidebarVisible(!isStudentWideView(location.pathname, location.hash));
     }
-  }, [location.pathname, location.hash, isMobile]);
+  }, [location.pathname, location.hash, isCompactLayout]);
 
   return (
     <Box minHeight="100vh" bg={bgColor}>
@@ -72,8 +76,8 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
           <StudentHeader
             user={user}
             onMenuOpen={onOpen}
-            showMenuButton={isMobile}
-            showSidebarToggle={!isMobile}
+            showMenuButton={isCompactLayout}
+            showSidebarToggle={!isCompactLayout}
             sidebarVisible={sidebarVisible}
             onSidebarToggle={() => setSidebarVisible((visible) => !visible)}
           />
@@ -81,9 +85,9 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
       )}
 
       <HStack align="start" spacing={0}>
-        {!isMobile && sidebarVisible && <StudentSidebar user={user || null} />}
+        {!isCompactLayout && sidebarVisible && <StudentSidebar user={user || null} />}
 
-        {isMobile && <StudentSidebar user={user || null} isOpen={isOpen} onClose={onClose} />}
+        {isCompactLayout && <StudentSidebar user={user || null} isOpen={isOpen} onClose={onClose} />}
 
         <Box
           flex={1}
@@ -91,13 +95,14 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
           py={{ base: 2, md: 4, lg: 6 }}
           pb={{
             base: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + env(safe-area-inset-bottom, 0px) + 0.5rem)`,
-            md: undefined,
+            md: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + ${COMPACT_FOOTER_HEIGHT} + env(safe-area-inset-bottom, 0px) + 0.5rem)`,
+            lg: undefined,
           }}
           px={{ base: 0, md: 0 }}
           width="100%"
           overflowX="hidden"
         >
-          {!isMobile && isWideView && !sidebarVisible && (
+          {!isCompactLayout && isWideView && !sidebarVisible && (
             <Text fontSize="xs" color={hintColor} mb={2} px={{ base: 4, md: 6 }}>
               Sidebar hidden for more space — tap &quot;Show nav&quot; in the header.
             </Text>
@@ -106,13 +111,11 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
         </Box>
       </HStack>
 
-      {showFooter && (
-        <Box display={{ base: 'none', md: 'block' }}>
-          <Footer />
-        </Box>
-      )}
+      {showFullFooter && <Footer />}
 
-      {isMobile && <MobileBottomNav user={user} />}
+      {showTabletFooter && <TabletFooterBar />}
+
+      {isCompactLayout && <MobileBottomNav user={user} />}
 
       <LearningChatWidget />
       <AppFeedbackModal />

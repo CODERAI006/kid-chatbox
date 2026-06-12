@@ -35,7 +35,7 @@ const isToday = (d: Date): boolean => toYMD(d) === toYMD(new Date());
 
 interface WordOfTheDayProps {
   grade?: string;
-  /** Shorter cards on dashboard — no scroll, tap for full detail page. */
+  /** Compact cards in AI Study/Quiz — tap any word for full detail page. */
   variant?: 'full' | 'dashboard';
 }
 

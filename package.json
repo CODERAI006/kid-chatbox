@@ -17,6 +17,7 @@
     "logs:pm2": "pm2 logs kidchatbox-api",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
+    "icons:generate": "node scripts/generate-icons.mjs",
     "db:create": "node create-database.js",
     "db:setup": "node server/scripts/setup-db.js",
     "db:init": "node server/scripts/init-all-tables.js",

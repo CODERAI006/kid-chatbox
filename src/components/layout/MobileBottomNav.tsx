@@ -17,7 +17,10 @@ import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { useStudyPlanPendingToday } from '@/hooks/useStudyPlanPendingToday';
 import { useVisualViewportBottom } from '@/hooks/useVisualViewportBottom';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
-import { GURU_CHAT_ICON } from '@/constants/app';
+import { GuruAvatar } from '@/components/learning/GuruAvatar';
+import { MOBILE_BOTTOM_NAV_HEIGHT } from './layoutHeights';
+
+export { MOBILE_BOTTOM_NAV_HEIGHT };
 
 function openGuruChat(): void {
   window.dispatchEvent(new CustomEvent('learning-chat:open', { detail: { mode: 'new' } }));
@@ -32,6 +35,7 @@ type NavItem = {
   label: string;
   shortLabel: string;
   icon: string;
+  useGuruAvatar?: boolean;
   match: (pathname: string, hash: string) => boolean;
   isVisible: (ctx: NavContext) => boolean;
   isDisabled: (ctx: NavContext) => boolean;
@@ -59,7 +63,8 @@ const NAV_ITEMS: NavItem[] = [
     path: '#guru-chat',
     label: 'Guru AI',
     shortLabel: 'Guru',
-    icon: GURU_CHAT_ICON,
+    icon: '',
+    useGuruAvatar: true,
     match: () => false,
     isVisible: () => true,
     isDisabled: () => false,
@@ -93,8 +98,6 @@ const NAV_ITEMS: NavItem[] = [
     isDisabled: () => false,
   },
 ];
-
-export const MOBILE_BOTTOM_NAV_HEIGHT = '4.5rem';
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
   const navigate = useNavigate();
@@ -142,7 +145,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
       borderColor={borderColor}
       boxShadow="0 -2px 10px rgba(0,0,0,0.06)"
       pb="env(safe-area-inset-bottom, 0px)"
-      display={{ base: 'block', md: 'none' }}
+      display={{ base: 'block', lg: 'none' }}
       sx={{
         transform: 'translateZ(0)',
         WebkitBackfaceVisibility: 'hidden',
@@ -179,9 +182,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
               transition="background 0.15s"
             >
               <VStack spacing={0.5} justify="center" h="100%" position="relative">
-                <Text fontSize="lg" lineHeight={1} aria-hidden>
-                  {item.icon}
-                </Text>
+                {item.useGuruAvatar ? (
+                  <GuruAvatar size="sm" />
+                ) : (
+                  <Text fontSize="lg" lineHeight={1} aria-hidden>
+                    {item.icon}
+                  </Text>
+                )}
                 {item.path === '/my-schedules' && schedulePendingToday && (
                   <Box
                     position="absolute"

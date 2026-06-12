@@ -4,8 +4,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FC, type KeyboardEvent } from 'react';
 import {
   Box,
-  IconButton,
-  Text,
   useColorModeValue,
   useDisclosure,
   Modal,
@@ -30,7 +28,7 @@ import { useVisualViewportBottom } from '@/hooks/useVisualViewportBottom';
 import { buildNewChatShareText, shareOrCopyText } from '@/utils/chatShare';
 import { buildStudyPlanPrompt, type StudyPlanDay } from '@/utils/studyPlanSchedule';
 import { MOBILE_BOTTOM_NAV_HEIGHT } from '@/components/layout/MobileBottomNav';
-import { GURU_CHAT_ICON } from '@/constants/app';
+import { GuruChatFab } from './GuruChatFab';
 
 const STUDENT_HEADER_HEIGHT = '73px';
 
@@ -442,22 +440,7 @@ export const LearningChatWidget: FC = () => {
 
   return (
     <>
-      {!open && (
-        <IconButton
-          aria-label="Open Guru AI"
-          icon={<Text fontSize="xl">{GURU_CHAT_ICON}</Text>}
-          display={{ base: 'none', md: 'inline-flex' }}
-          position="fixed"
-          bottom={8}
-          right={8}
-          zIndex={1500}
-          size="lg"
-          rounded="full"
-          colorScheme="blue"
-          boxShadow="lg"
-          onClick={() => void openFreshChat()}
-        />
-      )}
+      {!open && <GuruChatFab onClick={() => void openFreshChat()} />}
 
       <LearningChatHistoryDrawer
         isOpen={historyDrawer.isOpen}

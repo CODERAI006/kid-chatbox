@@ -41,7 +41,6 @@ const navItems = [
   { path: '/study', label: 'Study Hub', icon: '📚' },
   { path: '/past-chats', label: 'Past Chats', icon: '💬' },
   { path: '/my-schedules', label: 'My Schedules', icon: '📅' },
-  { path: '/news', label: 'Facts & Fun', icon: '💡' },
   { path: '/study-buddies', label: 'Study Buddy', icon: '👫' },
   { path: '/profile', label: 'My Profile', icon: '👤' },
 ];
@@ -62,7 +61,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
     moduleAccess?: Record<string, boolean>;
     status?: string;
   } | null>(null);
-  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isMobile = useBreakpointValue({ base: true, lg: false });
 
   useEffect(() => {
     loadUserAccess();

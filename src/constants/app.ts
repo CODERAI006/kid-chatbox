@@ -4,6 +4,9 @@
 
 export const GURU_CHAT_ICON = '🤖';
 
+/** Brand mascot used on Guru chat entry points (FAB, mobile nav). */
+export const GURU_AVATAR_SRC = '/icon-192.png';
+
 export const APP_CONSTANTS = {
   APP_NAME: 'Guru AI',
   BRAND_NAME: 'Guru AI',

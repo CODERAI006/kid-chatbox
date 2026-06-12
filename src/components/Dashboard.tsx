@@ -23,12 +23,12 @@ import { PullToRefresh } from './PullToRefresh';
 import { WordOfTheDay } from './WordOfTheDay';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { isAppAdmin } from '@/utils/userAccess';
-import { SuggestedTopicsCard, type SuggestedTopicItem } from '@/components/dashboard/SuggestedTopicsCard';
-import { MyStudyCard, type RecentStudyItem } from '@/components/dashboard/MyStudyCard';
-import { MyScheduleCard } from '@/components/dashboard/MyScheduleCard';
+import { type SuggestedTopicItem } from '@/components/dashboard/SuggestedTopicsCard';
+import { type RecentStudyItem } from '@/components/dashboard/MyStudyCard';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { ActionTile } from '@/components/dashboard/ActionTile';
-import { PlanSummaryCard, type PlanInfo } from '@/components/dashboard/PlanSummaryCard';
+import { type PlanInfo } from '@/components/dashboard/PlanSummaryCard';
+import { YourPlanPanel } from '@/components/dashboard/YourPlanPanel';
 
 interface DashboardProps {
   user: User;
@@ -189,32 +189,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   </SimpleGrid>
                 )}
 
-                <Box display={{ base: 'block', lg: 'none' }} w="100%">
-                  <WordOfTheDay grade={user.grade} variant="dashboard" />
-                </Box>
-
-                {canShowAiStudy && (
-                  <MyStudyCard
-                    sessions={recentStudy}
-                    remainingTopics={planInfo?.limits.remainingTopics}
-                    canStudy={!planInfo || planInfo.limits.remainingTopics > 0}
-                    onStudyClick={goStudy}
-                  />
-                )}
-
-                <MyScheduleCard />
-
-                {analytics && (
-                  <SuggestedTopicsCard items={suggestedTopicItems} hasQuizHistory={analytics.total_quizzes > 0} />
-                )}
+                <WordOfTheDay grade={user.grade} variant="dashboard" />
               </VStack>
             </Box>
 
             <VStack spacing={{ base: 3, md: 4, lg: 5 }} align="stretch" w={{ base: '100%', lg: '350px' }} minW={{ base: '100%', lg: '350px' }} maxW={{ base: '100%', lg: '350px' }} order={{ base: -1, lg: 0 }} flexShrink={0}>
-              {planInfo && !planLoading && <PlanSummaryCard planInfo={planInfo} />}
-              <Box display={{ base: 'none', lg: 'block' }} w="100%">
-                <WordOfTheDay grade={user.grade} variant="dashboard" />
-              </Box>
+              {planInfo && !planLoading && (
+                <YourPlanPanel
+                  planInfo={planInfo}
+                  recentStudy={recentStudy}
+                  canShowAiStudy={canShowAiStudy}
+                  canStudy={!planInfo || planInfo.limits.remainingTopics > 0}
+                  onStudyClick={goStudy}
+                  suggestedTopics={analytics ? suggestedTopicItems : undefined}
+                  hasQuizHistory={analytics ? analytics.total_quizzes > 0 : false}
+                />
+              )}
               <UpcomingTestsSidebar planInfo={planInfo} />
             </VStack>
           </Box>

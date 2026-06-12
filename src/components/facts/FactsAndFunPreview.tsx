@@ -1,5 +1,5 @@
 /**
- * Dashboard preview — 3 Facts & Fun topics with link to full page.
+ * Compact preview — 3 Facts & Fun topics with link to full page.
  */
 
 import { useState, useEffect, useCallback } from 'react';

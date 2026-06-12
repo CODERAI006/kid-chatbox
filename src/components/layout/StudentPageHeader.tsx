@@ -3,6 +3,7 @@
  */
 import { Box, HStack, Heading, Text } from '@/shared/design-system';
 import type { ReactNode } from 'react';
+import { COMPACT_FOOTER_HEIGHT, MOBILE_BOTTOM_NAV_HEIGHT } from './layoutHeights';
 
 interface StudentPageHeaderProps {
   icon: string;
@@ -82,7 +83,11 @@ export function StudentPageLayout({
       <Box
         px={{ base: 3, md: 5, lg: 6 }}
         py={{ base: 3, md: 4 }}
-        pb={{ base: 20, md: 4 }}
+        pb={{
+          base: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + env(safe-area-inset-bottom, 0px) + 0.5rem)`,
+          md: `calc(${MOBILE_BOTTOM_NAV_HEIGHT} + ${COMPACT_FOOTER_HEIGHT} + env(safe-area-inset-bottom, 0px) + 0.5rem)`,
+          lg: 4,
+        }}
         maxW={maxW}
         mx="auto"
         w="100%"
