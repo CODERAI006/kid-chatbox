@@ -24,10 +24,7 @@ dist-ssr
 *.sw?
 
 # Environment variables (NEVER commit these - they contain secrets!)
-.env
-.env.local
-.env.production
-.env.*.local
+
 
 # Server logs
 server/logs/
