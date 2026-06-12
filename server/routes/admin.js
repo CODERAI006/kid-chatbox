@@ -11,6 +11,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { checkPermission, checkRole } = require('../middleware/rbac');
 const { getFreemiumPlan, assignPlanToUser } = require('../utils/plans');
 const { sendWelcomeEmail } = require('../utils/email');
+const { generateUniqueBuddyId } = require('../utils/buddyId');
 
 const router = express.Router();
 
@@ -593,13 +594,14 @@ router.post('/users/create', checkPermission('manage_users'), async (req, res, n
 
     // Create user
     const userStatus = status || 'pending';
+    const buddyId = await generateUniqueBuddyId(pool, name);
     const result = await pool.query(
       `INSERT INTO users (
-        email, password_hash, name, age, age_group, grade, 
-        parent_contact, status
+        email, password_hash, name, age, age_group, grade,
+        parent_contact, status, buddy_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id, email, name, age, age_group, grade, status, created_at`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, email, name, age, age_group, grade, status, buddy_id, created_at`,
       [
         email,
         passwordHash,
@@ -609,6 +611,7 @@ router.post('/users/create', checkPermission('manage_users'), async (req, res, n
         grade || null,
         parentContact || null,
         userStatus,
+        buddyId,
       ]
     );
 

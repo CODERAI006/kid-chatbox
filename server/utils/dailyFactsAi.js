@@ -34,6 +34,10 @@ function parseFactsJson(raw) {
           emoji: String(item.emoji || meta?.emoji || '💡').slice(0, 4),
           title: String(item.title || 'Did you know?').slice(0, 80),
           fact: String(item.fact || '').slice(0, 420),
+          explanation: String(item.explanation || item.fact || '').slice(0, 900),
+          reasoning: String(item.reasoning || '').slice(0, 900),
+          didYouKnow: String(item.didYouKnow || '').slice(0, 420),
+          realLifeLink: String(item.realLifeLink || '').slice(0, 420),
         };
       })
       .filter((f) => f.fact.length > 20)
@@ -60,10 +64,15 @@ Return ONLY a JSON array of ${FACT_COUNT} objects:
     "subject": "science",
     "emoji": "🔬",
     "title": "Short catchy title",
-    "fact": "2-4 sentences a child can understand."
+    "fact": "2-4 sentences a child can understand.",
+    "explanation": "3-5 sentences explaining the fact more clearly",
+    "reasoning": "2-4 sentences on WHY this is true",
+    "didYouKnow": "one surprising related fun fact",
+    "realLifeLink": "how this connects to school or daily life in India"
   }
 ]
-"subject" must be one of: ${DAILY_FACT_SUBJECTS.map((s) => s.id).join(', ')}.`;
+"subject" must be one of: ${DAILY_FACT_SUBJECTS.map((s) => s.id).join(', ')}.
+Every object MUST include explanation, reasoning, didYouKnow, and realLifeLink.`;
 }
 
 async function callOllama(prompt, gradeLabel, dateStr) {
@@ -76,7 +85,7 @@ async function callOllama(prompt, gradeLabel, dateStr) {
       { role: 'user', content: prompt },
     ],
     temperature: 0.65,
-    num_predict: 2000,
+    num_predict: 4500,
     logContext: `dailyFacts ollama grade=${gradeLabel} date=${dateStr}`,
   });
   return content;
@@ -115,7 +124,8 @@ async function generateDailyFacts(date, gradeLabel) {
       throw new FactsGenerationError('Ollama returned invalid facts. Check model and try again.');
     }
 
-    return facts.map((f, i) => ({ ...f, id: `${dateStr}-${i + 1}` }));
+    const { normalizeFactDetail } = require('./dailyFactsEnrich');
+    return facts.map((f, i) => normalizeFactDetail({ ...f, id: `${dateStr}-${i + 1}` }));
   } catch (err) {
     if (err instanceof FactsGenerationError) throw err;
     console.error('[dailyFactsAi] Ollama error:', err.message);

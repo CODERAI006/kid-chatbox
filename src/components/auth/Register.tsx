@@ -19,7 +19,7 @@ import {
 } from '@/shared/design-system';
 import { authApi, getErrorMessage } from '@/services/api';
 import { RegisterData } from '@/types';
-import { LANGUAGES, QUIZ_CONSTANTS } from '@/constants/quiz';
+import { LANGUAGES } from '@/constants/quiz';
 import { Language } from '@/types/quiz';
 import { GRADES } from '@/constants/auth';
 
@@ -36,10 +36,11 @@ export const Register: React.FC<RegisterProps> = ({ onRegisterSuccess, onSwitchT
     email: '',
     password: '',
     name: '',
-    age: undefined,
+    birthDate: '',
     grade: '',
     preferredLanguage: undefined,
   });
+  const maxBirthDate = new Date().toISOString().slice(0, 10);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -131,21 +132,15 @@ export const Register: React.FC<RegisterProps> = ({ onRegisterSuccess, onSwitchT
 
               <Box width="100%">
                 <Text fontSize="sm" fontWeight="semibold" marginBottom={2}>
-                  Age (optional)
+                  Date of Birth *
                 </Text>
                 <Input
-                  type="number"
-                  value={formData.age || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      age: e.target.value ? parseInt(e.target.value, 10) : undefined,
-                    })
-                  }
-                  placeholder={`Age (${QUIZ_CONSTANTS.MIN_AGE}-${QUIZ_CONSTANTS.MAX_AGE})`}
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                  max={maxBirthDate}
                   size="lg"
-                  min={QUIZ_CONSTANTS.MIN_AGE}
-                  max={QUIZ_CONSTANTS.MAX_AGE}
+                  required
                 />
               </Box>
 

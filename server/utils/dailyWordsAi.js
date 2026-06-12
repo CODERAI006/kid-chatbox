@@ -55,6 +55,7 @@ Example level (do NOT copy these): ${cbse.examples}
 
 Rules:
 - Words must appear in or match the level of NCERT/CBSE textbook passages, poems, or chapter glossaries for this class.
+- Prefer words students can use when speaking, writing, presenting, or discussing in class (e.g. explain, describe, persuade, clarify, express, suggest, agree, disagree).
 - One word per line of learning — mix a noun, verb, or adjective where possible.
 - No proper nouns, slang, or words far above this class level.
 - All ${WORD_COUNT} words must be different from each other.

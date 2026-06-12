@@ -42,6 +42,10 @@ const competitiveTopicsRoutes = require('./routes/competitive-topics');
 const ttsRoutes = require('./routes/tts');
 const quizSchedulerRoutes = require('./routes/quiz-scheduler');
 const bulkExamUploadRoutes = require('./routes/bulk-exam-upload');
+const feedbackRoutes = require('./routes/feedback');
+const adminFeedbackRoutes = require('./routes/admin-feedback');
+const studyBuddiesRoutes = require('./routes/study-buddies');
+const notificationsRoutes = require('./routes/notifications');
 const { startScheduler } = require('./services/schedulerEngine');
 const { initializeDatabase } = require('./config/database');
 
@@ -118,6 +122,10 @@ app.use('/api/learning-bot', learningBotRoutes);
 app.use('/api/study-plan', studyPlanRoutes);
 app.use('/api/competitive-topics', competitiveTopicsRoutes);
 app.use('/api/tts', ttsRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/admin/feedback', adminFeedbackRoutes);
+app.use('/api/study-buddies', studyBuddiesRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/quiz-scheduler', quizSchedulerRoutes);
 app.use('/api/bulk-exam-upload', bulkExamUploadRoutes);
 

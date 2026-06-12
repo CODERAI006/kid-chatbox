@@ -51,6 +51,7 @@ async function generateDailyPhrases(date, gradeLabel, complexity) {
 
   try {
     const prompt = `Generate exactly ${PHRASE_COUNT} English idioms and expressions for ${cbse.classLevel} CBSE board students (age ~${cbse.age}, ${levelHint}).
+Focus on phrases that help students communicate confidently in conversations, group work, presentations, and everyday English.
 Use contexts familiar from NCERT textbooks and Indian school life. Mix school and daily-life settings.
 Each phrase must be usable inside a full sentence.
 Date seed: ${dateStr} — pick varied, useful phrases (not the most clichéd ones every time).

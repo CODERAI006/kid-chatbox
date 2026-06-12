@@ -8,3 +8,5 @@ export * from './api';
 export * from './news';
 export * from './educationNews';
 export * from './dailyFacts';
+export * from './studyBuddy';
+export * from './notification';

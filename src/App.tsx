@@ -29,6 +29,7 @@ import { QuizResultsAnalytics } from '@/components/admin/QuizResultsAnalytics';
 import { QuizSchedulerManagement } from '@/components/admin/QuizSchedulerManagement';
 import { OllamaCloudSettingsPage } from '@/components/admin/OllamaCloudSettings';
 import { WordOfDaySettingsPage } from '@/components/admin/WordOfDaySettings';
+import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import NewsFeed from '@/components/NewsFeed';
 import { authApi } from '@/services/api';
@@ -37,6 +38,7 @@ import { QuizTimerProvider } from '@/contexts/QuizTimerContext';
 import { QuizAttemptPage } from '@/components/QuizAttemptPage';
 import { PastChatsPage } from '@/components/learning/PastChatsPage';
 import { MySchedulesPage } from '@/components/learning/MySchedulesPage';
+import { StudyBuddiesPage } from '@/components/study-buddy/StudyBuddiesPage';
 
 /**
  * Theme configuration with dark mode support and responsive font sizes
@@ -349,6 +351,18 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/study-buddies"
+            element={
+              <AuthGuard>
+                <ModuleAccessGuard module="quiz">
+                  <StudentLayout user={user}>
+                    <StudyBuddiesPage />
+                  </StudentLayout>
+                </ModuleAccessGuard>
+              </AuthGuard>
+            }
+          />
+          <Route
             path="/study-library/:id"
             element={
               <AuthGuard>
@@ -488,6 +502,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <WordOfDaySettingsPage />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/feedback"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <FeedbackManagement />
                 </AdminLayout>
               </AdminGuard>
             }

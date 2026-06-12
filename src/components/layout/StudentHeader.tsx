@@ -1,7 +1,7 @@
 /**
  * Minimal student app header — welcome message only (no action buttons).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Box,
@@ -13,6 +13,7 @@ import {
 } from '@/shared/design-system';
 import { User } from '@/types';
 import { useQuizTimer } from '@/contexts/QuizTimerContext';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface StudentHeaderProps {
   user?: User | null;
@@ -43,6 +44,7 @@ function pageHint(pathname: string, hash: string): string | null {
   }
   if (pathname === '/past-chats') return 'Past Guru conversations';
   if (pathname === '/profile') return 'Account & settings';
+  if (pathname === '/study-buddies') return 'Study Buddy';
   if (pathname === '/quiz-rankings') return 'Leaderboard';
   if (pathname === '/news') return 'Facts & Fun';
   if (pathname.startsWith('/word-of-day')) return 'Word of the day';
@@ -93,6 +95,15 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
 
   const greeting = useMemo(() => greetingForHour(new Date().getHours()), []);
   const hint = pageHint(location.pathname, location.hash);
+
+  const copyBuddyId = useCallback(async () => {
+    if (!user?.buddyId) return;
+    try {
+      await navigator.clipboard.writeText(user.buddyId);
+    } catch {
+      // Clipboard may be unavailable
+    }
+  }, [user?.buddyId]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -185,6 +196,32 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
               >
                 <Text fontSize="xs" fontWeight="semibold" color={isCritical ? 'red.700' : isWarning ? 'orange.700' : 'blue.700'}>
                   ⏱ {formatTime(quizTimer.timeRemaining)}
+                </Text>
+              </HStack>
+            )}
+
+            {user && <NotificationBell enabled />}
+
+            {user?.buddyId && (
+              <HStack
+                spacing={1}
+                px={2}
+                py={1}
+                borderRadius="md"
+                bg="purple.50"
+                borderWidth={1}
+                borderColor="purple.200"
+                flexShrink={0}
+                cursor="pointer"
+                onClick={() => void copyBuddyId()}
+                onKeyDown={(e) => e.key === 'Enter' && void copyBuddyId()}
+                role="button"
+                tabIndex={0}
+                aria-label={`Buddy ID ${user.buddyId}. Click to copy.`}
+                title="Click to copy Buddy ID"
+              >
+                <Text fontSize="xs" color="purple.700" fontWeight="semibold" whiteSpace="nowrap">
+                  Buddy: {user.buddyId}
                 </Text>
               </HStack>
             )}

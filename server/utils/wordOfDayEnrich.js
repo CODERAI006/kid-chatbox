@@ -70,6 +70,7 @@ async function generateWordDetail(word, complexity, meanings, gradeLabel) {
         .slice(0, 3),
       schoolExample: `Our teacher used "${word}" in class today.`,
       dailyLifeExample: `You might hear "${word}" when talking with friends or family.`,
+      communicationTip: `Try using "${word}" when you explain your ideas in class or in writing.`,
     };
   }
 
@@ -84,7 +85,8 @@ Return ONLY valid JSON:
   "detailedExplanation": "2-3 age-appropriate sentences explaining the word clearly, referencing how it might appear in NCERT/CBSE books",
   "realWorldExamples": ["detailed example 1", "detailed example 2", "detailed example 3"],
   "schoolExample": "one detailed sentence using the word in an Indian CBSE school context",
-  "dailyLifeExample": "one detailed sentence using the word in everyday life in India"
+  "dailyLifeExample": "one detailed sentence using the word in everyday life in India",
+  "communicationTip": "one short, practical tip on when and how a student can use this word while speaking or writing (max 25 words)"
 }`;
 
     const { content } = await ollamaChat({
@@ -104,6 +106,7 @@ Return ONLY valid JSON:
         ? parsed.realWorldExamples.slice(0, 4) : [],
       schoolExample: parsed.schoolExample || '',
       dailyLifeExample: parsed.dailyLifeExample || '',
+      communicationTip: parsed.communicationTip || '',
     };
   } catch (err) {
     console.warn('[wordOfDayEnrich] LLM detail failed:', err.message);
@@ -112,6 +115,7 @@ Return ONLY valid JSON:
       realWorldExamples: [],
       schoolExample: '',
       dailyLifeExample: '',
+      communicationTip: '',
     };
   }
 }

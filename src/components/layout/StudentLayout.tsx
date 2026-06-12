@@ -18,7 +18,9 @@ import { Footer } from './Footer';
 import { MobileBottomNav, MOBILE_BOTTOM_NAV_HEIGHT } from './MobileBottomNav';
 import { StudentSidebar } from './StudentSidebar';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
+import { AppFeedbackModal } from '@/components/feedback/AppFeedbackModal';
 import { useStudyPlanNotifications } from '@/hooks/useStudyPlanNotifications';
+import { useInAppNotifications } from '@/hooks/useInAppNotifications';
 import { User } from '@/types';
 
 interface StudentLayoutProps {
@@ -55,6 +57,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
   const hintColor = useColorModeValue('gray.500', 'gray.400');
 
   useStudyPlanNotifications({ enabled: Boolean(user) });
+  useInAppNotifications({ enabled: Boolean(user) });
 
   useEffect(() => {
     if (!isMobile) {
@@ -112,6 +115,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
       {isMobile && <MobileBottomNav user={user} />}
 
       <LearningChatWidget />
+      <AppFeedbackModal />
     </Box>
   );
 };

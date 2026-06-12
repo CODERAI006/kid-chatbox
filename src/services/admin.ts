@@ -761,6 +761,34 @@ export const adminApi = {
     const response = await apiClient.get('/admin/analytics/quiz-results', { params });
     return response.data;
   },
+
+  getFeedbackGrades: async (): Promise<{ success: boolean; grades: string[] }> => {
+    const response = await apiClient.get('/admin/feedback/grades');
+    return response.data;
+  },
+
+  getFeedbackAnalytics: async (params?: {
+    grade?: string;
+    days?: number;
+  }): Promise<import('@/types/feedback').AdminFeedbackAnalytics> => {
+    const response = await apiClient.get('/admin/feedback/analytics', { params });
+    return response.data;
+  },
+
+  getFeedbackList: async (params?: {
+    grade?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    success: boolean;
+    items: import('@/types/feedback').AdminFeedbackItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> => {
+    const response = await apiClient.get('/admin/feedback', { params });
+    return response.data;
+  },
 };
 
 export type StudyLibraryContentType = 'ppt' | 'pdf' | 'text' | 'image' | 'doc';

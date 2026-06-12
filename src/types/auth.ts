@@ -8,10 +8,12 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  buddyId?: string;
   age?: number;
   grade?: string;
   preferredLanguage?: Language;
   phone?: string;
+  phoneCountry?: string;
   birthDate?: string;
   createdAt: string;
 }
@@ -25,7 +27,7 @@ export interface RegisterData {
   email: string;
   password: string;
   name: string;
-  age?: number;
+  birthDate: string;
   grade?: string;
   preferredLanguage?: Language;
 }

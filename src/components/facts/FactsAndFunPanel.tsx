@@ -12,6 +12,7 @@ import {
 import { publicApi } from '@/services/api';
 import { QuizPill, QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import FactCard from './FactCard';
+import FactDetailModal from './FactDetailModal';
 import type { DailyFact, DailyFactsResponse, FactSubjectId } from '@/types/dailyFacts';
 
 const toYMD = (d: Date) => [
@@ -55,6 +56,7 @@ export default function FactsAndFunPanel() {
   const [subjectFilter, setSubjectFilter] = useState<FactSubjectId | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailFact, setDetailFact] = useState<DailyFact | null>(null);
 
   const loadFacts = useCallback(async (dateStr: string) => {
     setLoading(true);
@@ -99,7 +101,7 @@ export default function FactsAndFunPanel() {
   }, [subjects]);
 
   return (
-    <VStack align="stretch" spacing={{ base: 4, md: 5 }} maxW="1200px" mx="auto" w="100%">
+    <VStack align="stretch" spacing={{ base: 4, md: 5 }} w="100%" minW={0}>
       <Box
         p={{ base: 3, md: 5 }}
         borderRadius={{ base: 'xl', md: '2xl' }}
@@ -180,25 +182,36 @@ export default function FactsAndFunPanel() {
         {formatDisplayDate(selectedDate)}
       </Text>
 
-      <Box>
+      <Box minW={0}>
         <QuizSectionLabel>Filter by area</QuizSectionLabel>
-        <HStack flexWrap="wrap" spacing={2}>
-          <QuizPill
-            label="All areas"
-            active={subjectFilter === 'all'}
-            onClick={() => setSubjectFilter('all')}
-            cs="gray"
-          />
-          {subjects.map((s) => (
+        <Box
+          overflowX="auto"
+          pb={1}
+          mx={{ base: -1, md: 0 }}
+          px={{ base: 1, md: 0 }}
+          css={{
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'thin',
+          }}
+        >
+          <HStack spacing={2} flexWrap={{ base: 'nowrap', lg: 'wrap' }} w="max-content" maxW="100%">
             <QuizPill
-              key={s.id}
-              label={`${s.emoji} ${s.label}`}
-              active={subjectFilter === s.id}
-              onClick={() => setSubjectFilter(s.id as FactSubjectId)}
-              cs="orange"
+              label="All areas"
+              active={subjectFilter === 'all'}
+              onClick={() => setSubjectFilter('all')}
+              cs="gray"
             />
-          ))}
-        </HStack>
+            {subjects.map((s) => (
+              <QuizPill
+                key={s.id}
+                label={`${s.emoji} ${s.label}`}
+                active={subjectFilter === s.id}
+                onClick={() => setSubjectFilter(s.id as FactSubjectId)}
+                cs="orange"
+              />
+            ))}
+          </HStack>
+        </Box>
       </Box>
 
       {loading ? (
@@ -208,7 +221,11 @@ export default function FactsAndFunPanel() {
               ? 'Loading today\'s facts for your class…'
               : 'Loading saved facts…'}
           </Text>
-          <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={{ base: 3, md: 4 }}>
+          <SimpleGrid
+            minChildWidth={{ base: '100%', md: '260px', lg: '300px' }}
+            spacing={{ base: 3, md: 4 }}
+            w="100%"
+          >
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} height="176px" borderRadius="xl" />
             ))}
@@ -235,13 +252,18 @@ export default function FactsAndFunPanel() {
           </Button>
         </Box>
       ) : (
-        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={{ base: 3, md: 4 }}>
+        <SimpleGrid
+          minChildWidth={{ base: '100%', md: '260px', lg: '300px' }}
+          spacing={{ base: 3, md: 4 }}
+          w="100%"
+        >
           {filtered.map((fact: DailyFact, i: number) => (
             <FactCard
               key={fact.id}
               fact={fact}
               subjectMeta={subjectMap.get(fact.subject)}
               index={data?.facts?.indexOf(fact) ?? i}
+              onOpenDetail={setDetailFact}
             />
           ))}
         </SimpleGrid>
@@ -252,6 +274,13 @@ export default function FactsAndFunPanel() {
           No facts in this area for the selected day.
         </Text>
       )}
+
+      <FactDetailModal
+        fact={detailFact}
+        subjectMeta={detailFact ? subjectMap.get(detailFact.subject) : undefined}
+        isOpen={Boolean(detailFact)}
+        onClose={() => setDetailFact(null)}
+      />
     </VStack>
   );
 }

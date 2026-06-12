@@ -5,20 +5,19 @@
 const { pool } = require('../config/database');
 const { generateDailyFacts } = require('../utils/dailyFactsAi');
 const { DAILY_FACT_SUBJECTS } = require('../utils/dailyFactsSubjects');
-const { resolveGradeLabel } = require('./wordOfDayService');
+const { resolveGradeLabel, parseDateParam } = require('./wordOfDayService');
+const { generateFactDetail, normalizeFactDetail } = require('../utils/dailyFactsEnrich');
 const {
   formatCacheDate,
   gradeCacheKey,
+  detailCacheKey,
   readCache,
   writeCache,
   listCachedDates,
 } = require('../utils/dailyFactsDbCache');
 
-function parseDateParam(dateStr) {
-  if (!dateStr) return new Date();
-  const parts = dateStr.split('-').map(Number);
-  if (parts.length !== 3 || parts.some(isNaN)) return new Date();
-  return new Date(parts[0], parts[1] - 1, parts[2]);
+function withDetailFields(facts) {
+  return (facts || []).map((f) => normalizeFactDetail(f));
 }
 
 async function buildDailyPayload(date, gradeLabel) {
@@ -28,7 +27,7 @@ async function buildDailyPayload(date, gradeLabel) {
     success: true,
     date: cacheDate,
     grade: gradeLabel,
-    facts,
+    facts: withDetailFields(facts),
     subjects: DAILY_FACT_SUBJECTS,
     factCount: facts.length,
     cached: false,
@@ -44,7 +43,13 @@ async function getDailyFacts(dateInput, grade) {
 
   const cached = await readCache(key, cacheDate);
   if (cached?.facts?.length) {
-    return { ...cached, grade: gradeLabel, cached: true, source: 'ollama' };
+    return {
+      ...cached,
+      grade: gradeLabel,
+      facts: withDetailFields(cached.facts),
+      cached: true,
+      source: 'ollama',
+    };
   }
 
   try {
@@ -73,6 +78,51 @@ async function listArchiveDates(grade, limit = 30) {
   const key = gradeCacheKey(gradeLabel);
   const dates = await listCachedDates(key, limit);
   return { success: true, grade: gradeLabel, dates };
+}
+
+async function getFactDetail(dateInput, grade, factIdParam) {
+  const factId = String(factIdParam || '').trim();
+  if (!factId) {
+    return { success: false, status: 400, message: 'Fact id is required' };
+  }
+
+  const date = parseDateParam(dateInput);
+  const cacheDate = formatCacheDate(date);
+  const gradeLabel = await resolveGradeLabel(grade);
+  const detailKey = detailCacheKey(gradeLabel, factId);
+
+  const cachedDetail = await readCache(detailKey, cacheDate);
+  if (cachedDetail?.fact?.id) {
+    return { ...cachedDetail, cached: true };
+  }
+
+  const daily = await getDailyFacts(cacheDate, gradeLabel);
+  if (!daily.success || !daily.facts?.length) {
+    return {
+      success: false,
+      status: 404,
+      message: daily.message || 'No facts found for this day',
+    };
+  }
+
+  const fact = daily.facts.find((f) => f.id === factId);
+  if (!fact) {
+    return { success: false, status: 404, message: 'Fact not found for this date and class' };
+  }
+
+  const detail = await generateFactDetail(fact, gradeLabel);
+  const body = {
+    success: true,
+    date: cacheDate,
+    grade: gradeLabel,
+    fact,
+    detail,
+    cached: false,
+    source: 'ollama',
+  };
+
+  await writeCache(detailKey, cacheDate, body);
+  return body;
 }
 
 async function pregenerateForDate(dateInput) {
@@ -108,6 +158,7 @@ async function pregenerateForDate(dateInput) {
 
 module.exports = {
   getDailyFacts,
+  getFactDetail,
   listArchiveDates,
   pregenerateForDate,
   parseDateParam,

@@ -28,6 +28,9 @@ import { profileApi } from '@/services/api';
 import { PullToRefresh } from './PullToRefresh';
 import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 import { APP_CONSTANTS } from '@/constants/app';
+import { PhoneCountryInput } from '@/components/profile/PhoneCountryInput';
+import { DEFAULT_PHONE_COUNTRY } from '@/constants/phoneCountries';
+import { splitStoredPhone, validateLocalPhone } from '@/utils/phoneInput';
 
 interface ProfileProps {
   user: User;
@@ -36,6 +39,16 @@ interface ProfileProps {
 function formatDisplayDate(value?: string | null): string {
   if (!value) return 'Not set';
   try {
+    const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) {
+      const [y, m, d] = match[1].split('-').map(Number);
+      const local = new Date(y, m - 1, d);
+      return local.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    }
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return 'Not set';
     return d.toLocaleDateString(undefined, {
@@ -56,7 +69,9 @@ const ADMIN_EMAIL = APP_CONSTANTS.ADMIN_SUPPORT_EMAIL;
 export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User>(initialUser);
-  const [phone, setPhone] = useState(initialUser.phone || '');
+  const initialPhone = splitStoredPhone(initialUser.phone, initialUser.phoneCountry);
+  const [phoneCountry, setPhoneCountry] = useState(initialPhone.countryCode);
+  const [phone, setPhone] = useState(initialPhone.localPhone);
   const [preferredLanguage, setPreferredLanguage] = useState<Language>(
     (initialUser.preferredLanguage as Language) || 'English'
   );
@@ -66,8 +81,10 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   const applyUser = (latestUser: User) => {
+    const parsed = splitStoredPhone(latestUser.phone, latestUser.phoneCountry);
     setUser(latestUser);
-    setPhone(latestUser.phone || '');
+    setPhoneCountry(latestUser.phoneCountry || parsed.countryCode);
+    setPhone(parsed.localPhone);
     setPreferredLanguage((latestUser.preferredLanguage as Language) || 'English');
   };
 
@@ -91,16 +108,23 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+
+    const phoneError = validateLocalPhone(phone.trim());
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
+
     setLoading(true);
 
     try {
       const result = await profileApi.updateProfile({
-        phone: phone.trim() || undefined,
+        phone: phone.trim() || null,
+        phoneCountry: phoneCountry || DEFAULT_PHONE_COUNTRY,
         preferredLanguage: preferredLanguage,
       });
 
-      setUser(result.user);
-      setPhone(result.user.phone || '');
+      applyUser(result.user);
       setSuccess(true);
       window.dispatchEvent(new CustomEvent('userProfileUpdated', { detail: result.user }));
       setTimeout(() => setSuccess(false), 3000);
@@ -155,13 +179,13 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
           <Alert status="info" borderRadius="md" fontSize="sm">
             <AlertIcon />
             <Box>
-              <Text fontWeight="medium">Name, date of birth, and age</Text>
+              <Text fontWeight="medium">Name, date of birth, and age are managed by your administrator</Text>
               <Text mt={1} color="gray.600">
-                These details are managed by your administrator. To request changes, email{' '}
+                To request changes, email{' '}
                 <Link href={`mailto:${ADMIN_EMAIL}`} color="blue.600" fontWeight="semibold">
                   {ADMIN_EMAIL}
                 </Link>
-                .
+                . You can update mobile number and language below.
               </Text>
             </Box>
           </Alert>
@@ -184,6 +208,20 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                   </FormControl>
 
                   <FormControl>
+                    <FormLabel>Buddy ID</FormLabel>
+                    <Input
+                      type="text"
+                      value={user.buddyId || 'Generating…'}
+                      isDisabled
+                      bg="gray.100"
+                      size="lg"
+                    />
+                    <Text fontSize="xs" color="gray.500" marginTop={1}>
+                      Share this ID so friends can send you a study buddy request
+                    </Text>
+                  </FormControl>
+
+                  <FormControl>
                     <FormLabel>Date of birth</FormLabel>
                     <Input
                       type="text"
@@ -192,6 +230,9 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                       bg="gray.100"
                       size="lg"
                     />
+                    <Text fontSize="xs" color="gray.500" marginTop={1}>
+                      Contact your administrator to update date of birth
+                    </Text>
                   </FormControl>
 
                   <FormControl>
@@ -205,21 +246,14 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     />
                   </FormControl>
 
-                  <FormControl>
-                    <FormLabel>Mobile number</FormLabel>
-                    <Input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. 9876543210"
-                      size="lg"
-                      inputMode="tel"
-                      autoComplete="tel"
-                    />
-                    <Text fontSize="xs" color="gray.500" marginTop={1}>
-                      You can update your mobile number here
-                    </Text>
-                  </FormControl>
+                  <PhoneCountryInput
+                    countryCode={phoneCountry}
+                    phone={phone}
+                    onCountryChange={setPhoneCountry}
+                    onPhoneChange={setPhone}
+                    autoDetectCountry={!loadingProfile && !user.phone}
+                    hasSavedCountry={Boolean(user.phone)}
+                  />
 
                   <FormControl isRequired>
                     <FormLabel>Preferred Language</FormLabel>

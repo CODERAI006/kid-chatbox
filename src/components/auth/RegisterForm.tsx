@@ -39,10 +39,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     email: '',
     password: '',
     name: '',
-    age: undefined,
+    birthDate: '',
     grade: '',
     preferredLanguage: undefined,
   });
+  const maxBirthDate = new Date().toISOString().slice(0, 10);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -133,26 +134,21 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
           <Box width="100%">
             <Text fontSize="sm" fontWeight="semibold" marginBottom={2} color="rgba(255, 255, 255, 0.8)">
-              Age (optional)
+              {REGISTER_CONSTANTS.BIRTH_DATE_LABEL} *
             </Text>
             <Input
-              type="number"
-              value={formData.age || ''}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  age: e.target.value ? parseInt(e.target.value, 10) : undefined,
-                })
-              }
-              placeholder="Age (1-100)"
+              type="date"
+              value={formData.birthDate}
+              onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+              max={maxBirthDate}
               size="lg"
-              min={1}
-              max={100}
+              required
               borderRadius="lg"
               bg="rgba(255, 255, 255, 0.05)"
               borderColor="rgba(255, 255, 255, 0.1)"
               color="white"
-              _placeholder={{ color: 'rgba(255, 255, 255, 0.5)' }}
+              colorScheme="dark"
+              sx={{ colorScheme: 'dark' }}
               _hover={{ borderColor: 'rgba(0, 242, 255, 0.5)' }}
               _focus={{ borderColor: '#00f2ff', boxShadow: '0 0 0 1px rgba(0, 242, 255, 0.3)' }}
             />

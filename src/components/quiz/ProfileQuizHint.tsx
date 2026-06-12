@@ -84,7 +84,7 @@ export function ProfileQuizHint({
         <VStack align="stretch" spacing={1}>
           {!age && (
             <Text fontSize="sm" fontWeight="semibold" color="red.600">
-              Age: Not set (mandatory)
+              Age: Not set (mandatory — ask your administrator to set date of birth)
             </Text>
           )}
           {!language && (

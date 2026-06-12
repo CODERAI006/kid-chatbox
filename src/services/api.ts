@@ -803,7 +803,8 @@ export const profileApi = {
    * Update user profile
    */
   updateProfile: async (data: {
-    phone?: string;
+    phone?: string | null;
+    phoneCountry?: string;
     preferredLanguage?: string;
   }): Promise<{ user: User; message: string }> => {
     const response = await apiClient.put<{
@@ -1143,6 +1144,33 @@ export const publicApi = {
     }
   },
 
+  getDailyFactDetail: async (
+    factId: string,
+    date?: string,
+    grade?: string,
+  ): Promise<import('@/types/dailyFacts').DailyFactDetailResponse> => {
+    try {
+      const response = await apiClient.get('/public/facts-and-fun/detail', {
+        params: { factId, date, grade },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get fact detail:', error);
+      const axiosErr = error as {
+        response?: { data?: import('@/types/dailyFacts').DailyFactDetailResponse };
+      };
+      if (axiosErr.response?.data?.message) {
+        return axiosErr.response.data;
+      }
+      return {
+        success: false,
+        date: date || '',
+        grade: grade || '',
+        message: 'Unable to load fact details.',
+      };
+    }
+  },
+
   /**
    * Aggregated education news (RSS/web scraping — no NewsAPI)
    */
@@ -1240,6 +1268,101 @@ export const publicApi = {
       console.error('Failed to get education article:', error);
       return { success: false, message: 'Story not found' };
     }
+  },
+};
+
+export const studyBuddyApi = {
+  getDashboard: async (): Promise<import('@/types/studyBuddy').StudyBuddyDashboard> => {
+    const response = await apiClient.get<{ success: boolean } & import('@/types/studyBuddy').StudyBuddyDashboard>(
+      '/study-buddies'
+    );
+    return response.data;
+  },
+
+  lookup: async (buddyId: string): Promise<{ user: import('@/types/studyBuddy').StudyBuddyUser }> => {
+    const response = await apiClient.get<{ success: boolean; user: import('@/types/studyBuddy').StudyBuddyUser }>(
+      `/study-buddies/lookup/${encodeURIComponent(buddyId.trim())}`
+    );
+    return { user: response.data.user };
+  },
+
+  sendRequest: async (buddyId: string, message?: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ success: boolean; message: string }>('/study-buddies/requests', {
+      buddyId: buddyId.trim(),
+      message,
+    });
+    return { message: response.data.message };
+  },
+
+  respondToRequest: async (
+    requestId: string,
+    action: 'accept' | 'reject' | 'cancel'
+  ): Promise<{ message: string }> => {
+    const response = await apiClient.patch<{ success: boolean; message: string }>(
+      `/study-buddies/requests/${requestId}`,
+      { action }
+    );
+    return { message: response.data.message };
+  },
+
+  shareQuiz: async (
+    buddyIds: string[],
+    quizLibraryId: string,
+    message?: string
+  ): Promise<{ message: string; sharedCount?: number }> => {
+    const ids = [...new Set(buddyIds.map((id) => id.trim().toLowerCase()).filter(Boolean))];
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      sharedCount?: number;
+    }>('/study-buddies/quiz-shares', {
+      buddyIds: ids,
+      quizLibraryId,
+      message,
+    });
+    return { message: response.data.message, sharedCount: response.data.sharedCount };
+  },
+
+  startSharedQuiz: async (shareId: string): Promise<{ quizId: string }> => {
+    const response = await apiClient.post<{ success: boolean; quizId: string }>(
+      `/study-buddies/quiz-shares/${shareId}/start`
+    );
+    return { quizId: response.data.quizId };
+  },
+};
+
+export const notificationsApi = {
+  list: async (opts?: {
+    limit?: number;
+    unreadOnly?: boolean;
+  }): Promise<import('@/types/notification').NotificationsResponse> => {
+    const response = await apiClient.get<import('@/types/notification').NotificationsResponse>(
+      '/notifications',
+      {
+        params: {
+          limit: opts?.limit,
+          unreadOnly: opts?.unreadOnly ? 'true' : undefined,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  markRead: async (id: string): Promise<void> => {
+    await apiClient.patch(`/notifications/${id}/read`);
+  },
+
+  markAllRead: async (): Promise<void> => {
+    await apiClient.patch('/notifications/read-all');
+  },
+};
+
+export const feedbackApi = {
+  submit: async (
+    payload: import('@/types/feedback').SubmitFeedbackPayload,
+  ): Promise<import('@/types/feedback').SubmitFeedbackResponse> => {
+    const response = await apiClient.post('/feedback', payload);
+    return response.data;
   },
 };
 

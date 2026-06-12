@@ -5,7 +5,7 @@
  */
 
 const express = require('express');
-const { getDailyFacts, listArchiveDates } = require('../services/dailyFactsService');
+const { getDailyFacts, getFactDetail, listArchiveDates } = require('../services/dailyFactsService');
 
 const router = express.Router();
 
@@ -17,6 +17,19 @@ router.get('/dates', async (req, res) => {
   } catch (error) {
     console.error('[facts-and-fun/dates]', error.message);
     res.status(500).json({ success: false, dates: [] });
+  }
+});
+
+router.get('/detail', async (req, res) => {
+  try {
+    const body = await getFactDetail(req.query.date, req.query.grade, req.query.factId);
+    if (!body.success) {
+      return res.status(body.status || 404).json(body);
+    }
+    res.json(body);
+  } catch (error) {
+    console.error('[facts-and-fun/detail]', error.message);
+    res.status(500).json({ success: false, message: 'Failed to load fact details' });
   }
 });
 

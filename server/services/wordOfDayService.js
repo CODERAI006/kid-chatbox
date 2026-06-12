@@ -16,11 +16,19 @@ const {
   writeCache,
 } = require('../utils/wordOfDayDbCache');
 
-function parseDateParam(dateStr) {
-  if (!dateStr) return new Date();
-  const parts = dateStr.split('-').map(Number);
-  if (parts.length !== 3 || parts.some(isNaN)) return new Date();
-  return new Date(parts[0], parts[1] - 1, parts[2]);
+function parseDateParam(dateInput) {
+  if (!dateInput) return new Date();
+  if (dateInput instanceof Date) {
+    return Number.isNaN(dateInput.getTime()) ? new Date() : dateInput;
+  }
+  const raw = String(dateInput).trim();
+  if (!raw) return new Date();
+  const parts = raw.split('-').map(Number);
+  if (parts.length === 3 && !parts.some(isNaN)) {
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
 /** Map any grade string to the canonical label stored in word_of_day_settings. */

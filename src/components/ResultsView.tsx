@@ -27,6 +27,7 @@ import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { Certificate } from './Certificate';
 import { generateCertificate } from '@/utils/certificate';
 import { authApi } from '@/services/api';
+import { FeedbackPromptCard } from '@/components/feedback/FeedbackPromptCard';
 
 interface ResultsViewProps {
   score: number;
@@ -549,6 +550,13 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <FeedbackPromptCard
+        quizSubject={config.subject}
+        quizScore={score}
+        quizTotal={totalQuestions}
+        delay={hasPassed ? 1.5 : 1.3}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}

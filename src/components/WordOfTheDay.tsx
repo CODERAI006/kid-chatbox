@@ -13,6 +13,7 @@ import { WordOfDayCard } from './wordOfDay/WordOfDayCard';
 import { WordOfDayDashboardList } from './wordOfDay/WordOfDayDashboardList';
 import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
 import FactsAndFunPreview from './facts/FactsAndFunPreview';
+import { MESSAGES } from '@/constants/app';
 
 const toYMD = (d: Date): string => {
   const y = d.getFullYear();
@@ -91,8 +92,8 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({ grade, variant = 'fu
               <Heading size="sm" color="purple.700">📚 Words of the Day</Heading>
               <Text fontSize="xs" color="gray.500">
                 {isDashboard
-                  ? `Today's 3 CBSE words for ${gradeLabel}`
-                  : `3 AI-picked CBSE textbook words for ${gradeLabel} — tap any word for full details`}
+                  ? MESSAGES.WORD_OF_THE_DAY_SUBTITLE
+                  : `${MESSAGES.WORD_OF_THE_DAY_SUBTITLE} — tap any word for full details`}
               </Text>
             </VStack>
             {!isToday(selectedDate) && (

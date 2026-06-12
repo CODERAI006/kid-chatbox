@@ -34,6 +34,7 @@ import {
   FiBarChart2,
   FiCloud,
   FiSun,
+  FiMessageSquare,
   FiMenu,
   FiChevronLeft,
 } from 'react-icons/fi';
@@ -55,6 +56,7 @@ const TABLE_VIEW_PATHS = new Set([
   '/admin/quiz-scheduler',
   '/admin/analytics',
   '/admin/word-of-day',
+  '/admin/feedback',
 ]);
 
 const navItems = [
@@ -69,6 +71,7 @@ const navItems = [
   { path: '/admin/analytics', label: 'Analytics', icon: FiBarChart2 },
   { path: '/admin/ollama-cloud', label: 'Ollama Cloud', icon: FiCloud },
   { path: '/admin/word-of-day', label: 'Word of Day', icon: FiSun },
+  { path: '/admin/feedback', label: 'Feedback', icon: FiMessageSquare },
 ];
 
 export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {

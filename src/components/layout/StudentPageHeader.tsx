@@ -80,12 +80,14 @@ export function StudentPageLayout({
     <Box minH="100vh" bg="gray.50">
       <StudentPageHeader {...headerProps} />
       <Box
-        px={{ base: 2, md: 6 }}
+        px={{ base: 3, md: 5, lg: 6 }}
         py={{ base: 3, md: 4 }}
         pb={{ base: 20, md: 4 }}
         maxW={maxW}
         mx="auto"
         w="100%"
+        minW={0}
+        overflowX="hidden"
       >
         {children}
       </Box>

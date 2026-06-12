@@ -17,6 +17,12 @@ function gradeCacheKey(grade) {
   return `facts_fun_g${num}`;
 }
 
+function detailCacheKey(grade, factId) {
+  const num = normalizeGrade(grade) || '5';
+  const id = String(factId || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `facts_fun_g${num}_detail_${id}`;
+}
+
 async function readCache(gradeKey, cacheDate) {
   try {
     const r = await pool.query(
@@ -69,6 +75,7 @@ async function listCachedDates(gradeKey, limit = 30) {
 module.exports = {
   formatCacheDate,
   gradeCacheKey,
+  detailCacheKey,
   readCache,
   writeCache,
   listCachedDates,

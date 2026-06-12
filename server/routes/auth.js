@@ -10,6 +10,9 @@ const { authenticateToken } = require('../middleware/auth');
 const { getFreemiumPlan, assignPlanToUser } = require('../utils/plans');
 const { trackEvent, EVENT_TYPES } = require('../utils/eventTracker');
 const { sendWelcomeEmail, sendGoogleWelcomeEmail } = require('../utils/email');
+const { generateUniqueBuddyId } = require('../utils/buddyId');
+const { parseBirthDate, calculateAgeFromBirthDate, formatBirthDateValue } = require('../utils/birthDate');
+const { ageFromNumber } = require('../utils/resolveQuizAgeGroup');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -19,7 +22,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
  */
 router.post('/register', async (req, res, next) => {
   try {
-    const { email, password, name, age, grade, preferredLanguage } = req.body;
+    const { email, password, name, birthDate, grade, preferredLanguage } = req.body;
 
     // Validate input
     if (!email || !password || !name) {
@@ -28,6 +31,25 @@ router.post('/register', async (req, res, next) => {
         message: 'Email, password, and name are required',
       });
     }
+
+    if (!birthDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date of birth is required',
+      });
+    }
+
+    const birthDateResult = parseBirthDate(birthDate);
+    if (birthDateResult.error) {
+      return res.status(400).json({
+        success: false,
+        message: birthDateResult.error,
+      });
+    }
+
+    const normalizedBirthDate = birthDateResult.value;
+    const derivedAge = calculateAgeFromBirthDate(normalizedBirthDate);
+    const derivedAgeGroup = derivedAge != null ? ageFromNumber(derivedAge) : null;
 
     // Check if user already exists
     const existingUser = await pool.query(
@@ -44,13 +66,24 @@ router.post('/register', async (req, res, next) => {
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
+    const buddyId = await generateUniqueBuddyId(pool, name);
 
     // Create user with default status 'enabled' (auto-approved)
     const result = await pool.query(
-      `INSERT INTO users (email, password_hash, name, age, grade, preferred_language, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'enabled')
-       RETURNING id, email, name, age, grade, preferred_language, status, created_at`,
-      [email, passwordHash, name, age || null, grade || null, preferredLanguage || null]
+      `INSERT INTO users (email, password_hash, name, age, age_group, birth_date, grade, preferred_language, status, buddy_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'enabled', $9)
+       RETURNING id, email, name, age, age_group, birth_date, grade, preferred_language, status, buddy_id, created_at`,
+      [
+        email,
+        passwordHash,
+        name,
+        derivedAge,
+        derivedAgeGroup,
+        normalizedBirthDate,
+        grade || null,
+        preferredLanguage || null,
+        buddyId,
+      ]
     );
 
     const user = result.rows[0];
@@ -89,6 +122,7 @@ router.post('/register', async (req, res, next) => {
       eventType: EVENT_TYPES.USER_REGISTER,
       metadata: {
         email: user.email,
+        birthDate: formatBirthDateValue(user.birth_date),
         age: user.age,
         grade: user.grade,
       },
@@ -116,8 +150,10 @@ router.post('/register', async (req, res, next) => {
         email: user.email,
         name: user.name,
         age: user.age,
+        birthDate: formatBirthDateValue(user.birth_date),
         grade: user.grade,
         preferredLanguage: user.preferred_language,
+        buddyId: user.buddy_id,
         status: user.status,
         createdAt: user.created_at,
       },
@@ -213,6 +249,7 @@ router.post('/login', async (req, res, next) => {
         age: user.age,
         grade: user.grade,
         preferredLanguage: user.preferred_language,
+        buddyId: user.buddy_id,
         createdAt: user.created_at,
       },
       token,
@@ -249,12 +286,13 @@ router.post('/google', async (req, res, next) => {
     let user;
 
     if (result.rows.length === 0) {
+      const buddyId = await generateUniqueBuddyId(pool, name);
       // Create new user with enabled status (auto-approved for Google login)
       result = await pool.query(
-        `INSERT INTO users (email, name, password_hash, status, avatar_url)
-         VALUES ($1, $2, $3, 'enabled', $4)
-         RETURNING id, email, name, age, grade, preferred_language, status, created_at`,
-        [email, name, null, picture || null] // No password for social login
+        `INSERT INTO users (email, name, password_hash, status, avatar_url, buddy_id)
+         VALUES ($1, $2, $3, 'enabled', $4, $5)
+         RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
+        [email, name, null, picture || null, buddyId]
       );
       user = result.rows[0];
 
@@ -332,6 +370,7 @@ router.post('/google', async (req, res, next) => {
         age: user.age,
         grade: user.grade,
         preferredLanguage: user.preferred_language,
+        buddyId: user.buddy_id,
         createdAt: user.created_at,
       },
       token: jwtToken,
@@ -369,12 +408,13 @@ router.post('/social', async (req, res, next) => {
     let user;
 
     if (result.rows.length === 0) {
+      const buddyId = await generateUniqueBuddyId(pool, name);
       // Create new user with enabled status
       result = await pool.query(
-        `INSERT INTO users (email, name, password_hash, status)
-         VALUES ($1, $2, $3, 'enabled')
-         RETURNING id, email, name, age, grade, preferred_language, status, created_at`,
-        [email, name, null]
+        `INSERT INTO users (email, name, password_hash, status, buddy_id)
+         VALUES ($1, $2, $3, 'enabled', $4)
+         RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
+        [email, name, null, buddyId]
       );
       user = result.rows[0];
 
@@ -418,6 +458,7 @@ router.post('/social', async (req, res, next) => {
         age: user.age,
         grade: user.grade,
         preferredLanguage: user.preferred_language,
+        buddyId: user.buddy_id,
         createdAt: user.created_at,
       },
       token: jwtToken,
@@ -443,6 +484,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
         u.age_group,
         u.grade, 
         u.preferred_language,
+        u.buddy_id,
         u.status,
         u.avatar_url,
         u.parent_contact,

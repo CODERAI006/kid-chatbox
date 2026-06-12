@@ -26,6 +26,7 @@ import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
+import { openAppFeedback } from '@/components/feedback/feedbackEvents';
 
 interface StudentSidebarProps {
   user: User | null;
@@ -40,8 +41,8 @@ const navItems = [
   { path: '/study', label: 'Study Hub', icon: '📚' },
   { path: '/past-chats', label: 'Past Chats', icon: '💬' },
   { path: '/my-schedules', label: 'My Schedules', icon: '📅' },
-  { path: '__guru_chat__', label: 'Guru AI Chat', icon: '🧘' },
   { path: '/news', label: 'Facts & Fun', icon: '💡' },
+  { path: '/study-buddies', label: 'Study Buddy', icon: '👫' },
   { path: '/profile', label: 'My Profile', icon: '👤' },
 ];
 
@@ -84,11 +85,6 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
   };
 
   const handleNavigate = (path: string) => {
-    if (path === '__guru_chat__') {
-      window.dispatchEvent(new CustomEvent('learning-chat:open', { detail: { mode: 'new' } }));
-      if (isMobile && onClose) onClose();
-      return;
-    }
     navigate(path);
     if (isMobile && onClose) {
       onClose();
@@ -106,10 +102,9 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
 
   const renderNavItem = (item: (typeof navItems)[0]) => {
     const isActive =
-      item.path !== '__guru_chat__' &&
-      (location.pathname === item.path ||
-        (item.path === '/study' && location.pathname.startsWith('/study')) ||
-        (item.path === '/quiz' && location.pathname.startsWith('/quiz')));
+      location.pathname === item.path ||
+      (item.path === '/study' && location.pathname.startsWith('/study')) ||
+      (item.path === '/quiz' && location.pathname.startsWith('/quiz'));
     const isDisabled =
       (item.path === '/study' && !hasStudyAccess) ||
       (item.path === '/quiz' && !hasQuizAccess);
@@ -245,6 +240,21 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
 
       <Box>
         <Divider mb={4} />
+        <Button
+          w="100%"
+          justifyContent="flex-start"
+          leftIcon={<Text fontSize={{ base: 'md', md: 'lg' }}>💡</Text>}
+          variant="ghost"
+          colorScheme="purple"
+          onClick={() => {
+            openAppFeedback({ source: 'sidebar' });
+            if (isMobile && onClose) onClose();
+          }}
+          size={{ base: 'sm', md: 'md' }}
+          mb={2}
+        >
+          <Text fontWeight="medium">App Feedback</Text>
+        </Button>
         <Button
           w="100%"
           justifyContent="flex-start"

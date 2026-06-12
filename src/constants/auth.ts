@@ -40,6 +40,8 @@ export const REGISTER_CONSTANTS = {
   EMAIL_PLACEHOLDER: 'your.email@example.com',
   PASSWORD_LABEL: 'Password',
   PASSWORD_PLACEHOLDER: 'Create a password',
+  BIRTH_DATE_LABEL: 'Date of Birth',
+  BIRTH_DATE_PLACEHOLDER: 'YYYY-MM-DD',
   CONFIRM_PASSWORD_LABEL: 'Confirm Password',
   CONFIRM_PASSWORD_PLACEHOLDER: 'Re-enter your password',
   REGISTER_BUTTON: 'Create Account',

@@ -69,6 +69,7 @@ const migrateSchema = async () => {
       ADD COLUMN IF NOT EXISTS last_login TIMESTAMP,
       ADD COLUMN IF NOT EXISTS google_id VARCHAR(255),
       ADD COLUMN IF NOT EXISTS phone VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS phone_country VARCHAR(2) DEFAULT 'IN',
       ADD COLUMN IF NOT EXISTS birth_date DATE
     `);
 

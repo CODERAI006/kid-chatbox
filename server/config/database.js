@@ -47,6 +47,9 @@ const initializeDatabase = async () => {
     const { migrateStudyPlan } = require('../scripts/migrate-study-plan');
     const { migrateCompetitiveTopics } = require('../scripts/migrate-competitive-topics');
     const { migrateWordOfDaySettings } = require('../scripts/migrate-word-of-day-settings');
+    const { migrateAppFeedback } = require('../scripts/migrate-app-feedback');
+    const { migrateStudyBuddies } = require('../scripts/migrate-study-buddies');
+    const { migrateUserNotifications } = require('../scripts/migrate-user-notifications');
     // Run comprehensive schema migration
     await migrateSchema();
     // Analytics columns/indexes on activity_logs (depends on migrateSchema)
@@ -69,6 +72,9 @@ const initializeDatabase = async () => {
     await migrateWordOfDaySettings();
     await migrateStudyPlan();
     await migrateCompetitiveTopics();
+    await migrateAppFeedback();
+    await migrateStudyBuddies();
+    await migrateUserNotifications();
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing database (server will start without DB):', error.message || error);

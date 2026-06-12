@@ -24,7 +24,7 @@ export const CommonPhrasesSection: React.FC<CommonPhrasesSectionProps> = ({
         <VStack spacing={compact ? 2 : 3} align="stretch">
           <HStack justify="space-between" flexWrap="wrap" gap={1}>
             <Heading size={compact ? 'xs' : 'sm'} color="teal.700">
-              💬 {phrases.length} Idioms & Expressions
+              💬 {phrases.length} expressions for better communication
             </Heading>
             <Badge colorScheme="purple" fontSize="2xs" variant="subtle">
               AI daily

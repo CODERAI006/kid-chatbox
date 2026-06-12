@@ -20,6 +20,8 @@ export interface WordEntry {
   realWorldExamples?: string[];
   schoolExample?: string;
   dailyLifeExample?: string;
+  /** Short tip on using the word when speaking or writing */
+  communicationTip?: string;
 }
 
 export interface DailyPhrase {

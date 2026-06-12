@@ -62,7 +62,7 @@ export const HeroSection: React.FC = () => {
           px={{ base: 4, md: 0 }}
         >
           Level up your study game with personalized quizzes, smart tutoring, and epic learning
-          adventures! No cap, this is the future of education 🎓
+          adventures! This is the future of education 🎓
         </Text>
       </VStack>
     </motion.div>

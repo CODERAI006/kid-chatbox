@@ -23,6 +23,28 @@ export interface DailyFact {
   emoji: string;
   title: string;
   fact: string;
+  explanation?: string;
+  reasoning?: string;
+  didYouKnow?: string;
+  realLifeLink?: string;
+}
+
+export interface DailyFactDetailContent {
+  explanation: string;
+  reasoning: string;
+  didYouKnow: string;
+  realLifeLink: string;
+}
+
+export interface DailyFactDetailResponse {
+  success: boolean;
+  date: string;
+  grade: string;
+  fact?: DailyFact;
+  detail?: DailyFactDetailContent;
+  cached?: boolean;
+  source?: 'ollama';
+  message?: string;
 }
 
 export interface DailyFactsResponse {

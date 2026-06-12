@@ -11,6 +11,7 @@ import {
 import { publicApi } from '@/services/api';
 import type { WordOfDayResponse } from '@/types/wordOfDay';
 import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
+import { MESSAGES } from '@/constants/app';
 
 export const WordOfDayDetailPage: React.FC = () => {
   const { word } = useParams<{ word: string }>();
@@ -97,6 +98,15 @@ export const WordOfDayDetailPage: React.FC = () => {
               <Box bg="purple.50" p={4} borderRadius="lg">
                 <Text fontWeight="bold" color="purple.800" mb={2}>What does it mean?</Text>
                 <Text color="gray.700" lineHeight="tall">{entry.detailedExplanation}</Text>
+              </Box>
+            )}
+
+            {entry.communicationTip && (
+              <Box bg="orange.50" p={4} borderRadius="lg" borderLeft="4px solid" borderLeftColor="orange.400">
+                <Text fontWeight="bold" color="orange.800" mb={2}>
+                  {MESSAGES.WORD_OF_THE_DAY_COMMUNICATION_TIP}
+                </Text>
+                <Text color="gray.700" lineHeight="tall">{entry.communicationTip}</Text>
               </Box>
             )}
 
