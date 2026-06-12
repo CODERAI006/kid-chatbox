@@ -27,6 +27,9 @@ export const OllamaCloudSettingsPage: React.FC = () => {
   const [models, setModels] = useState<Record<string, string>>(DEFAULT_MODELS);
   const [catalog, setCatalog] = useState<OllamaModelCatalogEntry[]>([]);
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [liveByType, setLiveByType] = useState<Record<string, string[]>>({});
+  const [refreshingModels, setRefreshingModels] = useState(false);
+  const [liveFetchedAt, setLiveFetchedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,6 +89,30 @@ export const OllamaCloudSettingsPage: React.FC = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRefreshModels = async () => {
+    setRefreshingModels(true);
+    try {
+      const result = await ollamaCloudApi.listAvailableModels();
+      setLiveByType(result.byType || {});
+      setLiveFetchedAt(result.fetchedAt);
+      toast({
+        title: 'Models loaded from Ollama',
+        description: `${result.models.length} models (${result.mode}) — pick any in the dropdowns below.`,
+        status: 'success',
+        duration: 5000,
+      });
+    } catch (err) {
+      toast({
+        title: 'Could not load Ollama models',
+        description: err instanceof Error ? err.message : 'Check API key and Ollama connection.',
+        status: 'error',
+        duration: 7000,
+      });
+    } finally {
+      setRefreshingModels(false);
     }
   };
 
@@ -161,7 +188,22 @@ export const OllamaCloudSettingsPage: React.FC = () => {
       </FormControl>
 
       <Box>
-        <Heading size="sm" mb={3}>Models by type</Heading>
+        <HStack justify="space-between" mb={3} flexWrap="wrap" gap={2}>
+          <Heading size="sm">Models by type</Heading>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRefreshModels}
+            isLoading={refreshingModels}
+          >
+            Load latest from Ollama API
+          </Button>
+        </HStack>
+        {liveFetchedAt && (
+          <Text fontSize="xs" color="gray.500" mb={3}>
+            Live catalog refreshed {new Date(liveFetchedAt).toLocaleString()}. Presets stay available; API models are merged into each dropdown.
+          </Text>
+        )}
         <VStack align="stretch" spacing={4}>
           {entries.map((entry) => (
             <OllamaModelTypeField
@@ -169,6 +211,7 @@ export const OllamaCloudSettingsPage: React.FC = () => {
               entry={entry}
               value={models[entry.id] || ''}
               onChange={(v) => setModel(entry.id, v)}
+              liveModels={liveByType[entry.id]}
             />
           ))}
         </VStack>

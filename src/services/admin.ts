@@ -1237,6 +1237,18 @@ export const ollamaCloudApi = {
     const response = await apiClient.post('/admin/ollama-cloud/test');
     return response.data;
   },
+
+  listAvailableModels: async (): Promise<{
+    success: boolean;
+    mode: 'cloud' | 'local';
+    baseUrl: string;
+    models: string[];
+    byType: Record<string, string[]>;
+    fetchedAt: string;
+  }> => {
+    const response = await apiClient.get('/admin/ollama-cloud/available-models');
+    return response.data;
+  },
 };
 
 /** @deprecated use ollamaCloudApi */

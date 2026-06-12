@@ -12,6 +12,7 @@ const { checkPermission, checkRole } = require('../middleware/rbac');
 const { getFreemiumPlan, assignPlanToUser } = require('../utils/plans');
 const { sendWelcomeEmail } = require('../utils/email');
 const { generateUniqueBuddyId } = require('../utils/buddyId');
+const { deleteUserById } = require('../utils/deleteUser');
 
 const router = express.Router();
 
@@ -508,20 +509,22 @@ router.delete('/users/:id', checkPermission('manage_users'), async (req, res, ne
       });
     }
 
-    // Delete user roles first (foreign key constraint)
-    await pool.query('DELETE FROM user_roles WHERE user_id = $1', [id]);
-
-    // Delete user plan assignments
-    await pool.query('DELETE FROM user_plans WHERE user_id = $1', [id]);
-
-    // Delete user
-    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    await deleteUserById(id);
 
     res.json({
       success: true,
       message: 'User deleted successfully',
     });
   } catch (error) {
+    if (error.statusCode === 404) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (error.code === '23503') {
+      return res.status(409).json({
+        success: false,
+        message: 'Cannot delete user: related records still reference this account. Contact support.',
+      });
+    }
     next(error);
   }
 });
@@ -1015,6 +1018,49 @@ router.put('/ollama-cloud', checkPermission('manage_users'), async (req, res, ne
     });
 
     res.json({ success: true, settings, message: 'Ollama Cloud settings saved.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * List models from Ollama Cloud or local Ollama (GET /api/tags).
+ * GET /api/admin/ollama-cloud/available-models
+ */
+router.get('/ollama-cloud/available-models', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { listOllamaModels, getOllamaRuntimeConfig } = require('../utils/ollamaClient');
+    const { loadOllamaCloudSettings } = require('../utils/ollamaCloudSettings');
+    const { filterModelsForType } = require('../utils/ollamaModelFilters');
+    const { getAdminModelCatalog } = require('../utils/ollamaModelRegistry');
+
+    await loadOllamaCloudSettings();
+    const runtime = getOllamaRuntimeConfig();
+
+    if (!runtime.configured) {
+      return res.status(400).json({
+        success: false,
+        message:
+          runtime.mode === 'cloud'
+            ? 'Ollama Cloud is enabled but no API key is configured.'
+            : 'Ollama is not configured. Start local Ollama or enable Ollama Cloud with an API key.',
+      });
+    }
+
+    const allModels = await listOllamaModels();
+    const byType = {};
+    for (const entry of getAdminModelCatalog()) {
+      byType[entry.id] = filterModelsForType(allModels, entry.id);
+    }
+
+    res.json({
+      success: true,
+      mode: runtime.mode,
+      baseUrl: runtime.baseUrl,
+      models: allModels,
+      byType,
+      fetchedAt: new Date().toISOString(),
+    });
   } catch (error) {
     next(error);
   }
