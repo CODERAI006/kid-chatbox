@@ -32,13 +32,14 @@ import { QuizTutor } from './QuizTutor';
 import { QuizTutorErrorBoundary } from './QuizTutorErrorBoundary';
 import { ScheduledTests } from './ScheduledTests';
 import { QuizHistory } from './QuizHistory';
+import { QuizRankings } from './QuizRankings';
 import { QuizLibraryTab } from './QuizLibraryTab';
 import { TodaysQuizzes } from './TodaysQuizzes';
 import { authApi, quizApi, scheduledTestsApi } from '@/services/api';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
 
-const TAB_KEYS = ['ai-quiz', 'scheduled', 'library', 'history'] as const;
+const TAB_KEYS = ['ai-quiz', 'scheduled', 'library', 'history', 'rankings'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const STORAGE_KEY = 'quiz_hub_ai_visibility';
@@ -47,7 +48,7 @@ const STORAGE_KEY = 'quiz_hub_ai_visibility';
 function buildQuizHubTabKeys(showAiTab: boolean): TabKey[] {
   const keys: TabKey[] = [];
   if (showAiTab) keys.push('ai-quiz');
-  keys.push('scheduled', 'library', 'history');
+  keys.push('scheduled', 'library', 'history', 'rankings');
   return keys;
 }
 
@@ -364,6 +365,15 @@ export const QuizHub: React.FC = () => {
                 </Badge>
               )}
             </Tab>
+            <Tab
+              fontWeight="semibold"
+              fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }}
+              px={{ base: 2, md: 4 }}
+              whiteSpace="nowrap"
+              _selected={{ color: 'blue.600', borderBottomColor: 'blue.500' }}
+            >
+              🏆 Rankings
+            </Tab>
           </TabList>
         </Box>
 
@@ -401,6 +411,11 @@ export const QuizHub: React.FC = () => {
           {/* Quiz History */}
           <TabPanel p={0}>
             <QuizHistory />
+          </TabPanel>
+
+          {/* Quiz Rankings */}
+          <TabPanel p={0}>
+            <QuizRankings embedded />
           </TabPanel>
         </TabPanels>
       </Tabs>

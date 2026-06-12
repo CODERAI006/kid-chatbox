@@ -8,9 +8,14 @@ import {
   HStack,
   Text,
   VStack,
+  Heading,
+  IconButton,
   useColorModeValue,
   Progress,
 } from '@/shared/design-system';
+import { FiMenu, FiChevronLeft } from 'react-icons/fi';
+import { adminColors } from '@/components/admin/adminTokens';
+import { APP_CONSTANTS } from '@/constants/app';
 import { User } from '@/types';
 import { useQuizTimer } from '@/contexts/QuizTimerContext';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -40,12 +45,12 @@ function pageHint(pathname: string, hash: string): string | null {
   if (pathname === '/quiz') {
     if (hash === '#ai-quiz') return 'AI quiz mode';
     if (hash === '#history') return 'Quiz results';
+    if (hash === '#rankings') return 'Leaderboard';
     return 'Quiz hub';
   }
   if (pathname === '/past-chats') return 'Past Guru conversations';
   if (pathname === '/profile') return 'Account & settings';
   if (pathname === '/study-buddies') return 'Study Buddy';
-  if (pathname === '/quiz-rankings') return 'Leaderboard';
   if (pathname === '/news') return 'Facts & Fun';
   if (pathname.startsWith('/word-of-day')) return 'Word of the day';
   if (pathname.startsWith('/study-library')) return 'Study library';
@@ -61,10 +66,10 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
   onSidebarToggle,
 }) => {
   const location = useLocation();
-  const headerBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const headerBg = useColorModeValue(adminColors.surface.light, adminColors.surface.dark);
+  const borderColor = useColorModeValue(adminColors.border.light, adminColors.border.dark);
+  const brandColor = useColorModeValue(adminColors.brand.light, adminColors.brand.dark);
   const muted = useColorModeValue('gray.500', 'gray.400');
-  const accent = useColorModeValue('blue.600', 'blue.300');
   const nameColor = useColorModeValue('gray.800', 'gray.100');
   const [showStickyTimer, setShowStickyTimer] = useState(false);
 
@@ -131,40 +136,37 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
       >
         <Box maxW="1400px" mx="auto" py={{ base: 2, md: 2.5 }} px={{ base: 4, md: 6 }} position="relative">
           <HStack align="center" justify="space-between" spacing={3} minH="32px">
-            <HStack spacing={2} minW={0} zIndex={1}>
+            <HStack spacing={3} minW={0} zIndex={1} flex={{ base: 1, lg: 'none' }}>
               {showMenuButton && onMenuOpen && (
-                <Text
-                  as="span"
-                  fontSize="sm"
-                  color={accent}
-                  cursor="pointer"
-                  flexShrink={0}
+                <IconButton
+                  aria-label="Open menu"
+                  icon={<FiMenu size={18} />}
                   onClick={onMenuOpen}
-                  onKeyDown={(e) => e.key === 'Enter' && onMenuOpen()}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Open navigation menu"
-                >
-                  ☰
-                </Text>
+                  variant="ghost"
+                  size="sm"
+                  flexShrink={0}
+                />
               )}
 
               {showSidebarToggle && onSidebarToggle && (
-                <Text
-                  as="span"
-                  fontSize="xs"
-                  color={accent}
-                  cursor="pointer"
-                  flexShrink={0}
+                <IconButton
+                  aria-label={sidebarVisible ? 'Hide navigation' : 'Show navigation'}
+                  icon={sidebarVisible ? <FiChevronLeft size={18} /> : <FiMenu size={18} />}
                   onClick={onSidebarToggle}
-                  onKeyDown={(e) => e.key === 'Enter' && onSidebarToggle()}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
-                >
-                  {sidebarVisible ? 'Hide nav' : 'Show nav'}
-                </Text>
+                  variant="ghost"
+                  size="sm"
+                  flexShrink={0}
+                />
               )}
+
+              <Box minW={0} display={{ base: showMenuButton ? 'none' : 'block', sm: 'block' }}>
+                <Heading size="sm" color={brandColor} fontWeight="700" letterSpacing="-0.02em" noOfLines={1}>
+                  {APP_CONSTANTS.BRAND_NAME}
+                </Heading>
+                <Text fontSize="xs" color={muted} display={{ base: 'none', sm: 'block' }} noOfLines={1}>
+                  Learning portal
+                </Text>
+              </Box>
             </HStack>
 
             <VStack

@@ -264,7 +264,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {showAiQuiz && (
                     <MenuItem onClick={() => navigate('/quiz#ai-quiz')}>AI Quiz Mode</MenuItem>
                   )}
-                  <MenuItem onClick={() => navigate('/quiz-rankings')}>Quiz Rankings 🏆</MenuItem>
+                  <MenuItem onClick={() => navigate('/quiz#rankings')}>Quiz Rankings 🏆</MenuItem>
                   <MenuItem onClick={() => navigate('/study#history')}>Study History</MenuItem>
                   <MenuItem onClick={() => navigate('/quiz#history')}>Quiz History</MenuItem>
                   <MenuItem onClick={() => navigate('/profile')}>My Profile</MenuItem>

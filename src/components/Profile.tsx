@@ -31,6 +31,7 @@ import { APP_CONSTANTS } from '@/constants/app';
 import { PhoneCountryInput } from '@/components/profile/PhoneCountryInput';
 import { DEFAULT_PHONE_COUNTRY } from '@/constants/phoneCountries';
 import { splitStoredPhone, validateLocalPhone } from '@/utils/phoneInput';
+import { resolveProfileAge } from '@/utils/birthDate';
 
 interface ProfileProps {
   user: User;
@@ -140,6 +141,8 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
     applyUser(latestUser);
   };
 
+  const displayAge = resolveProfileAge(user);
+
   if (loadingProfile) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
@@ -239,11 +242,16 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     <FormLabel>Age</FormLabel>
                     <Input
                       type="text"
-                      value={user.age != null ? String(user.age) : 'Not set'}
+                      value={displayAge != null ? String(displayAge) : 'Not set'}
                       isDisabled
                       bg="gray.100"
                       size="lg"
                     />
+                    {user.birthDate && (
+                      <Text fontSize="xs" color="gray.500" marginTop={1}>
+                        Calculated from your date of birth
+                      </Text>
+                    )}
                   </FormControl>
 
                   <PhoneCountryInput

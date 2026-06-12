@@ -42,6 +42,11 @@ export const REGISTER_CONSTANTS = {
   PASSWORD_PLACEHOLDER: 'Create a password',
   BIRTH_DATE_LABEL: 'Date of Birth',
   BIRTH_DATE_PLACEHOLDER: 'YYYY-MM-DD',
+  BIRTH_DATE_HINT:
+    'Age and learning group are calculated automatically from your date of birth.',
+  AGE_AUTO_LABEL: 'Calculated from date of birth',
+  AGE_OUT_OF_RANGE:
+    'Learners must be aged 4 to 99. Please use a valid date of birth.',
   CONFIRM_PASSWORD_LABEL: 'Confirm Password',
   CONFIRM_PASSWORD_PLACEHOLDER: 'Re-enter your password',
   REGISTER_BUTTON: 'Create Account',
@@ -50,6 +55,9 @@ export const REGISTER_CONSTANTS = {
   OR_DIVIDER: 'OR',
   HAVE_ACCOUNT_TEXT: 'Already have an account?',
   SIGN_IN_LINK: 'Sign In',
+  GRADE_LABEL: 'Grade/Class',
+  GRADE_PLACEHOLDER: 'Select your grade/class',
+  GRADE_REQUIRED: 'Please select your grade or class.',
 } as const;
 
 export const GRADES = [
@@ -66,5 +74,13 @@ export const GRADES = [
   'Class 10 / Grade 10',
   'Class 11 / Grade 11',
   'Class 12 / Grade 12',
+  'Graduation',
+  'Post Graduation',
 ] as const;
+
+export type GradeOption = (typeof GRADES)[number];
+
+export function isValidGrade(value: string | undefined | null): value is GradeOption {
+  return !!value && (GRADES as readonly string[]).includes(value);
+}
 

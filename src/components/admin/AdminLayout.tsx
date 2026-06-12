@@ -6,7 +6,6 @@ import { type FC, type ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
-  VStack,
   HStack,
   Text,
   Heading,
@@ -22,69 +21,33 @@ import {
   useDisclosure,
   useColorModeValue,
 } from '@/shared/design-system';
-import {
-  FiGrid,
-  FiUsers,
-  FiCreditCard,
-  FiBook,
-  FiFileText,
-  FiClipboard,
-  FiBookOpen,
-  FiClock,
-  FiBarChart2,
-  FiCloud,
-  FiSun,
-  FiMessageSquare,
-  FiMenu,
-  FiChevronLeft,
-} from 'react-icons/fi';
+import { FiMenu, FiChevronLeft } from 'react-icons/fi';
 import { UpcomingTestsMarquee } from './UpcomingTestsMarquee';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
 import { adminColors } from './adminTokens';
+import {
+  APP_NAV_ITEMS,
+  ADMIN_TABLE_VIEW_PATHS,
+  isNavItemActive,
+  resolveAdminNavPath,
+} from '@/constants/navigation';
+import { SidebarNavList } from '@/components/layout/SidebarNavList';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
-const TABLE_VIEW_PATHS = new Set([
-  '/admin/users',
-  '/admin/plans',
-  '/admin/topics',
-  '/admin/quizzes',
-  '/admin/quiz-history',
-  '/admin/study-library-content',
-  '/admin/quiz-scheduler',
-  '/admin/analytics',
-  '/admin/word-of-day',
-  '/admin/feedback',
-]);
-
-const navItems = [
-  { path: '/admin', label: 'Dashboard', icon: FiGrid },
-  { path: '/admin/users', label: 'Users', icon: FiUsers },
-  { path: '/admin/plans', label: 'Plans', icon: FiCreditCard },
-  { path: '/admin/topics', label: 'Topics', icon: FiBook },
-  { path: '/admin/quizzes', label: 'Quizzes', icon: FiFileText },
-  { path: '/admin/quiz-history', label: 'Quiz History', icon: FiClipboard },
-  { path: '/admin/study-library-content', label: 'Study Library', icon: FiBookOpen },
-  { path: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: FiClock },
-  { path: '/admin/analytics', label: 'Analytics', icon: FiBarChart2 },
-  { path: '/admin/ollama-cloud', label: 'Ollama Cloud', icon: FiCloud },
-  { path: '/admin/word-of-day', label: 'Word of Day', icon: FiSun },
-  { path: '/admin/feedback', label: 'Feedback', icon: FiMessageSquare },
-];
-
 export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const isTableView = TABLE_VIEW_PATHS.has(location.pathname);
+  const isTableView = ADMIN_TABLE_VIEW_PATHS.has(location.pathname);
   const [sidebarVisible, setSidebarVisible] = useState(() => !isTableView);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
     if (!isMobile) {
-      setSidebarVisible(!TABLE_VIEW_PATHS.has(location.pathname));
+      setSidebarVisible(!ADMIN_TABLE_VIEW_PATHS.has(location.pathname));
     }
   }, [location.pathname, isMobile]);
 
@@ -95,39 +58,24 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const sidebarBorder = useColorModeValue(adminColors.border.light, adminColors.border.dark);
   const brandColor = useColorModeValue(adminColors.brand.light, adminColors.brand.dark);
   const navText = useColorModeValue('gray.600', 'gray.300');
-  const navActiveBg = useColorModeValue(adminColors.brandMuted.light, 'blue.900');
-  const navHoverBg = useColorModeValue('gray.50', 'whiteAlpha.50');
 
   const sidebarContent = (
-    <VStack align="stretch" spacing={1} px={2}>
-      {navItems.map((item) => {
-        const isActive = location.pathname === item.path;
-        const Icon = item.icon;
-        return (
-          <Button
-            key={item.path}
-            w="100%"
-            justifyContent="flex-start"
-            leftIcon={<Icon size={16} />}
-            variant="ghost"
-            fontWeight={isActive ? 'semibold' : 'medium'}
-            fontSize="sm"
-            color={isActive ? brandColor : navText}
-            bg={isActive ? navActiveBg : 'transparent'}
-            _hover={{ bg: isActive ? navActiveBg : navHoverBg }}
-            borderRadius="md"
-            onClick={() => {
-              navigate(item.path);
-              if (isMobile) onClose();
-            }}
-            size={{ base: 'sm', md: 'md' }}
-            h={{ base: 9, md: 10 }}
-          >
-            {item.label}
-          </Button>
-        );
+    <SidebarNavList
+      items={APP_NAV_ITEMS.map((item) => {
+        const path = resolveAdminNavPath(item);
+        return {
+          key: item.adminPath,
+          label: item.label,
+          icon: item.icon,
+          path,
+          isActive: isNavItemActive(location.pathname, location.hash, path),
+        };
       })}
-    </VStack>
+      onNavigate={(path) => {
+        navigate(path);
+        if (isMobile) onClose();
+      }}
+    />
   );
 
   return (

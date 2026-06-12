@@ -9,8 +9,6 @@ import {
   Box,
   VStack,
   Container,
-  SimpleGrid,
-  Heading,
   Text,
   HStack,
   Modal,
@@ -30,7 +28,7 @@ import {
 import { ThreeJSBackground } from '@/components/home/ThreeJSBackground';
 import { FloatingElement } from '@/components/home/FloatingElement';
 import { HeroSection, HeroButtons } from '@/components/home/HeroSection';
-import { FeatureCard } from '@/components/home/FeatureCard';
+import { LandingShowcase } from '@/components/home/LandingShowcase';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { PricingPlansSection } from '@/components/pricing/PricingPlansSection';
@@ -181,52 +179,9 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
             <HeroButtons onGetStarted={handleGetStarted} onLogin={handleLogin} />
           </Box>
 
-          {/* Features Section */}
-          <VStack spacing={{ base: 5, sm: 6, md: 8 }} mt={{ base: 0, md: 8 }} position="relative" zIndex={2}>
-            <Heading
-              size={{ base: 'lg', sm: 'xl', md: '2xl' }}
-              color="#ffffff"
-              textAlign="center"
-              textShadow="0 0 15px rgba(0, 242, 255, 0.6), 0 0 30px rgba(0, 242, 255, 0.4), 0 0 45px rgba(0, 242, 255, 0.2), 3px 3px 10px rgba(0,0,0,0.9)"
-              px={{ base: 4, sm: 4, md: 0 }}
-              fontSize={{ base: '1.5rem', sm: '1.75rem', md: '2.25rem' }}
-              fontWeight="extrabold"
-              position="relative"
-              zIndex={3}
-              mb={{ base: 2, md: 0 }}
-              letterSpacing="wide"
-            >
-              Why Choose {APP_CONSTANTS.BRAND_NAME}? 🎯
-            </Heading>
-
-            <SimpleGrid
-              columns={{ base: 1, md: 3 }}
-              spacing={{ base: 4, sm: 4, md: 6 }}
-              width="100%"
-              maxW={{ base: '100%', md: '900px' }}
-              mx="auto"
-              px={{ base: 2, sm: 4, md: 0 }}
-            >
-              <FeatureCard
-                emoji="📚"
-                title="AI Study Mode"
-                description="Learn at your own pace with AI-powered lessons that adapt to your style"
-                delay={0.6}
-              />
-              <FeatureCard
-                emoji="🎯"
-                title="AI Quiz Mode"
-                description="Test your knowledge with fun quizzes and get instant feedback"
-                delay={0.8}
-              />
-              <FeatureCard
-                emoji="📊"
-                title="Track Progress"
-                description="See your improvement over time with detailed analytics and insights"
-                delay={1.0}
-              />
-            </SimpleGrid>
-          </VStack>
+          <Box mt={{ base: 4, md: 8 }} position="relative" zIndex={2}>
+            <LandingShowcase onGetStarted={handleGetStarted} />
+          </Box>
 
           <Box mt={{ base: 8, md: 12 }} position="relative" zIndex={2}>
             <PricingPlansSection variant="landing" />
@@ -249,6 +204,15 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
             © {new Date().getFullYear()} {APP_CONSTANTS.BRAND_NAME}. All rights reserved.
           </Text>
           <HStack spacing={4}>
+            <Text
+              as="a"
+              href="#features"
+              fontSize="sm"
+              color="cyan.300"
+              _hover={{ textDecoration: 'underline' }}
+            >
+              Features
+            </Text>
             <Text
               as="a"
               href="#pricing"

@@ -28,7 +28,7 @@ export interface RegisterData {
   password: string;
   name: string;
   birthDate: string;
-  grade?: string;
+  grade: string;
   preferredLanguage?: Language;
 }
 

@@ -63,7 +63,7 @@ router.post('/', checkPermission('manage_quizzes'), async (req, res, next) => {
     // If userIds provided, validate users exist
     if (userIds && userIds.length > 0) {
       const userResult = await pool.query(
-        `SELECT id FROM users WHERE id = ANY($1::uuid[]) AND status = 'approved'`,
+        `SELECT id FROM users WHERE id = ANY($1::uuid[]) AND status IN ('approved', 'enabled')`,
         [userIds]
       );
       if (userResult.rows.length !== userIds.length) {
@@ -657,7 +657,7 @@ router.get('/:id/eligible-users', checkPermission('manage_quizzes'), async (req,
          FROM users u
          INNER JOIN user_plans up ON u.id = up.user_id
          INNER JOIN plans p ON up.plan_id = p.id
-         WHERE up.plan_id = ANY($1::uuid[]) AND u.status = 'approved'
+         WHERE up.plan_id = ANY($1::uuid[]) AND u.status IN ('approved', 'enabled')
          ORDER BY u.name`,
         [plan_ids]
       );
@@ -669,7 +669,7 @@ router.get('/:id/eligible-users', checkPermission('manage_quizzes'), async (req,
       const specificUsersResult = await pool.query(
         `SELECT u.id, u.name, u.email, u.age_group, 'Direct Assignment' as plan_name
          FROM users u
-         WHERE u.id = ANY($1::uuid[]) AND u.status = 'approved'
+         WHERE u.id = ANY($1::uuid[]) AND u.status IN ('approved', 'enabled')
          ORDER BY u.name`,
         [user_ids]
       );

@@ -2,7 +2,12 @@
  * Backend API service for authentication, quiz results, and analytics
  */
 
-import axios, { type InternalAxiosRequestConfig } from 'axios';
+import axios, { type InternalAxiosRequestConfig, isAxiosError } from 'axios';
+import {
+  clearSession,
+  redirectToLoginIfNeeded,
+  isPublicAuthRequest,
+} from '@/services/session';
 import {
   LoginCredentials,
   RegisterData,
@@ -94,6 +99,21 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (isAxiosError(error) && error.response?.status === 401) {
+      const requestUrl = String(error.config?.url || '');
+      const hadToken = Boolean(localStorage.getItem('auth_token'));
+      if (hadToken && !isPublicAuthRequest(requestUrl)) {
+        clearSession();
+        redirectToLoginIfNeeded();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Extract error message from axios error
@@ -362,7 +382,14 @@ export const authApi = {
    * Register a new user
    */
   register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/register', data);
+    const response = await apiClient.post<AuthResponse>('/auth/register', {
+      email: data.email,
+      password: data.password,
+      name: data.name,
+      birthDate: data.birthDate,
+      grade: data.grade,
+      preferredLanguage: data.preferredLanguage,
+    });
     if (response.data.token) {
       localStorage.setItem('auth_token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -404,10 +431,28 @@ export const authApi = {
    * Logout - clears authentication data and dispatches logout event
    */
   logout: (): void => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-    // Dispatch custom event to notify App component
-    window.dispatchEvent(new CustomEvent('userLoggedOut'));
+    clearSession();
+  },
+
+  /**
+   * Verify the stored token with the server (e.g. after refresh or admin delete).
+   */
+  validateSession: async (): Promise<User | null> => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return null;
+
+    try {
+      const response = await apiClient.get<{ success: boolean; user: User }>('/auth/me');
+      const user = response.data.user;
+      if (!user) {
+        clearSession();
+        return null;
+      }
+      localStorage.setItem('user', JSON.stringify(user));
+      return user;
+    } catch {
+      return null;
+    }
   },
 
   /**

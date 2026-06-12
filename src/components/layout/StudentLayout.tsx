@@ -32,7 +32,7 @@ interface StudentLayoutProps {
   showFooter?: boolean;
 }
 
-const WIDE_VIEW_PATHS = new Set(['/quiz-rankings', '/past-chats', '/my-schedules']);
+const WIDE_VIEW_PATHS = new Set(['/past-chats', '/my-schedules']);
 
 function isStudentWideView(pathname: string, hash: string): boolean {
   if (WIDE_VIEW_PATHS.has(pathname)) return true;
@@ -104,7 +104,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
         >
           {!isCompactLayout && isWideView && !sidebarVisible && (
             <Text fontSize="xs" color={hintColor} mb={2} px={{ base: 4, md: 6 }}>
-              Sidebar hidden for more space — tap &quot;Show nav&quot; in the header.
+              Sidebar hidden for table view — use the menu toggle to show navigation.
             </Text>
           )}
           {children}

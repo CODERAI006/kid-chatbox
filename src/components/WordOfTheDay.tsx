@@ -186,7 +186,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
 
   if (isDashboard) {
     return (
-      <VStack spacing={3} align="stretch">
+      <VStack id="word-of-day" spacing={3} align="stretch" scrollMarginTop="5rem">
         {wordCard}
         {showAttachedSections && <FactsAndFunPreview grade={gradeLabel} />}
       </VStack>

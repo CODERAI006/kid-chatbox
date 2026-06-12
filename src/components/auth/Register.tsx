@@ -21,7 +21,10 @@ import { authApi, getErrorMessage } from '@/services/api';
 import { RegisterData } from '@/types';
 import { LANGUAGES } from '@/constants/quiz';
 import { Language } from '@/types/quiz';
-import { GRADES } from '@/constants/auth';
+import { GRADES, REGISTER_CONSTANTS, isValidGrade } from '@/constants/auth';
+import { RegistrationAgePreview } from '@/components/auth/RegistrationAgePreview';
+import { deriveRegistrationAgeFields } from '@/utils/birthDate';
+import { QUIZ_CONSTANTS } from '@/constants/quiz';
 
 interface RegisterProps {
   onRegisterSuccess: () => void;
@@ -47,6 +50,22 @@ export const Register: React.FC<RegisterProps> = ({ onRegisterSuccess, onSwitchT
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const { age } = deriveRegistrationAgeFields(formData.birthDate);
+    if (
+      age == null ||
+      age < QUIZ_CONSTANTS.MIN_AGE ||
+      age > QUIZ_CONSTANTS.MAX_AGE
+    ) {
+      setError(REGISTER_CONSTANTS.AGE_OUT_OF_RANGE);
+      return;
+    }
+
+    if (!isValidGrade(formData.grade)) {
+      setError(REGISTER_CONSTANTS.GRADE_REQUIRED);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -142,17 +161,22 @@ export const Register: React.FC<RegisterProps> = ({ onRegisterSuccess, onSwitchT
                   size="lg"
                   required
                 />
+                <Text fontSize="xs" color="gray.500" marginTop={1}>
+                  {REGISTER_CONSTANTS.BIRTH_DATE_HINT}
+                </Text>
+                <RegistrationAgePreview birthDate={formData.birthDate} />
               </Box>
 
               <Box width="100%">
                 <Text fontSize="sm" fontWeight="semibold" marginBottom={2}>
-                  Grade/Class (optional)
+                  {REGISTER_CONSTANTS.GRADE_LABEL} *
                 </Text>
                 <Select
-                  value={formData.grade || ''}
-                  onChange={(e) => setFormData({ ...formData, grade: e.target.value || undefined })}
-                  placeholder="Select your grade/class"
+                  value={formData.grade}
+                  onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                  placeholder={REGISTER_CONSTANTS.GRADE_PLACEHOLDER}
                   size="lg"
+                  required
                 >
                   {GRADES.map((grade) => (
                     <option key={grade} value={grade}>

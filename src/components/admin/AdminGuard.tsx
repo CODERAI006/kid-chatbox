@@ -48,9 +48,11 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
       const { user } = await authApi.fetchCurrentUser();
 
       if (!user) {
+        authApi.logout();
         setError('User not found. Please login again.');
         setIsAdmin(false);
         setLoading(false);
+        navigate('/login', { replace: true });
         return;
       }
 
@@ -70,8 +72,10 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
       setIsAdmin(hasAdminRole);
     } catch (err: unknown) {
       console.error('Error checking admin access:', err);
-      setError('Failed to verify admin access. Please try logging in again.');
+      authApi.logout();
+      setError('Failed to verify admin access. Please login again.');
       setIsAdmin(false);
+      navigate('/login', { replace: true });
     } finally {
       setLoading(false);
     }

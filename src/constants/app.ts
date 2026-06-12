@@ -11,8 +11,8 @@ export const APP_CONSTANTS = {
   APP_NAME: 'Guru AI',
   BRAND_NAME: 'Guru AI',
   ADMIN_SUPPORT_EMAIL: 'info@guru-ai.cloud',
-  MIN_AGE: 6,
-  MAX_AGE: 14,
+  MIN_AGE: 4,
+  MAX_AGE: 99,
   DEFAULT_QUIZ_QUESTIONS: 15,
   GOOGLE_ANALYTICS_ID: import.meta.env.VITE_GOOGLE_ANALYTICS_ID || '',
   // Spline 3D Robot Scene URL

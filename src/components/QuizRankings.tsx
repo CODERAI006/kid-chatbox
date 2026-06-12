@@ -3,7 +3,7 @@
  * Displays quiz rankings and leaderboard for students
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import {
   Box,
   VStack,
@@ -50,11 +50,48 @@ import { PullToRefresh } from './PullToRefresh';
 import { generateCertificate } from '@/utils/certificate';
 import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 
+interface QuizRankingsProps {
+  /** When true, renders inside Quiz Hub tab (no standalone page header). */
+  embedded?: boolean;
+}
+
+interface RankingsFrameProps {
+  embedded?: boolean;
+  actions?: ReactNode;
+  children: ReactNode;
+}
+
+function RankingsFrame({ embedded, actions, children }: RankingsFrameProps) {
+  if (embedded) {
+    return (
+      <Box px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }}>
+        {actions ? (
+          <HStack justify="flex-end" mb={3}>
+            {actions}
+          </HStack>
+        ) : null}
+        {children}
+      </Box>
+    );
+  }
+
+  return (
+    <StudentPageLayout
+      icon="🏆"
+      title="Quiz Rankings"
+      subtitle="Compare your scores and track progress across quizzes"
+      actions={actions}
+    >
+      {children}
+    </StudentPageLayout>
+  );
+}
+
 /**
  * Quiz Rankings component for students
  * Shows rankings and leaderboard based on quiz history
  */
-export const QuizRankings: React.FC = () => {
+export const QuizRankings: React.FC<QuizRankingsProps> = ({ embedded = false }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -225,26 +262,20 @@ export const QuizRankings: React.FC = () => {
   if (loading) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <StudentPageLayout
-          icon="🏆"
-          title="Quiz Rankings"
-          subtitle="Compare your scores and track progress across quizzes"
-        >
+        <RankingsFrame embedded={embedded}>
           <Box textAlign="center" py={10}>
             <Spinner size="xl" />
             <Text mt={4} fontSize={{ base: 'sm', md: 'md' }}>Loading quiz rankings...</Text>
           </Box>
-        </StudentPageLayout>
+        </RankingsFrame>
       </PullToRefresh>
     );
   }
 
   if (error) {
     return (
-      <StudentPageLayout
-        icon="🏆"
-        title="Quiz Rankings"
-        subtitle="Compare your scores and track progress across quizzes"
+      <RankingsFrame
+        embedded={embedded}
         actions={
           <Button size="sm" onClick={loadRankings}>
             Retry
@@ -255,22 +286,18 @@ export const QuizRankings: React.FC = () => {
           <AlertIcon />
           {error}
         </Alert>
-      </StudentPageLayout>
+      </RankingsFrame>
     );
   }
 
   if (!analytics || analytics.leaderboard.length === 0) {
     return (
-      <StudentPageLayout
-        icon="🏆"
-        title="Quiz Rankings"
-        subtitle="Compare your scores and track progress across quizzes"
-      >
+      <RankingsFrame embedded={embedded}>
         <Alert status="info">
           <AlertIcon />
           No quiz attempts found. Complete quizzes to see rankings!
         </Alert>
-      </StudentPageLayout>
+      </RankingsFrame>
     );
   }
 
@@ -298,10 +325,8 @@ export const QuizRankings: React.FC = () => {
   if (!analytics || allParticipants.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <StudentPageLayout
-          icon="🏆"
-          title="Quiz Rankings"
-          subtitle="Compare your scores and track progress across quizzes"
+        <RankingsFrame
+          embedded={embedded}
           actions={
             <Button onClick={loadRankings} size="sm">
               Refresh
@@ -312,17 +337,15 @@ export const QuizRankings: React.FC = () => {
             <AlertIcon />
             No quiz attempts found. Complete quizzes to see your rankings!
           </Alert>
-        </StudentPageLayout>
+        </RankingsFrame>
       </PullToRefresh>
     );
   }
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <StudentPageLayout
-        icon="🏆"
-        title="Quiz Rankings"
-        subtitle="Compare your scores and track progress across quizzes"
+      <RankingsFrame
+        embedded={embedded}
         actions={
           <Button onClick={loadRankings} size="sm">
             Refresh
@@ -852,7 +875,7 @@ export const QuizRankings: React.FC = () => {
             </ModalFooter>
           </ModalContent>
         </Modal>
-      </StudentPageLayout>
+      </RankingsFrame>
     </PullToRefresh>
   );
 };

@@ -50,9 +50,11 @@ export const ModuleAccessGuard: React.FC<ModuleAccessGuardProps> = ({ children, 
       const { user } = await authApi.fetchCurrentUser();
 
       if (!user) {
+        authApi.logout();
         setError('User not found. Please login again.');
         setHasAccess(false);
         setLoading(false);
+        navigate('/login', { replace: true });
         return;
       }
 
@@ -93,8 +95,10 @@ export const ModuleAccessGuard: React.FC<ModuleAccessGuardProps> = ({ children, 
       setHasAccess(hasModuleAccess);
     } catch (err: unknown) {
       console.error('Error checking module access:', err);
-      setError('Failed to verify module access. Please try again.');
+      authApi.logout();
+      setError('Failed to verify module access. Please login again.');
       setHasAccess(false);
+      navigate('/login', { replace: true });
     } finally {
       setLoading(false);
     }

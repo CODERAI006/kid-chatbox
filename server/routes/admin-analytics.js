@@ -28,7 +28,7 @@ router.get('/summary', async (req, res, next) => {
 
     // Active users (approved)
     const activeUsersResult = await pool.query(
-      "SELECT COUNT(*) as count FROM users WHERE status = 'approved'"
+      "SELECT COUNT(*) as count FROM users WHERE status IN ('approved', 'enabled')"
     );
     const activeUsers = parseInt(activeUsersResult.rows[0].count);
 
@@ -684,7 +684,7 @@ router.get('/insights', async (req, res, next) => {
     const inactiveUsersQuery = `
       SELECT u.id, u.name, u.email, u.last_login
       FROM users u
-      WHERE u.status = 'approved'
+      WHERE u.status IN ('approved', 'enabled')
         AND (u.last_login IS NULL OR u.last_login < NOW() - INTERVAL '30 days')
       ORDER BY u.last_login ASC NULLS FIRST
       LIMIT 10

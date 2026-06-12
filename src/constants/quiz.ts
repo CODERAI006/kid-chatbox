@@ -6,8 +6,8 @@ export const QUIZ_CONSTANTS = {
   DEFAULT_QUESTIONS: 15,
   MIN_QUESTIONS: 5,
   MAX_QUESTIONS: 40,
-  MIN_AGE: 6,
-  MAX_AGE: 14,
+  MIN_AGE: 4,
+  MAX_AGE: 99,
   TIME_PER_QUESTION_SECONDS: 36, // 36 seconds per question (approximately 2 minutes for 15 questions)
 } as const;
 

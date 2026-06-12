@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, VStack, Text, Link, Spinner } from '@/shared/design-system';
 import { profileApi } from '@/services/api';
+import { resolveProfileAge } from '@/utils/birthDate';
 
 export function ProfileQuizHint({
   onReadyChange,
@@ -25,7 +26,7 @@ export function ProfileQuizHint({
       try {
         const { user } = await profileApi.getProfile();
         if (cancelled) return;
-        const a = user?.age != null ? Number(user.age) : null;
+        const a = resolveProfileAge(user ?? {});
         const lang = user?.preferredLanguage?.trim() || null;
         const validAge = Number.isFinite(a) && a! > 0 ? a! : null;
         setAge(validAge);

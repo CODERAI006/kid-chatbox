@@ -51,18 +51,19 @@ export const HeroSection: React.FC = () => {
           fontWeight="bold"
           textShadow="2px 2px 4px rgba(0,0,0,0.3)"
         >
-          Your AI-Powered Learning Companion 🤖✨
+          AI study, quizzes, schedules & Guru chat — one portal 🤖✨
         </Text>
 
         <Text
           fontSize={{ base: 'sm', md: 'lg' }}
           color="whiteAlpha.900"
-          maxW="600px"
+          maxW="680px"
           textShadow="1px 1px 2px rgba(0,0,0,0.3)"
           px={{ base: 4, md: 0 }}
         >
-          Level up your study game with personalized quizzes, smart tutoring, and epic learning
-          adventures! This is the future of education 🎓
+          Personalized lessons, competitive quizzes, daily vocabulary, study buddies, and a 24/7 AI
+          tutor built for kids and teens. Everything you need to learn smarter — before and after
+          every test 🎓
         </Text>
       </VStack>
     </motion.div>

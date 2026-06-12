@@ -10,8 +10,16 @@ const { authenticateToken } = require('../middleware/auth');
 const { trackEvent, EVENT_TYPES } = require('../utils/eventTracker');
 const { sendWelcomeEmail, sendGoogleWelcomeEmail } = require('../utils/email');
 const { generateUniqueBuddyId } = require('../utils/buddyId');
-const { parseBirthDate, calculateAgeFromBirthDate, formatBirthDateValue } = require('../utils/birthDate');
+const {
+  parseBirthDate,
+  calculateAgeFromBirthDate,
+  formatBirthDateValue,
+  deriveAgeFields,
+  isAllowedUserAge,
+  AGE_OUT_OF_RANGE_MESSAGE,
+} = require('../utils/birthDate');
 const { ageFromNumber } = require('../utils/resolveQuizAgeGroup');
+const { normalizeGrade, isValidGrade } = require('../utils/grades');
 const { parseEmail } = require('../utils/normalizeEmail');
 const {
   DUPLICATE_EMAIL_MESSAGE,
@@ -73,7 +81,34 @@ router.post('/register', async (req, res, next) => {
 
     const normalizedBirthDate = birthDateResult.value;
     const derivedAge = calculateAgeFromBirthDate(normalizedBirthDate);
-    const derivedAgeGroup = derivedAge != null ? ageFromNumber(derivedAge) : null;
+    if (derivedAge == null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Could not determine age from date of birth',
+      });
+    }
+    if (!isAllowedUserAge(derivedAge)) {
+      return res.status(400).json({
+        success: false,
+        message: AGE_OUT_OF_RANGE_MESSAGE,
+      });
+    }
+
+    const normalizedGrade = normalizeGrade(grade);
+    if (!normalizedGrade) {
+      return res.status(400).json({
+        success: false,
+        message: 'Grade or class is required',
+      });
+    }
+    if (!isValidGrade(normalizedGrade)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select a valid grade or class',
+      });
+    }
+
+    const derivedAgeGroup = ageFromNumber(derivedAge);
     const passwordHash = await bcrypt.hash(password, 10);
     const buddyId = await generateUniqueBuddyId(pool, name);
 
@@ -84,7 +119,7 @@ router.post('/register', async (req, res, next) => {
          email, password_hash, name, age, age_group, birth_date, grade,
          preferred_language, status, approved_at, buddy_id
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', CURRENT_TIMESTAMP, $9)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'enabled', CURRENT_TIMESTAMP, $9)
        RETURNING id, email, name, age, age_group, birth_date, grade, preferred_language, status, buddy_id, created_at`,
       [
         email,
@@ -93,7 +128,7 @@ router.post('/register', async (req, res, next) => {
         derivedAge,
         derivedAgeGroup,
         normalizedBirthDate,
-        grade || null,
+        normalizedGrade,
         preferredLanguage || null,
         buddyId,
       ]
@@ -132,14 +167,17 @@ router.post('/register', async (req, res, next) => {
       console.error(`Failed to send welcome email to ${user.email}:`, emailError.message);
     }
 
+    const { age, ageGroup, birthDate: derivedBirthDate } = deriveAgeFields(user);
+
     res.status(201).json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        age: user.age,
-        birthDate: formatBirthDateValue(user.birth_date),
+        age,
+        ageGroup,
+        birthDate: derivedBirthDate,
         grade: user.grade,
         preferredLanguage: user.preferred_language,
         buddyId: user.buddy_id,
@@ -247,13 +285,16 @@ router.post('/login', async (req, res, next) => {
       { expiresIn: '30d' }
     );
 
+    const { age, birthDate } = deriveAgeFields(user);
+
     res.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        age: user.age,
+        age,
+        birthDate,
         grade: user.grade,
         preferredLanguage: user.preferred_language,
         buddyId: user.buddy_id,
@@ -306,7 +347,7 @@ router.post('/google', async (req, res, next) => {
 
       result = await client.query(
         `INSERT INTO users (email, name, password_hash, status, approved_at, avatar_url, buddy_id)
-         VALUES ($1, $2, $3, 'approved', CURRENT_TIMESTAMP, $4, $5)
+         VALUES ($1, $2, $3, 'enabled', CURRENT_TIMESTAMP, $4, $5)
          RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
         [email, name.trim(), null, picture || null, buddyId]
       );
@@ -428,7 +469,7 @@ router.post('/social', async (req, res, next) => {
 
         result = await client.query(
           `INSERT INTO users (email, name, password_hash, status, approved_at, buddy_id)
-           VALUES ($1, $2, $3, 'approved', CURRENT_TIMESTAMP, $4)
+           VALUES ($1, $2, $3, 'enabled', CURRENT_TIMESTAMP, $4)
            RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
           [email, name.trim(), null, buddyId]
         );
@@ -493,6 +534,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
         u.name, 
         u.age, 
         u.age_group,
+        u.birth_date,
         u.grade, 
         u.preferred_language,
         u.buddy_id,
@@ -543,10 +585,15 @@ router.get('/me', authenticateToken, async (req, res, next) => {
       [user.id]
     );
 
+    const { age, ageGroup, birthDate } = deriveAgeFields(user);
+
     res.json({
       success: true,
       user: {
         ...user,
+        age,
+        age_group: ageGroup,
+        birthDate,
         roles: rolesResult.rows.map((r) => r.name),
         roleIds: rolesResult.rows.map((r) => r.id),
         permissions: permissionsResult.rows.map((p) => p.name),

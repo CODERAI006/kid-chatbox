@@ -12,20 +12,33 @@ interface AuthGuardProps {
 }
 
 /**
- * Protects routes by checking authentication status
+ * Protects routes by validating the session with the server (not just localStorage).
  */
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const { user, token } = authApi.getCurrentUser();
-    if (user && token) {
-      setIsAuthenticated(true);
-    } else {
+    let cancelled = false;
+
+    const verifySession = async () => {
+      const user = await authApi.validateSession();
+      if (cancelled) return;
+
+      if (user) {
+        setIsAuthenticated(true);
+        return;
+      }
+
       setIsAuthenticated(false);
-      navigate('/login');
-    }
+      navigate('/login', { replace: true });
+    };
+
+    void verifySession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   if (isAuthenticated === null) {
@@ -51,5 +64,3 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
 
   return <>{children}</>;
 };
-
-

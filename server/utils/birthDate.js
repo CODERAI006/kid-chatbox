@@ -4,6 +4,14 @@
 
 const { ageFromNumber } = require('./resolveQuizAgeGroup');
 
+const USER_MIN_AGE = 4;
+const USER_MAX_AGE = 99;
+const AGE_OUT_OF_RANGE_MESSAGE = `Learners must be aged ${USER_MIN_AGE} to ${USER_MAX_AGE}. Please use a valid date of birth.`;
+
+function isAllowedUserAge(age) {
+  return Number.isFinite(age) && age >= USER_MIN_AGE && age <= USER_MAX_AGE;
+}
+
 function formatBirthDateValue(value) {
   if (value == null || value === '') return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -38,7 +46,7 @@ function parseBirthDate(value) {
   const todayUtc = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
   if (date > todayUtc) return { error: 'Date of birth cannot be in the future' };
 
-  const oldest = new Date(Date.UTC(today.getFullYear() - 120, today.getMonth(), today.getDate()));
+  const oldest = new Date(Date.UTC(today.getFullYear() - USER_MAX_AGE, today.getMonth(), today.getDate()));
   if (date < oldest) return { error: 'Date of birth is too far in the past' };
 
   return { value: `${match[1]}-${match[2]}-${match[3]}` };
@@ -54,7 +62,7 @@ function calculateAgeFromBirthDate(birthDateStr) {
   const monthDiff = today.getMonth() + 1 - month;
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < day)) age -= 1;
 
-  return age > 0 && age <= 120 ? age : null;
+  return age > 0 && age <= USER_MAX_AGE ? age : null;
 }
 
 function deriveAgeFields(userRow) {
@@ -67,14 +75,17 @@ function deriveAgeFields(userRow) {
     };
   }
 
-  const computedAge = calculateAgeFromBirthDate(birthDate);
-  const age = computedAge ?? userRow.age ?? null;
-  const ageGroup = userRow.age_group || (age != null ? ageFromNumber(age) : null);
+  const age = calculateAgeFromBirthDate(birthDate);
+  const ageGroup = age != null ? ageFromNumber(age) : (userRow.age_group ?? null);
 
   return { age, ageGroup, birthDate };
 }
 
 module.exports = {
+  USER_MIN_AGE,
+  USER_MAX_AGE,
+  AGE_OUT_OF_RANGE_MESSAGE,
+  isAllowedUserAge,
   formatBirthDateValue,
   parseBirthDate,
   calculateAgeFromBirthDate,

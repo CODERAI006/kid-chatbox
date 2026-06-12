@@ -571,9 +571,12 @@ export const UserManagement: React.FC = () => {
     }
   };
 
+  const isUserEnabled = (status: string) => status === 'approved' || status === 'enabled';
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
+      case 'enabled':
         return 'green';
       case 'pending':
         return 'orange';
@@ -689,7 +692,7 @@ export const UserManagement: React.FC = () => {
               </Thead>
               <Tbody>
                 {users.map((user) => {
-                  const isEnabled = user.status === 'approved';
+                  const isEnabled = isUserEnabled(user.status);
                   return (
                     <Tr key={user.id}>
                       <Td>
@@ -758,7 +761,7 @@ export const UserManagement: React.FC = () => {
                                 Enable User
                               </MenuItem>
                             )}
-                            {user.status === 'approved' && (
+                            {isUserEnabled(user.status) && (
                               <MenuItem onClick={() => handleToggleUserStatus(user, false)}>
                                 Disable User
                               </MenuItem>
@@ -786,7 +789,7 @@ export const UserManagement: React.FC = () => {
               </Text>
             )}
             {users.map((user) => {
-              const isEnabled = user.status === 'approved';
+              const isEnabled = isUserEnabled(user.status);
               return (
                 <Card key={user.id}>
                   <CardBody>
@@ -818,7 +821,7 @@ export const UserManagement: React.FC = () => {
                                 Enable User
                               </MenuItem>
                             )}
-                            {user.status === 'approved' && (
+                            {isUserEnabled(user.status) && (
                               <MenuItem onClick={() => handleToggleUserStatus(user, false)}>
                                 Disable User
                               </MenuItem>

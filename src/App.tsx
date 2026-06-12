@@ -10,7 +10,6 @@ import { ModuleAccessGuard } from '@/components/ModuleAccessGuard';
 import { Dashboard } from '@/components/Dashboard';
 import { StudyHub } from '@/components/StudyHub';
 import { QuizHub } from '@/components/QuizHub';
-import { QuizRankings } from '@/components/QuizRankings';
 import { StudyLibraryViewer } from '@/components/StudyLibraryViewer';
 import { Profile } from '@/components/Profile';
 import { StudentLayout } from '@/components/layout/StudentLayout';
@@ -179,11 +178,23 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { user: currentUser } = authApi.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser as User);
-    }
-    setLoading(false);
+    let cancelled = false;
+
+    const initAuth = async () => {
+      const { token } = authApi.getCurrentUser();
+      if (!token) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      const validatedUser = await authApi.validateSession();
+      if (cancelled) return;
+
+      setUser(validatedUser);
+      setLoading(false);
+    };
+
+    void initAuth();
 
     // Listen for profile updates
     const handleProfileUpdate = (event: CustomEvent<User>) => {
@@ -199,6 +210,7 @@ export const App: React.FC = () => {
     window.addEventListener('userLoggedOut', handleLogout as EventListener);
 
     return () => {
+      cancelled = true;
       window.removeEventListener('userProfileUpdated', handleProfileUpdate as EventListener);
       window.removeEventListener('userLoggedOut', handleLogout as EventListener);
     };
@@ -342,9 +354,7 @@ export const App: React.FC = () => {
             element={
               <AuthGuard>
                 <ModuleAccessGuard module="quiz">
-                  <StudentLayout user={user}>
-                    <QuizRankings />
-                  </StudentLayout>
+                  <Navigate to="/quiz#rankings" replace />
                 </ModuleAccessGuard>
               </AuthGuard>
             }

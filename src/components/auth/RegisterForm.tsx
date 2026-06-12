@@ -19,7 +19,10 @@ import { authApi, getErrorMessage } from '@/services/api';
 import { RegisterData } from '@/types';
 import { LANGUAGES } from '@/constants/quiz';
 import { Language } from '@/types/quiz';
-import { REGISTER_CONSTANTS, GRADES } from '@/constants/auth';
+import { REGISTER_CONSTANTS, GRADES, isValidGrade } from '@/constants/auth';
+import { RegistrationAgePreview } from '@/components/auth/RegistrationAgePreview';
+import { deriveRegistrationAgeFields } from '@/utils/birthDate';
+import { QUIZ_CONSTANTS } from '@/constants/quiz';
 
 interface RegisterFormProps {
   onRegisterSuccess: () => void;
@@ -49,6 +52,22 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (onError) onError('');
+
+    const { age } = deriveRegistrationAgeFields(formData.birthDate);
+    if (
+      age == null ||
+      age < QUIZ_CONSTANTS.MIN_AGE ||
+      age > QUIZ_CONSTANTS.MAX_AGE
+    ) {
+      if (onError) onError(REGISTER_CONSTANTS.AGE_OUT_OF_RANGE);
+      return;
+    }
+
+    if (!isValidGrade(formData.grade)) {
+      if (onError) onError(REGISTER_CONSTANTS.GRADE_REQUIRED);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -152,17 +171,26 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
               _hover={{ borderColor: 'rgba(0, 242, 255, 0.5)' }}
               _focus={{ borderColor: '#00f2ff', boxShadow: '0 0 0 1px rgba(0, 242, 255, 0.3)' }}
             />
+            <Text fontSize="xs" color="rgba(255, 255, 255, 0.55)" marginTop={1}>
+              {REGISTER_CONSTANTS.BIRTH_DATE_HINT}
+            </Text>
+            <RegistrationAgePreview
+              birthDate={formData.birthDate}
+              hintColor="rgba(255, 255, 255, 0.5)"
+              valueColor="#00f2ff"
+            />
           </Box>
 
           <Box width="100%">
             <Text fontSize="sm" fontWeight="semibold" marginBottom={2} color="rgba(255, 255, 255, 0.8)">
-              Grade/Class (optional)
+              {REGISTER_CONSTANTS.GRADE_LABEL} *
             </Text>
             <Select
-              value={formData.grade || ''}
-              onChange={(e) => setFormData({ ...formData, grade: e.target.value || undefined })}
-              placeholder="Select your grade/class"
+              value={formData.grade}
+              onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+              placeholder={REGISTER_CONSTANTS.GRADE_PLACEHOLDER}
               size="lg"
+              required
               borderRadius="lg"
               bg="rgba(255, 255, 255, 0.05)"
               borderColor="rgba(255, 255, 255, 0.1)"
