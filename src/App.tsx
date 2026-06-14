@@ -5,7 +5,7 @@
 import { ChakraProvider, extendTheme } from '@chakra-ui/react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { AuthGuard } from '@/components/auth/AuthGuard';
+import { StudentRoute } from '@/components/auth/StudentRoute';
 import { ModuleAccessGuard } from '@/components/ModuleAccessGuard';
 import { Dashboard } from '@/components/Dashboard';
 import { StudyHub } from '@/components/StudyHub';
@@ -33,6 +33,7 @@ import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import NewsFeed from '@/components/NewsFeed';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
+import { getPostAuthPath } from '@/utils/profileComplete';
 import { QuizTimerProvider } from '@/contexts/QuizTimerContext';
 import { QuizAttemptPage } from '@/components/QuizAttemptPage';
 import { PastChatsPage } from '@/components/learning/PastChatsPage';
@@ -237,7 +238,7 @@ export const App: React.FC = () => {
             path="/"
             element={
               user ? (
-                <Navigate to="/dashboard" replace />
+                <Navigate to={getPostAuthPath(user)} replace />
               ) : (
                 <Home onAuthSuccess={handleAuthSuccess} />
               )
@@ -247,7 +248,7 @@ export const App: React.FC = () => {
             path="/login"
             element={
               user ? (
-                <Navigate to="/dashboard" replace />
+                <Navigate to={getPostAuthPath(user)} replace />
               ) : (
                 <Navigate to="/?auth=login" replace />
               )
@@ -257,7 +258,7 @@ export const App: React.FC = () => {
             path="/register"
             element={
               user ? (
-                <Navigate to="/dashboard" replace />
+                <Navigate to={getPostAuthPath(user)} replace />
               ) : (
                 <Navigate to="/?auth=register" replace />
               )
@@ -266,131 +267,131 @@ export const App: React.FC = () => {
           <Route
             path="/dashboard"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <StudentLayout user={user}>
                   {user && <Dashboard user={user} />}
                 </StudentLayout>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/study"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <ModuleAccessGuard module="study">
                   <StudentLayout user={user}>
                     <StudyHub />
                   </StudentLayout>
                 </ModuleAccessGuard>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/quiz"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <ModuleAccessGuard module="quiz">
                   <StudentLayout user={user}>
                     <QuizHub />
                   </StudentLayout>
                 </ModuleAccessGuard>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/quiz/attempt/:attemptId"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <ModuleAccessGuard module="quiz">
                   <StudentLayout user={user}>
                     <QuizAttemptPage />
                   </StudentLayout>
                 </ModuleAccessGuard>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/profile"
             element={
-              <AuthGuard>
+              <StudentRoute requireCompleteProfile={false}>
                 <StudentLayout user={user}>
                   {user && <Profile user={user} />}
                 </StudentLayout>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/past-chats"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <StudentLayout user={user}>
                   <PastChatsPage />
                 </StudentLayout>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/my-schedules"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <StudentLayout user={user}>
                   <MySchedulesPage />
                 </StudentLayout>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/word-of-day/:word"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <StudentLayout user={user}>
                   <WordOfDayDetailPage />
                 </StudentLayout>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/quiz-rankings"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <ModuleAccessGuard module="quiz">
                   <Navigate to="/quiz#rankings" replace />
                 </ModuleAccessGuard>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/study-buddies"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <ModuleAccessGuard module="quiz">
                   <StudentLayout user={user}>
                     <StudyBuddiesPage />
                   </StudentLayout>
                 </ModuleAccessGuard>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/study-library/:id"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <ModuleAccessGuard module="study">
                   <StudentLayout user={user}>
                     <StudyLibraryViewer />
                   </StudentLayout>
                 </ModuleAccessGuard>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           <Route
             path="/news"
             element={
-              <AuthGuard>
+              <StudentRoute>
                 <StudentLayout user={user}>
                   <NewsFeed />
                 </StudentLayout>
-              </AuthGuard>
+              </StudentRoute>
             }
           />
           {/* Admin Routes */}

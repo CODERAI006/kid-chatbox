@@ -16,6 +16,7 @@ export interface User {
   phoneCountry?: string;
   birthDate?: string;
   createdAt: string;
+  profileComplete?: boolean;
 }
 
 export interface LoginCredentials {

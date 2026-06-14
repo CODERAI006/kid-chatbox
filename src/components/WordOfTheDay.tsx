@@ -58,7 +58,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
     setError(false);
     try {
       const dateStr = toYMD(date);
-      const cacheKey = `wotd_v6_cbse:${gradeLabel}:${dateStr}`;
+      const cacheKey = `wotd_v8_common:${dateStr}`;
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as WordOfDayResponse;

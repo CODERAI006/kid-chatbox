@@ -3,7 +3,7 @@
  * GET /api/public/words-of-day?date=YYYY-MM-DD&grade=Class+5
  * GET /api/public/words-of-day/detail?word=happy&date=...&grade=...
  *
- * Payloads are stored in word_of_the_day_cache (PostgreSQL) so AI runs once per date/grade.
+ * Payloads are stored in word_of_the_day_cache (PostgreSQL) — one shared edition per date for all classes.
  */
 
 const express = require('express');

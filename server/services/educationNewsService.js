@@ -1,5 +1,5 @@
 /**
- * Education news — daily DB cache, scrape + AI format once per day per category.
+ * Education news — daily DB cache, scrape once per day per category (shared across classes).
  */
 
 const { getCategoryById, getTopicsOverview, EDUCATION_CATEGORIES } = require('../utils/educationNewsCategories');
@@ -175,9 +175,31 @@ async function getArticleById(categoryId, articleId) {
   return { success: true, article, cachedDate };
 }
 
+async function pregenerateForDate({ forceRefresh = false } = {}) {
+  const cacheDate = formatCacheDate();
+  let built = 0;
+
+  for (const cat of EDUCATION_CATEGORIES) {
+    const hit = await readCache(cat.id, cacheDate);
+    if (!forceRefresh && hit?.payload?.articles?.length) continue;
+    await buildDailyCategory(cat.id, { forceRefresh });
+    built += 1;
+  }
+
+  const allHit = await readCache('all', cacheDate);
+  if (forceRefresh || !allHit?.payload?.articles?.length) {
+    await buildDailyAll({ forceRefresh });
+    built += 1;
+  }
+
+  console.log(`[educationNews] pregenerated ${built} cache bucket(s) for ${cacheDate}`);
+  return { cacheDate, built };
+}
+
 module.exports = {
   getCategoryNews,
   getAggregatedNews,
   getArticleById,
   getTopicsOverview,
+  pregenerateForDate,
 };

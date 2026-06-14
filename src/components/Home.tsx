@@ -35,6 +35,8 @@ import { PricingPlansSection } from '@/components/pricing/PricingPlansSection';
 import { APP_CONSTANTS } from '@/constants/app';
 import { publicApi } from '@/services/api';
 import { authApi } from '@/services/api';
+import { User } from '@/types';
+import { getPostAuthPath } from '@/utils/profileComplete';
 
 interface HomeProps {
   onAuthSuccess?: () => void;
@@ -101,7 +103,7 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
       if (onAuthSuccess) {
         onAuthSuccess();
       } else {
-        navigate('/dashboard');
+        navigate(getPostAuthPath(currentUser as User));
       }
     }
   }, [onClose, navigate, onAuthSuccess]);
@@ -114,7 +116,7 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
       if (onAuthSuccess) {
         onAuthSuccess();
       } else {
-        navigate('/dashboard');
+        navigate(getPostAuthPath(currentUser as User));
       }
     }
   }, [onClose, navigate, onAuthSuccess]);

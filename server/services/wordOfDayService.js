@@ -1,13 +1,16 @@
 /**
- * Word of the Day — build once per date/grade, persist in DB, serve from cache.
+ * Word of the Day — build once per calendar day (shared across classes), persist in DB.
  */
 
 const { pool } = require('../config/database');
 const { generateDailyWords } = require('../utils/dailyWordsAi');
 const { generateDailyPhrases } = require('../utils/dailyPhrasesAi');
-const { getComplexityForGrade, defaultComplexityForGrade } = require('../utils/wordOfDaySettings');
 const { enrichWord } = require('../utils/wordOfDayEnrich');
 const { gradesMatch } = require('../utils/normalizeGrade');
+const {
+  SHARED_AI_GRADE_LABEL,
+  SHARED_WOTD_COMPLEXITY,
+} = require('../utils/dailyContentShared');
 const {
   formatCacheDate,
   gradeCacheKey,
@@ -47,26 +50,26 @@ async function resolveGradeLabel(grade) {
   return input;
 }
 
-async function buildDailyPayload(date, gradeLabel) {
+async function buildDailyPayload(date) {
   const cacheDate = formatCacheDate(date);
-  const complexity =
-    (await getComplexityForGrade(gradeLabel)) ||
-    defaultComplexityForGrade(gradeLabel);
+  const aiGrade = SHARED_AI_GRADE_LABEL;
+  const complexity = SHARED_WOTD_COMPLEXITY;
 
-  const wordTexts = await generateDailyWords(date, gradeLabel, complexity);
+  const wordTexts = await generateDailyWords(date, aiGrade, complexity);
   const words = await Promise.all(
-    wordTexts.map((w) => enrichWord(w, complexity, false, gradeLabel, cacheDate))
+    wordTexts.map((w) => enrichWord(w, complexity, false, aiGrade, cacheDate))
   );
-  const phrases = await generateDailyPhrases(date, gradeLabel, complexity);
+  const phrases = await generateDailyPhrases(date, aiGrade, complexity);
 
   return {
     success: true,
     date: cacheDate,
-    grade: gradeLabel,
+    grade: aiGrade,
     complexity,
     words,
     phrases,
     cached: false,
+    sharedAcrossClasses: true,
   };
 }
 
@@ -81,18 +84,17 @@ async function getDailyPayload(dateInput, grade) {
     return { ...cached, grade: gradeLabel, cached: true };
   }
 
-  const body = await buildDailyPayload(date, gradeLabel);
+  const body = await buildDailyPayload(date);
   await writeCache(key, cacheDate, body);
-  return body;
+  return { ...body, grade: gradeLabel };
 }
 
 async function getWordDetail(dateInput, grade, wordParam) {
   const date = parseDateParam(dateInput);
   const cacheDate = formatCacheDate(date);
   const gradeLabel = await resolveGradeLabel(grade);
-  const complexity =
-    (await getComplexityForGrade(gradeLabel)) ||
-    defaultComplexityForGrade(gradeLabel);
+  const complexity = SHARED_WOTD_COMPLEXITY;
+  const aiGrade = SHARED_AI_GRADE_LABEL;
 
   const word = String(wordParam || '').trim().toLowerCase();
   if (!word) {
@@ -118,7 +120,7 @@ async function getWordDetail(dateInput, grade, wordParam) {
     };
   }
 
-  const enriched = await enrichWord(word, complexity, true, gradeLabel, cacheDate);
+  const enriched = await enrichWord(word, complexity, true, aiGrade, cacheDate);
   const body = {
     success: true,
     date: cacheDate,
@@ -127,44 +129,32 @@ async function getWordDetail(dateInput, grade, wordParam) {
     word: enriched,
     phrases: daily.phrases || [],
     cached: false,
+    sharedAcrossClasses: true,
   };
 
   await writeCache(detailKey, cacheDate, body);
   return body;
 }
 
-/** Pre-build today's words for every enabled grade (runs at startup / nightly cron). */
+/** Pre-build today's words once (shared for all classes). */
 async function pregenerateForDate(dateInput) {
   const date = parseDateParam(dateInput);
   const cacheDate = formatCacheDate(date);
+  const key = gradeCacheKey();
 
-  let grades = [];
+  const existing = await readCache(key, cacheDate);
+  if (existing?.words?.length) {
+    return { cacheDate, built: 0, total: 1, skipped: true };
+  }
+
   try {
-    const { rows } = await pool.query(
-      `SELECT grade FROM word_of_day_settings WHERE enabled = true ORDER BY grade`
-    );
-    grades = rows.map((r) => r.grade);
+    await getDailyPayload(cacheDate, SHARED_AI_GRADE_LABEL);
+    console.log(`[wordOfDayService] pregenerated shared edition @ ${cacheDate}`);
+    return { cacheDate, built: 1, total: 1 };
   } catch (err) {
-    console.warn('[wordOfDayService] pregenerate grade list failed:', err.message);
-    grades = ['Class 5 / Grade 5'];
+    console.error(`[wordOfDayService] pregenerate failed:`, err.message);
+    return { cacheDate, built: 0, total: 1, error: err.message };
   }
-
-  let built = 0;
-  for (const grade of grades) {
-    const key = gradeCacheKey(grade);
-    const existing = await readCache(key, cacheDate);
-    if (existing?.words?.length) continue;
-
-    try {
-      await getDailyPayload(cacheDate, grade);
-      built += 1;
-      console.log(`[wordOfDayService] pregenerated ${grade} @ ${cacheDate}`);
-    } catch (err) {
-      console.error(`[wordOfDayService] pregenerate failed ${grade}:`, err.message);
-    }
-  }
-
-  return { cacheDate, built, total: grades.length };
 }
 
 module.exports = {

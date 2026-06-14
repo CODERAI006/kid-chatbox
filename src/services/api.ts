@@ -839,12 +839,21 @@ export const profileApi = {
   /**
    * Get user profile
    */
-  getProfile: async (): Promise<{ user: User }> => {
-    const response = await apiClient.get<{ success: boolean; user: User }>('/profile');
+  getProfile: async (): Promise<{ user: User; profileComplete?: boolean }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      user: User;
+      profileComplete?: boolean;
+    }>('/profile');
     if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const user = {
+        ...response.data.user,
+        profileComplete: response.data.profileComplete,
+      };
+      localStorage.setItem('user', JSON.stringify(user));
+      return { user, profileComplete: response.data.profileComplete };
     }
-    return { user: response.data.user };
+    return { user: response.data.user, profileComplete: response.data.profileComplete };
   },
 
   /**
@@ -854,18 +863,31 @@ export const profileApi = {
     phone?: string | null;
     phoneCountry?: string;
     preferredLanguage?: string;
-  }): Promise<{ user: User; message: string }> => {
+    birthDate?: string;
+    grade?: string;
+  }): Promise<{ user: User; message: string; profileComplete?: boolean }> => {
     const response = await apiClient.put<{
       success: boolean;
       user: User;
       message: string;
+      profileComplete?: boolean;
     }>('/profile', data);
     if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const user = {
+        ...response.data.user,
+        profileComplete: response.data.profileComplete,
+      };
+      localStorage.setItem('user', JSON.stringify(user));
+      return {
+        user,
+        message: response.data.message,
+        profileComplete: response.data.profileComplete,
+      };
     }
     return {
       user: response.data.user,
       message: response.data.message,
+      profileComplete: response.data.profileComplete,
     };
   },
 };
@@ -1166,7 +1188,7 @@ export const publicApi = {
     }
   },
 
-  /** Facts & Fun — 10 facts/class/day, one AI call saved in DB */
+  /** Facts & Fun — 10 facts/day (shared across classes), one AI call saved in DB */
   getDailyFacts: async (
     date?: string,
     grade?: string,

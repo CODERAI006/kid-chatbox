@@ -1,7 +1,6 @@
-/** PostgreSQL cache for Facts & Fun — one AI call saved per grade per day. */
+/** PostgreSQL cache for Facts & Fun — one AI call saved per day (all classes). */
 
 const { pool } = require('../config/database');
-const { normalizeGrade } = require('./normalizeGrade');
 
 function formatCacheDate(d) {
   const date = d instanceof Date ? d : new Date();
@@ -12,15 +11,13 @@ function formatCacheDate(d) {
   ].join('-');
 }
 
-function gradeCacheKey(grade) {
-  const num = normalizeGrade(grade) || '5';
-  return `facts_fun_g${num}`;
+function gradeCacheKey(_grade) {
+  return 'facts_fun_common';
 }
 
-function detailCacheKey(grade, factId) {
-  const num = normalizeGrade(grade) || '5';
+function detailCacheKey(_grade, factId) {
   const id = String(factId || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `facts_fun_g${num}_detail_${id}`;
+  return `facts_fun_common_detail_${id}`;
 }
 
 async function readCache(gradeKey, cacheDate) {

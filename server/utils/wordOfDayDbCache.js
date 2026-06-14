@@ -3,7 +3,6 @@
  */
 
 const { pool } = require('../config/database');
-const { normalizeGrade } = require('./normalizeGrade');
 
 function formatCacheDate(d) {
   const date = d instanceof Date ? d : new Date();
@@ -13,10 +12,9 @@ function formatCacheDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-/** Stable key per grade (Class 5 / Grade 5 and "Class 5" share the same bucket). */
-function gradeCacheKey(grade) {
-  const num = normalizeGrade(grade) || '5';
-  return `wotd_v7_cbse_g${num}`;
+/** One payload per calendar day — shared across all classes (no per-grade AI). */
+function gradeCacheKey(_grade) {
+  return 'wotd_v8_cbse_common';
 }
 
 function detailCacheKey(grade, word) {

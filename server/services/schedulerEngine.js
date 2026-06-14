@@ -8,6 +8,7 @@ const { runSchedulerJobUnified } = require('./quizBatchGenerator');
 const { matchesRunTime, alreadyRanToday, DEFAULT_TIMEZONE } = require('../utils/timezoneUtils');
 const { pregenerateForDate } = require('./wordOfDayService');
 const { pregenerateForDate: pregenerateDailyFacts } = require('./dailyFactsService');
+const { pregenerateForDate: pregenerateEducationNews } = require('./educationNewsService');
 
 /**
  * @param {Object} job
@@ -90,9 +91,11 @@ let started = false;
 
 async function pregenerateWordOfDay() {
   try {
-    const { cacheDate, built, total } = await pregenerateForDate(new Date());
+    const { cacheDate, built, total, skipped } = await pregenerateForDate(new Date());
     if (built > 0) {
-      console.log(`[Scheduler] Word of Day pregenerated ${built}/${total} grades for ${cacheDate}`);
+      console.log(`[Scheduler] Word of Day shared edition built for ${cacheDate}`);
+    } else if (skipped) {
+      console.log(`[Scheduler] Word of Day already cached for ${cacheDate}`);
     }
   } catch (err) {
     console.error('[Scheduler] Word of Day pregenerate error:', err.message);
@@ -101,12 +104,25 @@ async function pregenerateWordOfDay() {
 
 async function pregenerateFactsAndFun() {
   try {
-    const { cacheDate, built, total } = await pregenerateDailyFacts(new Date());
+    const { cacheDate, built, skipped } = await pregenerateDailyFacts(new Date());
     if (built > 0) {
-      console.log(`[Scheduler] Facts & Fun pregenerated ${built}/${total} grades for ${cacheDate}`);
+      console.log(`[Scheduler] Facts & Fun shared edition built for ${cacheDate}`);
+    } else if (skipped) {
+      console.log(`[Scheduler] Facts & Fun already cached for ${cacheDate}`);
     }
   } catch (err) {
     console.error('[Scheduler] Facts & Fun pregenerate error:', err.message);
+  }
+}
+
+async function pregenerateNews() {
+  try {
+    const { cacheDate, built } = await pregenerateEducationNews();
+    if (built > 0) {
+      console.log(`[Scheduler] Education news pregenerated (${built} buckets) for ${cacheDate}`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Education news pregenerate error:', err.message);
   }
 }
 
@@ -119,9 +135,11 @@ function startScheduler() {
   // 00:10 IST — build today's words for all grades before students open the app
   cron.schedule('10 0 * * *', pregenerateWordOfDay, { timezone: 'Asia/Kolkata' });
   cron.schedule('20 0 * * *', pregenerateFactsAndFun, { timezone: 'Asia/Kolkata' });
+  cron.schedule('30 0 * * *', pregenerateNews, { timezone: 'Asia/Kolkata' });
   updateQuizStatuses();
   setTimeout(() => pregenerateWordOfDay(), 15_000);
   setTimeout(() => pregenerateFactsAndFun(), 25_000);
+  setTimeout(() => pregenerateNews(), 35_000);
 
   console.log('✅ Quiz Scheduler Engine started (IST-aware job matching, 1-min / 5-min ticks)');
 }

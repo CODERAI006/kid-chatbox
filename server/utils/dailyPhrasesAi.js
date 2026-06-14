@@ -1,5 +1,5 @@
 /**
- * AI-generated idioms & expressions for Words of the Day (cached per date/grade).
+ * AI-generated idioms & expressions for Words of the Day (cached once per date, shared across classes).
  */
 
 const { ollamaChat, isLlmConfigured } = require('./ollamaClient');

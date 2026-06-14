@@ -1,10 +1,10 @@
 /**
- * Facts & Fun — 10 facts/day/class, ONE Ollama call, saved in PostgreSQL.
+ * Facts & Fun — 10 facts/day (shared across classes), ONE Ollama call, saved in PostgreSQL.
  */
 
-const { pool } = require('../config/database');
 const { generateDailyFacts } = require('../utils/dailyFactsAi');
 const { DAILY_FACT_SUBJECTS } = require('../utils/dailyFactsSubjects');
+const { SHARED_AI_GRADE_LABEL } = require('../utils/dailyContentShared');
 const { resolveGradeLabel, parseDateParam } = require('./wordOfDayService');
 const { normalizeFactDetail } = require('../utils/dailyFactsEnrich');
 const {
@@ -24,18 +24,19 @@ function withDetailFields(facts) {
   return (facts || []).map((f) => normalizeFactDetail(f));
 }
 
-async function buildDailyPayload(date, gradeLabel) {
+async function buildDailyPayload(date) {
   const cacheDate = formatCacheDate(date);
-  const facts = await generateDailyFacts(date, gradeLabel);
+  const facts = await generateDailyFacts(date, SHARED_AI_GRADE_LABEL);
   return {
     success: true,
     date: cacheDate,
-    grade: gradeLabel,
+    grade: SHARED_AI_GRADE_LABEL,
     facts: withDetailFields(facts),
     subjects: DAILY_FACT_SUBJECTS,
     factCount: facts.length,
     cached: false,
     source: 'ollama',
+    sharedAcrossClasses: true,
   };
 }
 
@@ -57,9 +58,9 @@ async function getDailyFacts(dateInput, grade) {
   }
 
   try {
-    const body = await buildDailyPayload(date, gradeLabel);
+    const body = await buildDailyPayload(date);
     await writeCache(key, cacheDate, body);
-    return body;
+    return { ...body, grade: gradeLabel };
   } catch (err) {
     const { FactsGenerationError } = require('../utils/dailyFactsAi');
     const message = err instanceof FactsGenerationError
@@ -175,32 +176,21 @@ async function getFactDetail(dateInput, grade, factIdParam) {
 async function pregenerateForDate(dateInput) {
   const date = parseDateParam(dateInput);
   const cacheDate = formatCacheDate(date);
+  const key = gradeCacheKey();
 
-  let grades = [];
+  const existing = await readCache(key, cacheDate);
+  if (existing?.facts?.length) {
+    return { cacheDate, built: 0, total: 1, skipped: true };
+  }
+
   try {
-    const { rows } = await pool.query(
-      `SELECT grade FROM word_of_day_settings WHERE enabled = true ORDER BY grade`
-    );
-    grades = rows.map((r) => r.grade);
-  } catch {
-    grades = ['Class 5 / Grade 5'];
+    await getDailyFacts(cacheDate, SHARED_AI_GRADE_LABEL);
+    console.log(`[dailyFactsService] pregenerated shared edition @ ${cacheDate}`);
+    return { cacheDate, built: 1, total: 1 };
+  } catch (err) {
+    console.error('[dailyFactsService] pregenerate failed:', err.message);
+    return { cacheDate, built: 0, total: 1, error: err.message };
   }
-
-  let built = 0;
-  for (const grade of grades) {
-    const key = gradeCacheKey(grade);
-    const existing = await readCache(key, cacheDate);
-    if (existing?.facts?.length) continue;
-    try {
-      await getDailyFacts(cacheDate, grade);
-      built += 1;
-      console.log(`[dailyFactsService] pregenerated ${grade} @ ${cacheDate}`);
-    } catch (err) {
-      console.error(`[dailyFactsService] pregenerate failed ${grade}:`, err.message);
-    }
-  }
-
-  return { cacheDate, built, total: grades.length };
 }
 
 module.exports = {

@@ -2,6 +2,12 @@
  * Authentication-related constants
  */
 
+export const COMPLETE_PROFILE_CONSTANTS = {
+  TITLE: 'Complete your profile',
+  SUBTITLE: 'Add the remaining details to start learning',
+  SAVE_BUTTON: 'Save and continue',
+} as const;
+
 export const LOGIN_CONSTANTS = {
   BRAND_NAME: 'KidChatbox',
   BRAND_LOGO: '📚',

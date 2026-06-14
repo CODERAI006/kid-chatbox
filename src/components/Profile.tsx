@@ -1,9 +1,9 @@
 /**
- * Profile component - User profile management
+ * Profile component - User profile management and mandatory onboarding fields.
  */
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   VStack,
@@ -29,9 +29,13 @@ import { PullToRefresh } from './PullToRefresh';
 import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 import { APP_CONSTANTS } from '@/constants/app';
 import { PhoneCountryInput } from '@/components/profile/PhoneCountryInput';
+import { ProfileMandatoryFields, MandatoryProfileFormValues } from '@/components/profile/ProfileMandatoryFields';
 import { DEFAULT_PHONE_COUNTRY } from '@/constants/phoneCountries';
 import { splitStoredPhone, validateLocalPhone } from '@/utils/phoneInput';
-import { resolveProfileAge } from '@/utils/birthDate';
+import { resolveProfileAge, deriveRegistrationAgeFields } from '@/utils/birthDate';
+import { isProfileComplete } from '@/utils/profileComplete';
+import { isValidGrade, REGISTER_CONSTANTS } from '@/constants/auth';
+import { QUIZ_CONSTANTS } from '@/constants/quiz';
 
 interface ProfileProps {
   user: User;
@@ -64,11 +68,9 @@ function formatDisplayDate(value?: string | null): string {
 
 const ADMIN_EMAIL = APP_CONSTANTS.ADMIN_SUPPORT_EMAIL;
 
-/**
- * Profile management component
- */
 export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<User>(initialUser);
   const initialPhone = splitStoredPhone(initialUser.phone, initialUser.phoneCountry);
   const [phoneCountry, setPhoneCountry] = useState(initialPhone.countryCode);
@@ -76,10 +78,24 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
   const [preferredLanguage, setPreferredLanguage] = useState<Language>(
     (initialUser.preferredLanguage as Language) || 'English'
   );
+  const [mandatoryFields, setMandatoryFields] = useState<MandatoryProfileFormValues>({
+    birthDate: initialUser.birthDate?.slice(0, 10) || '',
+    grade: initialUser.grade || '',
+    preferredLanguage: (initialUser.preferredLanguage as Language) || 'English',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+
+  const profileComplete = useMemo(() => isProfileComplete(user), [user]);
+  const missingBirthDate = !user.birthDate && !resolveProfileAge(user);
+  const missingGrade = !isValidGrade(user.grade);
+  const missingLanguage = !user.preferredLanguage;
+  const showMandatorySection = missingBirthDate || missingGrade || missingLanguage;
+  const redirectedForIncomplete = Boolean(
+    (location.state as { profileIncomplete?: boolean } | null)?.profileIncomplete
+  );
 
   const applyUser = (latestUser: User) => {
     const parsed = splitStoredPhone(latestUser.phone, latestUser.phoneCountry);
@@ -87,6 +103,11 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
     setPhoneCountry(latestUser.phoneCountry || parsed.countryCode);
     setPhone(parsed.localPhone);
     setPreferredLanguage((latestUser.preferredLanguage as Language) || 'English');
+    setMandatoryFields({
+      birthDate: latestUser.birthDate?.slice(0, 10) || '',
+      grade: latestUser.grade || '',
+      preferredLanguage: (latestUser.preferredLanguage as Language) || 'English',
+    });
   };
 
   useEffect(() => {
@@ -105,10 +126,36 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
     loadProfile();
   }, [initialUser]);
 
+  const validateMandatoryFields = (): string | null => {
+    if (missingBirthDate) {
+      const { age } = deriveRegistrationAgeFields(mandatoryFields.birthDate);
+      if (
+        age == null ||
+        age < QUIZ_CONSTANTS.MIN_AGE ||
+        age > QUIZ_CONSTANTS.MAX_AGE
+      ) {
+        return REGISTER_CONSTANTS.AGE_OUT_OF_RANGE;
+      }
+    }
+    if (missingGrade && !isValidGrade(mandatoryFields.grade)) {
+      return REGISTER_CONSTANTS.GRADE_REQUIRED;
+    }
+    if (missingLanguage && !mandatoryFields.preferredLanguage) {
+      return 'Please select your preferred language.';
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+
+    const mandatoryError = validateMandatoryFields();
+    if (mandatoryError) {
+      setError(mandatoryError);
+      return;
+    }
 
     const phoneError = validateLocalPhone(phone.trim());
     if (phoneError) {
@@ -122,13 +169,22 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
       const result = await profileApi.updateProfile({
         phone: phone.trim() || null,
         phoneCountry: phoneCountry || DEFAULT_PHONE_COUNTRY,
-        preferredLanguage: preferredLanguage,
+        preferredLanguage: missingLanguage
+          ? mandatoryFields.preferredLanguage
+          : preferredLanguage,
+        birthDate: missingBirthDate ? mandatoryFields.birthDate : undefined,
+        grade: missingGrade ? mandatoryFields.grade : undefined,
       });
 
       applyUser(result.user);
-      setSuccess(true);
       window.dispatchEvent(new CustomEvent('userProfileUpdated', { detail: result.user }));
-      setTimeout(() => setSuccess(false), 3000);
+      setSuccess(true);
+
+      if (isProfileComplete(result.user)) {
+        setTimeout(() => navigate('/dashboard', { replace: true }), 800);
+      } else {
+        setTimeout(() => setSuccess(false), 3000);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
     } finally {
@@ -161,7 +217,11 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
       <StudentPageLayout
         icon="👤"
         title="My Profile"
-        subtitle="Update your details and learning preferences"
+        subtitle={
+          profileComplete
+            ? 'Update your details and learning preferences'
+            : 'Complete your profile to start learning'
+        }
         maxW="600px"
       >
         <VStack spacing={{ base: 4, md: 6 }} align="stretch">
@@ -175,23 +235,43 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
           {success && (
             <Alert status="success" borderRadius="md">
               <AlertIcon />
-              Profile updated successfully!
+              {profileComplete
+                ? 'Profile updated successfully!'
+                : 'Details saved. Finish the required fields below to continue.'}
             </Alert>
           )}
 
-          <Alert status="info" borderRadius="md" fontSize="sm">
-            <AlertIcon />
-            <Box>
-              <Text fontWeight="medium">Name, date of birth, and age are managed by your administrator</Text>
-              <Text mt={1} color="gray.600">
-                To request changes, email{' '}
-                <Link href={`mailto:${ADMIN_EMAIL}`} color="blue.600" fontWeight="semibold">
-                  {ADMIN_EMAIL}
-                </Link>
-                . You can update mobile number and language below.
-              </Text>
-            </Box>
-          </Alert>
+          {showMandatorySection && (
+            <Alert status="warning" borderRadius="md" fontSize="sm">
+              <AlertIcon />
+              <Box>
+                <Text fontWeight="medium">
+                  {redirectedForIncomplete
+                    ? 'Please complete your profile before using the app.'
+                    : 'A few details are still required after Google sign-in.'}
+                </Text>
+                <Text mt={1}>
+                  Add your date of birth, grade, and preferred language below, then save.
+                </Text>
+              </Box>
+            </Alert>
+          )}
+
+          {!showMandatorySection && (
+            <Alert status="info" borderRadius="md" fontSize="sm">
+              <AlertIcon />
+              <Box>
+                <Text fontWeight="medium">Name, date of birth, and age are managed by your administrator</Text>
+                <Text mt={1} color="gray.600">
+                  To request changes, email{' '}
+                  <Link href={`mailto:${ADMIN_EMAIL}`} color="blue.600" fontWeight="semibold">
+                    {ADMIN_EMAIL}
+                  </Link>
+                  . You can update mobile number and language below.
+                </Text>
+              </Box>
+            </Alert>
+          )}
 
           <Card>
             <CardBody>
@@ -200,9 +280,6 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                   <FormControl>
                     <FormLabel>Email</FormLabel>
                     <Input type="email" value={user.email} isDisabled bg="gray.100" size="lg" />
-                    <Text fontSize="xs" color="gray.500" marginTop={1}>
-                      Email cannot be changed
-                    </Text>
                   </FormControl>
 
                   <FormControl>
@@ -212,47 +289,47 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
 
                   <FormControl>
                     <FormLabel>Buddy ID</FormLabel>
-                    <Input
-                      type="text"
-                      value={user.buddyId || 'Generating…'}
-                      isDisabled
-                      bg="gray.100"
-                      size="lg"
-                    />
-                    <Text fontSize="xs" color="gray.500" marginTop={1}>
-                      Share this ID so friends can send you a study buddy request
-                    </Text>
+                    <Input type="text" value={user.buddyId || 'Generating…'} isDisabled bg="gray.100" size="lg" />
                   </FormControl>
 
-                  <FormControl>
-                    <FormLabel>Date of birth</FormLabel>
-                    <Input
-                      type="text"
-                      value={formatDisplayDate(user.birthDate)}
-                      isDisabled
-                      bg="gray.100"
-                      size="lg"
+                  {showMandatorySection ? (
+                    <ProfileMandatoryFields
+                      values={mandatoryFields}
+                      onChange={setMandatoryFields}
+                      missingBirthDate={missingBirthDate}
+                      missingGrade={missingGrade}
+                      missingLanguage={missingLanguage}
                     />
-                    <Text fontSize="xs" color="gray.500" marginTop={1}>
-                      Contact your administrator to update date of birth
-                    </Text>
-                  </FormControl>
+                  ) : (
+                    <>
+                      <FormControl>
+                        <FormLabel>Date of birth</FormLabel>
+                        <Input
+                          type="text"
+                          value={formatDisplayDate(user.birthDate)}
+                          isDisabled
+                          bg="gray.100"
+                          size="lg"
+                        />
+                      </FormControl>
 
-                  <FormControl>
-                    <FormLabel>Age</FormLabel>
-                    <Input
-                      type="text"
-                      value={displayAge != null ? String(displayAge) : 'Not set'}
-                      isDisabled
-                      bg="gray.100"
-                      size="lg"
-                    />
-                    {user.birthDate && (
-                      <Text fontSize="xs" color="gray.500" marginTop={1}>
-                        Calculated from your date of birth
-                      </Text>
-                    )}
-                  </FormControl>
+                      <FormControl>
+                        <FormLabel>Grade</FormLabel>
+                        <Input type="text" value={user.grade || 'Not set'} isDisabled bg="gray.100" size="lg" />
+                      </FormControl>
+
+                      <FormControl>
+                        <FormLabel>Age</FormLabel>
+                        <Input
+                          type="text"
+                          value={displayAge != null ? String(displayAge) : 'Not set'}
+                          isDisabled
+                          bg="gray.100"
+                          size="lg"
+                        />
+                      </FormControl>
+                    </>
+                  )}
 
                   <PhoneCountryInput
                     countryCode={phoneCountry}
@@ -263,45 +340,40 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     hasSavedCountry={Boolean(user.phone)}
                   />
 
-                  <FormControl isRequired>
-                    <FormLabel>Preferred Language</FormLabel>
-                    <Select
-                      value={preferredLanguage}
-                      onChange={(e) => setPreferredLanguage(e.target.value as Language)}
-                      size="lg"
-                      required
-                    >
-                      {Object.values(LANGUAGES).map((lang) => (
-                        <option key={lang} value={lang}>
-                          {lang}
-                        </option>
-                      ))}
-                    </Select>
-                    <Text fontSize="xs" color="gray.500" marginTop={1}>
-                      This language will be used for all quizzes and lessons
-                    </Text>
-                  </FormControl>
+                  {!missingLanguage && (
+                    <FormControl isRequired>
+                      <FormLabel>Preferred Language</FormLabel>
+                      <Select
+                        value={preferredLanguage}
+                        onChange={(e) => setPreferredLanguage(e.target.value as Language)}
+                        size="lg"
+                        required
+                      >
+                        {Object.values(LANGUAGES).map((lang) => (
+                          <option key={lang} value={lang}>
+                            {lang}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
 
                   <Text fontSize="xs" color="gray.500">
                     Member since {formatDisplayDate(user.createdAt)}
                   </Text>
 
-                  <HStack
-                    spacing={4}
-                    justifyContent="flex-end"
-                    marginTop={4}
-                    flexWrap="wrap"
-                    w="100%"
-                  >
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate('/dashboard')}
-                      isDisabled={loading}
-                      size={{ base: 'sm', md: 'md' }}
-                      w={{ base: '100%', sm: 'auto' }}
-                    >
-                      Cancel
-                    </Button>
+                  <HStack spacing={4} justifyContent="flex-end" marginTop={4} flexWrap="wrap" w="100%">
+                    {!showMandatorySection && (
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate('/dashboard')}
+                        isDisabled={loading}
+                        size={{ base: 'sm', md: 'md' }}
+                        w={{ base: '100%', sm: 'auto' }}
+                      >
+                        Cancel
+                      </Button>
+                    )}
                     <Button
                       type="submit"
                       colorScheme="blue"
@@ -310,7 +382,7 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                       size={{ base: 'sm', md: 'md' }}
                       w={{ base: '100%', sm: 'auto' }}
                     >
-                      Save Changes
+                      {showMandatorySection ? 'Save and continue' : 'Save Changes'}
                     </Button>
                   </HStack>
                 </VStack>

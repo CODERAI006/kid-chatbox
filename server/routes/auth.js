@@ -27,9 +27,28 @@ const {
   isDuplicateEmailError,
   setupNewUserAccount,
 } = require('../utils/registerNewUser');
+const { isProfileComplete } = require('../utils/profileComplete');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+function buildAuthUserPayload(user) {
+  const { age, ageGroup, birthDate } = deriveAgeFields(user);
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    age,
+    ageGroup,
+    birthDate,
+    grade: user.grade,
+    preferredLanguage: user.preferred_language,
+    buddyId: user.buddy_id,
+    status: user.status,
+    createdAt: user.created_at,
+    profileComplete: isProfileComplete(user),
+  };
+}
 
 /**
  * Register a new user
@@ -171,19 +190,7 @@ router.post('/register', async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        age,
-        ageGroup,
-        birthDate: derivedBirthDate,
-        grade: user.grade,
-        preferredLanguage: user.preferred_language,
-        buddyId: user.buddy_id,
-        status: user.status,
-        createdAt: user.created_at,
-      },
+      user: buildAuthUserPayload(user),
       token,
       message: 'Registration successful. Your account is enabled with the Freemium plan.',
     });
@@ -296,17 +303,7 @@ router.post('/login', async (req, res, next) => {
 
     res.json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        age,
-        birthDate,
-        grade: user.grade,
-        preferredLanguage: user.preferred_language,
-        buddyId: user.buddy_id,
-        createdAt: user.created_at,
-      },
+      user: buildAuthUserPayload(user),
       token,
     });
   } catch (error) {
@@ -355,7 +352,7 @@ router.post('/google', async (req, res, next) => {
       result = await client.query(
         `INSERT INTO users (email, name, password_hash, status, approved_at, avatar_url, buddy_id)
          VALUES ($1, $2, $3, 'enabled', CURRENT_TIMESTAMP, $4, $5)
-         RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
+         RETURNING id, email, name, age, age_group, birth_date, grade, preferred_language, status, buddy_id, created_at`,
         [email, name.trim(), null, picture || null, buddyId]
       );
       user = result.rows[0];
@@ -403,16 +400,7 @@ router.post('/google', async (req, res, next) => {
 
     res.json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        age: user.age,
-        grade: user.grade,
-        preferredLanguage: user.preferred_language,
-        buddyId: user.buddy_id,
-        createdAt: user.created_at,
-      },
+      user: buildAuthUserPayload(user),
       token: jwtToken,
     });
   } catch (error) {
@@ -608,6 +596,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
           acc[row.module_name] = row.has_access;
           return acc;
         }, {}),
+        profileComplete: isProfileComplete(user),
       },
     });
   } catch (error) {
