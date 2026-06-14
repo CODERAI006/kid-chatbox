@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FaSyncAlt, FaExclamationCircle, FaSearch, FaTimes, FaGraduationCap, FaCalendarCheck } from 'react-icons/fa';
+import {
+  Box,
+  Button,
+  HStack,
+  Input,
+  Skeleton,
+  Text,
+  VStack,
+} from '@/shared/design-system';
 import { publicApi } from '@/services/api';
-import EducationTopicCard from './EducationTopicCard';
+import { QuizSectionLabel } from '@/components/quiz/quizFormUi';
+import EducationNewsListItem from './EducationNewsListItem';
 import EducationCategoryPicker from './EducationCategoryPicker';
-import EducationArticleReader from './EducationArticleReader';
+import EducationNewsBrowserModal from './EducationNewsBrowserModal';
 import NewsPagination from './NewsPagination';
 import type {
   EducationCategory,
@@ -11,18 +20,17 @@ import type {
   EducationNewsCategoryId,
 } from '@/types/educationNews';
 
-const PAGE_SIZE = 7;
-
-function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`bg-gray-200 animate-pulse rounded-xl ${className}`} />;
-}
+const PAGE_SIZE = 8;
 
 function formatCacheLabel(date?: string) {
   if (!date) return "Today's edition";
   try {
-    return `Saved for ${new Date(date + 'T12:00:00').toLocaleDateString('en-IN', {
-      weekday: 'short', month: 'short', day: 'numeric',
-    })}`;
+    return new Date(date + 'T12:00:00').toLocaleDateString('en-IN', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
   } catch {
     return "Today's edition";
   }
@@ -91,15 +99,9 @@ export default function EducationTopicsPanel() {
     if (activeId) fetchArticles(activeId, 1);
   }, [activeId, fetchArticles]);
 
-  const openReader = useCallback(async (article: EducationArticle) => {
-    if (article.formattedParagraphs?.length) {
-      setReaderArticle(article);
-      return;
-    }
-    const res = await publicApi.getEducationArticle(article.id, activeId);
-    if (res.success && res.article) setReaderArticle(res.article);
-    else setReaderArticle(article);
-  }, [activeId]);
+  const openReader = useCallback((article: EducationArticle) => {
+    setReaderArticle(article);
+  }, []);
 
   const cat = activeCategory || categories.find((c) => c.id === activeId);
   const totalPages = Math.ceil(totalResults / PAGE_SIZE);
@@ -114,26 +116,63 @@ export default function EducationTopicsPanel() {
     );
   }, [articles, search]);
 
-  const [featured, ...rest] = filtered;
-
   return (
-    <div className="space-y-6">
+    <VStack align="stretch" spacing={{ base: 4, md: 5 }} w="100%" minW={0}>
       {readerArticle && (
-        <EducationArticleReader
+        <EducationNewsBrowserModal
           article={readerArticle}
           category={cat || undefined}
+          isOpen
           onClose={() => setReaderArticle(null)}
         />
       )}
 
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-800">
-        <FaCalendarCheck className="w-4 h-4 flex-shrink-0" aria-hidden />
-        <span>
-          <strong>{formatCacheLabel(cachedDate)}</strong>
-          {' — '}
-          Stories are read &amp; cleaned by AI once per day, then saved. No re-fetch until tomorrow.
-        </span>
-      </div>
+      <Box
+        p={{ base: 3, md: 5 }}
+        borderRadius={{ base: 'xl', md: '2xl' }}
+        bgGradient="linear(to-br, blue.500, blue.600, cyan.500)"
+        color="white"
+        boxShadow="md"
+      >
+        <VStack align="stretch" spacing={3}>
+          <Box>
+            <Text fontSize={{ base: 'sm', md: 'md' }} fontWeight="extrabold">
+              Stories for curious learners
+            </Text>
+            <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="blue.50" mt={1}>
+              AI-curated from trusted feeds — science, history, geography &amp; more.
+            </Text>
+          </Box>
+          <HStack flexWrap="wrap" gap={2} justify="space-between" align={{ base: 'stretch', sm: 'center' }}>
+            <HStack
+              spacing={2}
+              bg="whiteAlpha.200"
+              borderRadius="lg"
+              px={3}
+              py={1.5}
+              fontSize={{ base: '2xs', sm: 'xs' }}
+              fontWeight="semibold"
+            >
+              <Text aria-hidden>📅</Text>
+              <Text>{formatCacheLabel(cachedDate)}</Text>
+              {fromCache && !refreshing && <Text opacity={0.85}>· saved edition</Text>}
+            </HStack>
+            <Button
+              size="sm"
+              bg="whiteAlpha.250"
+              color="white"
+              _hover={{ bg: 'whiteAlpha.400' }}
+              leftIcon={<Text aria-hidden>🔄</Text>}
+              onClick={() => fetchArticles(activeId, page, { forceRefresh: true })}
+              isLoading={refreshing}
+              loadingText="Refreshing"
+              flexShrink={0}
+            >
+              Refresh stories
+            </Button>
+          </HStack>
+        </VStack>
+      </Box>
 
       <EducationCategoryPicker
         categories={categories}
@@ -142,113 +181,62 @@ export default function EducationTopicsPanel() {
       />
 
       {cat && (
-        <section className="p-4 md:p-5 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div className="flex-1">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
-                Step 2 · Explore {cat.label}
-              </p>
-              <h2 className="text-lg md:text-xl font-extrabold text-gray-900 flex items-center gap-2">
-                <span aria-hidden>{cat.icon}</span> What you&apos;ll learn
-              </h2>
-              <ul className="mt-3 grid sm:grid-cols-2 gap-1.5">
-                {cat.topics.map((t) => (
-                  <li key={t} className="flex items-start gap-2 text-sm text-gray-600">
-                    <FaGraduationCap className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button
-              type="button"
-              onClick={() => fetchArticles(activeId, page, { forceRefresh: true })}
-              disabled={refreshing}
-              title="Only needed if you want fresh stories before tomorrow"
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border rounded-xl text-gray-600 hover:border-amber-300 hover:text-amber-800 disabled:opacity-50 self-start"
-            >
-              <FaSyncAlt className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Rebuilding…' : 'Force refresh'}
-            </button>
-          </div>
-        </section>
+        <Text fontSize={{ base: 'xs', sm: 'sm' }} color="gray.500">
+          {cat.icon} <Text as="span" fontWeight="semibold" color="gray.700">{cat.label}</Text>
+          {' — '}{cat.description}
+        </Text>
       )}
 
       {!loading && articles.length > 0 && (
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-            Step 3 · Read &amp; learn
-          </p>
-          <div className="bg-white rounded-xl border px-4 py-2.5 flex items-center gap-3 mb-4">
-            <FaSearch className="w-4 h-4 text-gray-400" aria-hidden />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={`Search in ${cat?.label || 'this topic'}…`}
-              className="flex-1 text-sm bg-transparent outline-none"
-              aria-label="Search stories"
-            />
-            {search && (
-              <button type="button" onClick={() => setSearch('')} className="text-gray-400 hover:text-red-500" aria-label="Clear search">
-                <FaTimes className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          {!search && totalResults > 0 && (
-            <p className="text-xs text-gray-400 mb-3">
-              {totalResults} stories · page {page} of {totalPages || 1}
-              {fromCache && !refreshing ? ' · loaded from saved cache' : ''}
-            </p>
-          )}
-        </div>
+        <Box minW={0}>
+          <QuizSectionLabel>Search stories</QuizSectionLabel>
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title or topic…"
+            size="sm"
+            bg="white"
+            borderRadius="lg"
+          />
+        </Box>
       )}
 
       {loading && !refreshing ? (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500 text-center py-2">
-            {refreshing
-              ? 'AI is reading pages, removing junk, and saving today\'s edition…'
-              : articles.length === 0
-                ? 'First load today: AI reads each page, removes ads & junk, then saves for the day…'
-                : 'Loading saved stories…'}
-          </p>
-          <Skeleton className="h-64 rounded-2xl" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-56" />)}
-          </div>
-        </div>
+        <VStack spacing={3} align="stretch">
+          <Text fontSize={{ base: 'xs', sm: 'sm' }} color="gray.500" textAlign="center">
+            Loading stories…
+          </Text>
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} height="112px" borderRadius="xl" />
+          ))}
+        </VStack>
       ) : error && articles.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-2xl border">
-          <FaExclamationCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
-          <p className="text-gray-600 mb-3">{error}</p>
-          <button
-            type="button"
-            onClick={() => fetchArticles(activeId, 1)}
-            className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold"
-          >
+        <Box textAlign="center" py={10} bg="white" borderRadius="xl" borderWidth="1px" borderColor="gray.200">
+          <Text fontSize={{ base: 'xl', md: '2xl' }} mb={2} aria-hidden>⚠️</Text>
+          <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.600" mb={4} px={4}>{error}</Text>
+          <Button size="sm" colorScheme="blue" leftIcon={<Text aria-hidden>🔄</Text>} onClick={() => fetchArticles(activeId, 1)}>
             Try again
-          </button>
-        </div>
+          </Button>
+        </Box>
       ) : filtered.length === 0 ? (
-        <p className="text-center text-gray-500 py-12 bg-white rounded-2xl border">
-          {search ? 'No stories match your search.' : 'No stories yet — tap Force refresh.'}
-        </p>
+        <Text textAlign="center" fontSize={{ base: 'sm', md: 'md' }} color="gray.500" py={8}>
+          {search ? 'No stories match your search.' : 'No stories yet — tap Refresh stories.'}
+        </Text>
       ) : (
         <>
-          {!search && featured && (
-            <EducationTopicCard
-              article={featured}
-              category={cat || undefined}
-              variant="featured"
-              onRead={openReader}
-            />
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {(search ? filtered : rest).map((a) => (
-              <EducationTopicCard key={a.id} article={a} category={cat || undefined} onRead={openReader} />
+          <VStack align="stretch" spacing={{ base: 3, md: 4 }} role="feed" aria-label="Education news stories">
+            {filtered.map((article, index) => (
+              <EducationNewsListItem
+                key={article.id}
+                article={article}
+                category={cat || undefined}
+                variant={!search && page === 1 && index === 0 ? 'hero' : 'row'}
+                onRead={openReader}
+              />
             ))}
-          </div>
+          </VStack>
+
           {!search && totalPages > 1 && (
             <NewsPagination
               page={page}
@@ -264,6 +252,6 @@ export default function EducationTopicsPanel() {
           )}
         </>
       )}
-    </div>
+    </VStack>
   );
 }

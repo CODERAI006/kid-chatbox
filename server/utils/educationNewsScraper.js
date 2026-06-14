@@ -20,15 +20,36 @@ const FEEDS_BY_CATEGORY = {
   science: [
     'https://www.nasa.gov/rss/dyn/breaking_news.rss',
     'https://www.sciencedaily.com/rss/all.xml',
+    'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
   ],
   history: [
     'https://www.history.com/.rss/full',
   ],
-  geography: [],
+  geography: [
+    'https://www.nationalgeographic.com/pages/topic/latest-stories/rss',
+  ],
   current_affairs: [
     'https://www.isro.gov.in/rss/isro.rss',
   ],
-  general_knowledge: [],
+  technology: [
+    'https://techcrunch.com/feed/',
+    'https://github.blog/feed/',
+    'https://feeds.bbci.co.uk/news/technology/rss.xml',
+  ],
+  sports: [
+    'https://feeds.bbci.co.uk/sport/rss.xml',
+  ],
+  environment: [
+    'https://www.theguardian.com/environment/rss',
+    'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
+  ],
+  arts_culture: [
+    'https://www.theguardian.com/books/rss',
+    'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
+  ],
+  general_knowledge: [
+    'https://feeds.bbci.co.uk/news/world/rss.xml',
+  ],
 };
 
 const CACHE_TTL_MS = 45 * 60 * 1000;

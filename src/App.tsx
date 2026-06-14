@@ -28,9 +28,11 @@ import { QuizResultsAnalytics } from '@/components/admin/QuizResultsAnalytics';
 import { QuizSchedulerManagement } from '@/components/admin/QuizSchedulerManagement';
 import { OllamaCloudSettingsPage } from '@/components/admin/OllamaCloudSettings';
 import { WordOfDaySettingsPage } from '@/components/admin/WordOfDaySettings';
+import { EducationNewsAdminPage } from '@/components/admin/EducationNewsAdmin';
 import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import NewsFeed from '@/components/NewsFeed';
+import EducationNewsFeed from '@/components/EducationNewsFeed';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { getPostAuthPath } from '@/utils/profileComplete';
@@ -394,6 +396,16 @@ export const App: React.FC = () => {
               </StudentRoute>
             }
           />
+          <Route
+            path="/education-news"
+            element={
+              <StudentRoute>
+                <StudentLayout user={user}>
+                  <EducationNewsFeed />
+                </StudentLayout>
+              </StudentRoute>
+            }
+          />
           {/* Admin Routes */}
           <Route
             path="/admin"
@@ -512,6 +524,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <WordOfDaySettingsPage />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/education-news"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <EducationNewsAdminPage />
                 </AdminLayout>
               </AdminGuard>
             }

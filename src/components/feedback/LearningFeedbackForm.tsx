@@ -1,33 +1,23 @@
 /**
- * Multi-step animated feedback form — rating, feature wishes, optional note.
+ * Single-page feedback form — rating, feature wishes, and optional note together.
  */
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Box,
   VStack,
   HStack,
   Text,
   Heading,
   Button,
   Textarea,
-  Progress,
   SimpleGrid,
+  Divider,
   useToast,
 } from '@/shared/design-system';
 import { FEATURE_WISHES, RATING_EMOJIS } from '@/constants/feedback';
 import { feedbackApi } from '@/services/api';
 import type { FeedbackContext } from '@/types/feedback';
-
-const STEPS = ['rate', 'features', 'note', 'done'] as const;
-type Step = (typeof STEPS)[number];
-
-const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 48 : -48, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? -48 : 48, opacity: 0 }),
-};
 
 interface LearningFeedbackFormProps {
   context?: FeedbackContext;
@@ -39,27 +29,16 @@ export const LearningFeedbackForm: React.FC<LearningFeedbackFormProps> = ({
   onClose,
 }) => {
   const toast = useToast();
-  const [step, setStep] = useState<Step>('rate');
-  const [direction, setDirection] = useState(1);
+  const [submitted, setSubmitted] = useState(false);
   const [rating, setRating] = useState(0);
   const [wishes, setWishes] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const stepIndex = STEPS.indexOf(step);
-  const progress = ((stepIndex + 1) / STEPS.length) * 100;
-
-  const goNext = useCallback(() => {
-    setDirection(1);
-    if (step === 'rate') setStep('features');
-    else if (step === 'features') setStep('note');
-  }, [step]);
-
-  const goBack = useCallback(() => {
-    setDirection(-1);
-    if (step === 'features') setStep('rate');
-    else if (step === 'note') setStep('features');
-  }, [step]);
+  const headline =
+    context?.source === 'quiz_results'
+      ? 'How was this quiz experience?'
+      : 'Help us build better learning tools';
 
   const toggleWish = (id: string) => {
     setWishes((prev) =>
@@ -83,8 +62,7 @@ export const LearningFeedbackForm: React.FC<LearningFeedbackFormProps> = ({
         quizScore: context?.quizScore,
         quizTotal: context?.quizTotal,
       });
-      setDirection(1);
-      setStep('done');
+      setSubmitted(true);
     } catch (err) {
       toast({
         title: 'Could not send feedback',
@@ -97,45 +75,54 @@ export const LearningFeedbackForm: React.FC<LearningFeedbackFormProps> = ({
     }
   };
 
-  const headline =
-    context?.source === 'quiz_results'
-      ? 'How was this quiz experience?'
-      : 'Help us build better learning tools';
+  if (submitted) {
+    return (
+      <VStack spacing={4} py={6}>
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+        >
+          <VStack spacing={4}>
+            <motion.div
+              animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.1, 1] }}
+              transition={{ duration: 0.6 }}
+              style={{ fontSize: '3.5rem' }}
+            >
+              🎉
+            </motion.div>
+            <Heading size="md" color="green.600" textAlign="center">
+              Thank you!
+            </Heading>
+            <Text fontSize="sm" color="gray.600" textAlign="center">
+              Your ideas shape what we build next for learners like you.
+            </Text>
+            <Button colorScheme="purple" onClick={onClose} borderRadius="xl">
+              Done
+            </Button>
+          </VStack>
+        </motion.div>
+      </VStack>
+    );
+  }
 
   return (
-    <VStack spacing={5} align="stretch" minH="320px">
-      <Box>
-        <Progress
-          value={progress}
-          size="sm"
-          borderRadius="full"
-          colorScheme="purple"
-          bg="purple.50"
-        />
-        <Text fontSize="xs" color="gray.500" mt={2} textAlign="center">
-          Step {Math.min(stepIndex + 1, 3)} of 3
-        </Text>
-      </Box>
-
-      <AnimatePresence mode="wait" custom={direction}>
-        {step === 'rate' && (
-          <motion.div
-            key="rate"
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-          >
-            <VStack spacing={4}>
+    <VStack spacing={5} align="stretch">
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <VStack spacing={5} align="stretch">
+            <VStack spacing={3}>
               <Heading size="md" textAlign="center" color="purple.700">
                 {headline}
               </Heading>
               <Text fontSize="sm" color="gray.600" textAlign="center">
                 Tap how you feel about the app so far
               </Text>
-              <HStack spacing={2} justify="center" flexWrap="wrap" pt={2}>
+              <HStack spacing={2} justify="center" flexWrap="wrap">
                 {RATING_EMOJIS.map((emoji, i) => {
                   const value = i + 1;
                   const selected = rating === value;
@@ -167,147 +154,76 @@ export const LearningFeedbackForm: React.FC<LearningFeedbackFormProps> = ({
                 })}
               </HStack>
             </VStack>
-          </motion.div>
-        )}
 
-        {step === 'features' && (
-          <motion.div
-            key="features"
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-          >
+            <Divider />
+
             <VStack spacing={3} align="stretch">
-              <Heading size="md" textAlign="center" color="purple.700">
+              <Heading size="sm" color="purple.700">
                 What should we add next?
               </Heading>
-              <Text fontSize="sm" color="gray.600" textAlign="center">
+              <Text fontSize="sm" color="gray.600">
                 Pick any features that would help you learn better
               </Text>
-              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={2} pt={1}>
-                {FEATURE_WISHES.map((item, index) => {
+              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={2}>
+                {FEATURE_WISHES.map((item) => {
                   const active = wishes.includes(item.id);
                   return (
-                    <motion.div
+                    <Button
                       key={item.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.04 }}
-                      whileTap={{ scale: 0.97 }}
+                      w="100%"
+                      justifyContent="flex-start"
+                      leftIcon={<Text fontSize="lg">{item.icon}</Text>}
+                      variant={active ? 'solid' : 'outline'}
+                      colorScheme={active ? 'purple' : 'gray'}
+                      size="sm"
+                      onClick={() => toggleWish(item.id)}
+                      borderRadius="xl"
                     >
-                      <Button
-                        w="100%"
-                        justifyContent="flex-start"
-                        leftIcon={<Text fontSize="lg">{item.icon}</Text>}
-                        variant={active ? 'solid' : 'outline'}
-                        colorScheme={active ? 'purple' : 'gray'}
-                        size="sm"
-                        onClick={() => toggleWish(item.id)}
-                        borderRadius="xl"
-                      >
-                        {item.label}
-                      </Button>
-                    </motion.div>
+                      {item.label}
+                    </Button>
                   );
                 })}
               </SimpleGrid>
             </VStack>
-          </motion.div>
-        )}
 
-        {step === 'note' && (
-          <motion.div
-            key="note"
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-          >
+            <Divider />
+
             <VStack spacing={3} align="stretch">
-              <Heading size="md" textAlign="center" color="purple.700">
+              <Heading size="sm" color="purple.700">
                 Anything else?
               </Heading>
-              <Text fontSize="sm" color="gray.600" textAlign="center">
+              <Text fontSize="sm" color="gray.600">
                 Share ideas, bugs, or what you loved — optional
               </Text>
               <Textarea
                 placeholder="e.g. I want harder maths puzzles with hints..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                rows={4}
+                rows={3}
                 borderRadius="xl"
                 resize="vertical"
                 maxLength={2000}
               />
             </VStack>
-          </motion.div>
-        )}
-
-        {step === 'done' && (
-          <motion.div
-            key="done"
-            initial={{ scale: 0.85, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-          >
-            <VStack spacing={4} py={6}>
-              <motion.div
-                animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.1, 1] }}
-                transition={{ duration: 0.6 }}
-                style={{ fontSize: '3.5rem' }}
-              >
-                🎉
-              </motion.div>
-              <Heading size="md" color="green.600" textAlign="center">
-                Thank you!
-              </Heading>
-              <Text fontSize="sm" color="gray.600" textAlign="center">
-                Your ideas shape what we build next for learners like you.
-              </Text>
-              <Button colorScheme="purple" onClick={onClose} borderRadius="xl">
-                Done
-              </Button>
-            </VStack>
-          </motion.div>
-        )}
+          </VStack>
+        </motion.div>
       </AnimatePresence>
 
-      {step !== 'done' && (
-        <HStack justify="space-between" pt={2}>
-          <Button
-            variant="ghost"
-            onClick={step === 'rate' ? onClose : goBack}
-            isDisabled={submitting}
-          >
-            {step === 'rate' ? 'Cancel' : 'Back'}
-          </Button>
-          {step === 'note' ? (
-            <Button
-              colorScheme="purple"
-              onClick={() => void handleSubmit()}
-              isLoading={submitting}
-              loadingText="Sending..."
-              borderRadius="xl"
-            >
-              Send feedback
-            </Button>
-          ) : (
-            <Button
-              colorScheme="purple"
-              onClick={goNext}
-              isDisabled={step === 'rate' && rating < 1}
-              borderRadius="xl"
-            >
-              Continue
-            </Button>
-          )}
-        </HStack>
-      )}
+      <HStack justify="space-between" pt={1}>
+        <Button variant="ghost" onClick={onClose} isDisabled={submitting}>
+          Cancel
+        </Button>
+        <Button
+          colorScheme="purple"
+          onClick={() => void handleSubmit()}
+          isLoading={submitting}
+          loadingText="Sending..."
+          isDisabled={rating < 1}
+          borderRadius="xl"
+        >
+          Send feedback
+        </Button>
+      </HStack>
     </VStack>
   );
 };

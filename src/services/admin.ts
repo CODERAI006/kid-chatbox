@@ -1215,6 +1215,47 @@ export const wordOfDayApi = {
   },
 };
 
+export const newsPipelineApi = {
+  getStatus: async (): Promise<{
+    success: boolean;
+    isRunning: boolean;
+    sourceCount: number;
+    activeSourceCount: number;
+    playwrightEnabled: boolean;
+    sources?: Array<{
+      id: number;
+      name: string;
+      url: string;
+      category: string;
+      source_type: string;
+      is_active: boolean;
+    }>;
+    latestRun?: {
+      id: number;
+      started_at: string;
+      finished_at?: string;
+      status: string;
+      trigger_type: string;
+      stats_json?: Record<string, unknown>;
+      error_message?: string;
+    };
+  }> => {
+    const response = await apiClient.get('/admin/news/status');
+    return response.data;
+  },
+
+  triggerSync: async (options?: { forceRefresh?: boolean }): Promise<{
+    success: boolean;
+    message?: string;
+    runId?: number;
+  }> => {
+    const response = await apiClient.post('/admin/news/sync', {
+      forceRefresh: options?.forceRefresh ?? false,
+    });
+    return response.data;
+  },
+};
+
 export const ollamaCloudApi = {
   getSettings: async (): Promise<{
     success: boolean;

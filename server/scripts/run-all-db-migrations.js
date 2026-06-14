@@ -23,6 +23,7 @@ const { migrateStudyPlan } = require('./migrate-study-plan');
 const { migrateCompetitiveTopics } = require('./migrate-competitive-topics');
 const { migrateWordOfDaySettings } = require('./migrate-word-of-day-settings');
 const { migrateEducationNews } = require('./migrate-education-news');
+const { migrateNewsPipeline } = require('./migrate-news-pipeline');
 const { migrateDailyFacts } = require('./migrate-daily-facts');
 const { migrateAppFeedback } = require('./migrate-app-feedback');
 const { migrateStudyBuddies } = require('./migrate-study-buddies');
@@ -47,6 +48,7 @@ async function runAllDbMigrations() {
   await migrateCompetitiveTopics();
   await migrateWordOfDaySettings();
   await migrateEducationNews();
+  await migrateNewsPipeline();
   await migrateDailyFacts();
   await migrateAppFeedback();
   await migrateStudyBuddies();

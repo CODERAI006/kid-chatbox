@@ -3,26 +3,13 @@
  */
 
 const { getCategoryById, getTopicsOverview, EDUCATION_CATEGORIES } = require('../utils/educationNewsCategories');
-const { scrapeCategory, scrapeAllCategories } = require('../utils/educationNewsScraper');
 const {
   formatCacheDate,
   readCache,
   writeCache,
   findArticle,
 } = require('../utils/educationNewsDbCache');
-
-const ENRICH_LIMIT = 8;
-
-/** Scrape-only formatting — no Ollama (Facts & Fun uses the single daily AI call). */
-function formatArticlesBasic(articles) {
-  return articles.slice(0, ENRICH_LIMIT).map((a) => ({
-    ...a,
-    kidSummary: (a.description || a.summary || '').slice(0, 400),
-    formattedParagraphs: a.description ? [a.description.slice(0, 600)] : [],
-    keyPoints: [],
-    readTimeMinutes: 2,
-  }));
-}
+const { syncCategory, runDailySync } = require('./newsPipelineService');
 
 function paginate(items, page, pageSize) {
   const start = (page - 1) * pageSize;
@@ -58,17 +45,16 @@ async function buildDailyCategory(categoryId, { forceRefresh = false } = {}) {
   }
 
   console.log(`[educationNews] Building daily cache for ${categoryId}…`);
-  let articles = await scrapeCategory(categoryId, { maxItems: 28, bypassCache: forceRefresh });
-  articles = formatArticlesBasic(articles);
-
-  const payload = { articles, builtAt: new Date().toISOString(), categoryId };
-  await writeCache(categoryId, cacheDate, payload);
+  const { articleCount } = await syncCategory(categoryId, { forceRefresh, enrich: true });
+  const hit = await readCache(categoryId, cacheDate);
+  const articles = hit?.payload?.articles || [];
 
   return {
     articles,
     cachedDate: cacheDate,
     fromCache: false,
-    updatedAt: new Date().toISOString(),
+    updatedAt: hit?.updatedAt || new Date().toISOString(),
+    articleCount,
   };
 }
 
@@ -105,7 +91,7 @@ async function buildDailyAll({ forceRefresh = false } = {}) {
 }
 
 async function getCategoryNews(categoryId, { page = 1, pageSize = 8, forceRefresh = false } = {}) {
-  const validIds = ['science', 'history', 'geography', 'current_affairs', 'general_knowledge', 'all'];
+  const validIds = [...EDUCATION_CATEGORIES.map((c) => c.id), 'all'];
   const id = validIds.includes(categoryId) ? categoryId : 'science';
 
   const loaded = id === 'all'
@@ -118,7 +104,7 @@ async function getCategoryNews(categoryId, { page = 1, pageSize = 8, forceRefres
         label: 'All Education News',
         icon: '📰',
         color: 'blue',
-        description: 'Latest stories across science, history, geography & more',
+        description: 'Latest stories across science, tech, sports, history & more',
         topics: [],
         exampleQuestions: [],
       }
@@ -176,24 +162,14 @@ async function getArticleById(categoryId, articleId) {
 }
 
 async function pregenerateForDate({ forceRefresh = false } = {}) {
-  const cacheDate = formatCacheDate();
-  let built = 0;
-
-  for (const cat of EDUCATION_CATEGORIES) {
-    const hit = await readCache(cat.id, cacheDate);
-    if (!forceRefresh && hit?.payload?.articles?.length) continue;
-    await buildDailyCategory(cat.id, { forceRefresh });
-    built += 1;
+  const result = await runDailySync({ forceRefresh, triggerType: 'cron' });
+  if (result.skipped) {
+    console.log('[educationNews] pregenerate skipped — sync already running');
+    return { cacheDate: formatCacheDate(), built: 0, skipped: true };
   }
-
-  const allHit = await readCache('all', cacheDate);
-  if (forceRefresh || !allHit?.payload?.articles?.length) {
-    await buildDailyAll({ forceRefresh });
-    built += 1;
-  }
-
-  console.log(`[educationNews] pregenerated ${built} cache bucket(s) for ${cacheDate}`);
-  return { cacheDate, built };
+  const built = Object.keys(result.stats?.categories || {}).length + 1;
+  console.log(`[educationNews] pregenerated via pipeline for ${result.stats?.cacheDate}`);
+  return { cacheDate: result.stats?.cacheDate || formatCacheDate(), built };
 }
 
 module.exports = {

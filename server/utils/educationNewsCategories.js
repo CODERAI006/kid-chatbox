@@ -1,5 +1,5 @@
 /**
- * Kid-friendly education news categories (Science, History, Geography, Current Affairs, GK).
+ * Kid-friendly education news categories — science, history, geography, tech, sports, etc.
  */
 
 const EDUCATION_CATEGORIES = [
@@ -88,25 +88,106 @@ const EDUCATION_CATEGORIES = [
     searchTerms: 'India news world news space mission environment sports discovery',
   },
   {
+    id: 'technology',
+    label: 'Technology',
+    icon: '💻',
+    color: 'cyan',
+    description: 'Computers, apps, coding, AI, gadgets & how tech shapes our world',
+    topics: [
+      'Computers and coding basics',
+      'Apps and the internet',
+      'Artificial intelligence',
+      'Robots and inventions',
+      'Cyber safety for kids',
+      'Future tech careers',
+    ],
+    exampleQuestions: [
+      'How does a computer store information?',
+      'What is coding?',
+      'How do smartphones connect to the internet?',
+    ],
+    searchTerms: 'technology computers coding programming AI robotics gadgets internet kids STEM',
+  },
+  {
+    id: 'sports',
+    label: 'Sports',
+    icon: '⚽',
+    color: 'orange',
+    description: 'Cricket, Olympics, athletes, teamwork & healthy competition',
+    topics: [
+      'Cricket and football',
+      'Olympics and world cups',
+      'Famous athletes',
+      'Teamwork and fair play',
+      'Sports science basics',
+    ],
+    exampleQuestions: [
+      'Who won the latest cricket tournament?',
+      'How do athletes stay fit?',
+      'What sports are played in the Olympics?',
+    ],
+    searchTerms: 'sports cricket football Olympics athletes India sports news kids',
+  },
+  {
+    id: 'environment',
+    label: 'Environment',
+    icon: '🌱',
+    color: 'teal',
+    description: 'Climate, wildlife, forests, oceans & protecting our planet',
+    topics: [
+      'Climate and weather patterns',
+      'Wildlife and forests',
+      'Oceans and pollution',
+      'Recycling and sustainability',
+      'Renewable energy',
+      'Protecting endangered species',
+    ],
+    exampleQuestions: [
+      'Why is recycling important?',
+      'What causes climate change?',
+      'How can kids help the environment?',
+    ],
+    searchTerms: 'environment climate wildlife conservation pollution sustainability nature kids',
+  },
+  {
+    id: 'arts_culture',
+    label: 'Arts & Books',
+    icon: '🎨',
+    color: 'indigo',
+    description: 'Books, art, music, films & cultural stories from India and the world',
+    topics: [
+      'Famous books and authors',
+      'Art and painting',
+      'Music and dance',
+      'Films and animation',
+      'Festivals and traditions',
+    ],
+    exampleQuestions: [
+      'Who wrote your favourite storybook?',
+      'What is a classical dance form from India?',
+      'How are animated movies made?',
+    ],
+    searchTerms: 'books authors art culture music dance festivals literature kids',
+  },
+  {
     id: 'general_knowledge',
     label: 'Fun General Knowledge',
     icon: '🎯',
     color: 'purple',
-    description: 'Technology, sports, books, environment, personalities & culture',
+    description: 'Trivia, world records, famous people & surprising facts',
     topics: [
-      'Technology',
-      'Sports',
-      'Books',
-      'Environment',
+      'World records',
       'Famous personalities',
-      'Art and culture',
+      'Inventions and discoveries',
+      'India and the world',
+      'Brain teasers and trivia',
     ],
     exampleQuestions: [
       'Who wrote Harry Potter?',
       'Which sport uses a wicket?',
       'What is recycling?',
     ],
-    searchTerms: 'technology sports books environment famous personalities art culture trivia',
+    searchTerms: 'trivia world records famous people personalities India facts quiz kids',
   },
 ];
 

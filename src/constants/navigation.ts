@@ -52,6 +52,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: FiCalendar },
   { adminPath: '/admin/ollama-cloud', label: 'AI Settings', icon: FiCpu },
   { adminPath: '/admin/word-of-day', label: 'Word of the Day', icon: FiSun },
+  { adminPath: '/admin/education-news', label: 'Education News', icon: FiGlobe },
   { adminPath: '/admin/feedback', label: 'Feedback', icon: FiMessageSquare },
 ];
 
@@ -63,6 +64,7 @@ const STUDENT_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/past-chats', label: 'Past Chats', icon: FiMessageCircle, consumerPath: '/past-chats' },
   { adminPath: '/my-schedules', label: 'My Schedules', icon: FiCalendar, consumerPath: '/my-schedules' },
   { adminPath: '/study-buddies', label: 'Study Buddies', icon: FiUsers, consumerPath: '/study-buddies', module: 'quiz' },
+  { adminPath: '/education-news', label: 'Education News', icon: FiFileText, consumerPath: '/education-news' },
   { adminPath: '/news', label: 'Facts & Fun', icon: FiGlobe, consumerPath: '/news' },
   { adminPath: '/profile', label: 'Profile', icon: FiUser, consumerPath: '/profile' },
   {

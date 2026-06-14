@@ -7,6 +7,10 @@ export type EducationNewsCategoryId =
   | 'history'
   | 'geography'
   | 'current_affairs'
+  | 'technology'
+  | 'sports'
+  | 'environment'
+  | 'arts_culture'
   | 'general_knowledge'
   | 'all';
 
@@ -20,6 +24,13 @@ export interface EducationCategory {
   exampleQuestions: string[];
 }
 
+export interface EducationQuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  hint?: string;
+}
+
 export interface EducationArticle {
   id: string;
   category: EducationNewsCategoryId;
@@ -28,9 +39,14 @@ export interface EducationArticle {
   summary: string;
   kidSummary?: string;
   funFact?: string | null;
+  funFacts?: string[];
+  quizQuestions?: EducationQuizQuestion[];
   relatedTopics?: string[];
   formattedParagraphs?: string[];
   keyPoints?: string[];
+  difficultyLevel?: string;
+  ageGroup?: string;
+  learningObjectives?: string[];
   url: string;
   urlToImage: string | null;
   source: { id: string | null; name: string };
@@ -72,6 +88,10 @@ export const CATEGORY_COLORS: Record<string, string> = {
   emerald: 'from-emerald-500 to-teal-600',
   rose: 'from-rose-500 to-pink-600',
   purple: 'from-purple-500 to-indigo-600',
+  cyan: 'from-cyan-500 to-blue-600',
+  orange: 'from-orange-500 to-amber-600',
+  teal: 'from-teal-500 to-green-600',
+  indigo: 'from-indigo-500 to-purple-600',
 };
 
 export const CATEGORY_RING: Record<string, string> = {
@@ -80,4 +100,8 @@ export const CATEGORY_RING: Record<string, string> = {
   emerald: 'ring-emerald-200 border-emerald-100',
   rose: 'ring-rose-200 border-rose-100',
   purple: 'ring-purple-200 border-purple-100',
+  cyan: 'ring-cyan-200 border-cyan-100',
+  orange: 'ring-orange-200 border-orange-100',
+  teal: 'ring-teal-200 border-teal-100',
+  indigo: 'ring-indigo-200 border-indigo-100',
 };
