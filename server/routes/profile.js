@@ -16,6 +16,7 @@ const { ageFromNumber } = require('../utils/resolveQuizAgeGroup');
 const { normalizeGrade, isValidGrade } = require('../utils/grades');
 const { normalizePhone, mapPhoneFields } = require('../utils/phone');
 const { isProfileComplete } = require('../utils/profileComplete');
+const { ensureStudentOnboarding } = require('../utils/registerNewUser');
 
 const router = express.Router();
 
@@ -95,6 +96,7 @@ router.put('/', authenticateToken, async (req, res, next) => {
     }
 
     const currentUser = currentUserResult.rows[0];
+    const wasProfileComplete = isProfileComplete(currentUser);
     let birthDateValue = currentUser.birth_date;
     let ageValue = null;
     let ageGroupValue = null;
@@ -207,11 +209,28 @@ router.put('/', authenticateToken, async (req, res, next) => {
     }
 
     const updatedRow = result.rows[0];
+    const profileComplete = isProfileComplete(updatedRow);
+
+    if (profileComplete) {
+      try {
+        await ensureStudentOnboarding(pool, userId, userId);
+      } catch (onboardingError) {
+        console.error(
+          `Student onboarding failed for user ${userId} after profile update:`,
+          onboardingError.message || onboardingError
+        );
+      }
+    }
+
     res.json({
       success: true,
       user: mapUserResponse(updatedRow),
-      profileComplete: isProfileComplete(updatedRow),
-      message: 'Profile updated successfully',
+      profileComplete,
+      message: wasProfileComplete
+        ? 'Profile updated successfully'
+        : profileComplete
+          ? 'Profile completed. Welcome to Guru ID!'
+          : 'Profile updated successfully',
     });
   } catch (error) {
     next(error);

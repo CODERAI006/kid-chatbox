@@ -20,8 +20,8 @@ const getFreemiumPlan = async () => {
   
   // Create Freemium plan if it doesn't exist
   const createResult = await pool.query(
-    `INSERT INTO plans (name, description, daily_quiz_limit, daily_topic_limit, monthly_cost, status)
-     VALUES ('Freemium', 'Free plan with basic access', 1, 1, 0.00, 'active')
+    `INSERT INTO plans (name, description, daily_quiz_limit, daily_topic_limit, monthly_cost, status, hide_ai_study, hide_ai_quiz)
+     VALUES ('Freemium', 'Free plan with basic access', 1, 1, 0.00, 'active', false, false)
      RETURNING *`
   );
   

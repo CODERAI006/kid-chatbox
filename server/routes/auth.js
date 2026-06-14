@@ -50,6 +50,29 @@ function buildAuthUserPayload(user) {
   };
 }
 
+function mapSessionUser(userRow, extras = {}) {
+  const { age, ageGroup, birthDate } = deriveAgeFields(userRow);
+  return {
+    id: userRow.id,
+    email: userRow.email,
+    name: userRow.name,
+    age,
+    ageGroup,
+    birthDate,
+    grade: userRow.grade,
+    preferredLanguage: userRow.preferred_language,
+    buddyId: userRow.buddy_id,
+    status: userRow.status,
+    avatarUrl: userRow.avatar_url,
+    parentContact: userRow.parent_contact,
+    createdAt: userRow.created_at,
+    approvedAt: userRow.approved_at,
+    lastLogin: userRow.last_login,
+    profileComplete: isProfileComplete(userRow),
+    ...extras,
+  };
+}
+
 /**
  * Register a new user
  */
@@ -580,15 +603,9 @@ router.get('/me', authenticateToken, async (req, res, next) => {
       [user.id]
     );
 
-    const { age, ageGroup, birthDate } = deriveAgeFields(user);
-
     res.json({
       success: true,
-      user: {
-        ...user,
-        age,
-        age_group: ageGroup,
-        birthDate,
+      user: mapSessionUser(user, {
         roles: rolesResult.rows.map((r) => r.name),
         roleIds: rolesResult.rows.map((r) => r.id),
         permissions: permissionsResult.rows.map((p) => p.name),
@@ -596,8 +613,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
           acc[row.module_name] = row.has_access;
           return acc;
         }, {}),
-        profileComplete: isProfileComplete(user),
-      },
+      }),
     });
   } catch (error) {
     next(error);

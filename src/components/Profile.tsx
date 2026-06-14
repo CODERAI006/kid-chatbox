@@ -22,7 +22,7 @@ import {
 } from '@/shared/design-system';
 import { User } from '@/types';
 import { Language } from '@/types/quiz';
-import { profileApi } from '@/services/api';
+import { profileApi, authApi } from '@/services/api';
 import { PullToRefresh } from './PullToRefresh';
 import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 import { APP_CONSTANTS } from '@/constants/app';
@@ -36,12 +36,11 @@ import {
   ReadOnlyGradeField,
   ReadOnlyAgeField,
   MandatoryProfileFormValues,
-  getMissingFieldLabels,
 } from '@/components/profile/ProfileMandatoryFields';
 import { DEFAULT_PHONE_COUNTRY } from '@/constants/phoneCountries';
 import { splitStoredPhone, validateLocalPhone } from '@/utils/phoneInput';
 import { resolveProfileAge, deriveRegistrationAgeFields } from '@/utils/birthDate';
-import { isProfileComplete } from '@/utils/profileComplete';
+import { isProfileComplete, isBirthDateMissing, getMissingFieldLabels, getPostAuthPath } from '@/utils/profileComplete';
 import { isValidGrade, REGISTER_CONSTANTS } from '@/constants/auth';
 import { QUIZ_CONSTANTS } from '@/constants/quiz';
 
@@ -97,7 +96,7 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   const profileComplete = useMemo(() => isProfileComplete(user), [user]);
-  const missingBirthDate = !user.birthDate && !resolveProfileAge(user);
+  const missingBirthDate = isBirthDateMissing(user);
   const missingGrade = !isValidGrade(user.grade);
   const missingLanguage = !user.preferredLanguage;
   const missingFieldLabels = getMissingFieldLabels({
@@ -194,11 +193,15 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
       });
 
       applyUser(result.user);
-      window.dispatchEvent(new CustomEvent('userProfileUpdated', { detail: result.user }));
+      const { user: refreshedUser } = await authApi.fetchCurrentUser();
+      const sessionUser = (refreshedUser || result.user) as User;
+      window.dispatchEvent(new CustomEvent('userProfileUpdated', { detail: sessionUser }));
       setSuccess(true);
 
-      if (isProfileComplete(result.user)) {
-        setTimeout(() => navigate('/dashboard', { replace: true }), 800);
+      const complete =
+        result.profileComplete === true || isProfileComplete(result.user);
+      if (complete) {
+        setTimeout(() => navigate(getPostAuthPath(sessionUser), { replace: true }), 800);
       } else {
         setTimeout(() => setSuccess(false), 3000);
       }
@@ -327,7 +330,7 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     user.grade && <ReadOnlyGradeField grade={user.grade} />
                   )}
 
-                  {!missingBirthDate && (
+                  {displayAge != null && (
                     <ReadOnlyAgeField age={displayAge} hasBirthDate={Boolean(user.birthDate)} />
                   )}
 

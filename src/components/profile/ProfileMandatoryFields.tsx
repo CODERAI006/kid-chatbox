@@ -169,15 +169,3 @@ export const EditableLanguageSelectField: React.FC<EditableLanguageSelectProps> 
     </Text>
   </FormControl>
 );
-
-export function getMissingFieldLabels(flags: {
-  missingBirthDate: boolean;
-  missingGrade: boolean;
-  missingLanguage: boolean;
-}): string[] {
-  const labels: string[] = [];
-  if (flags.missingBirthDate) labels.push('date of birth');
-  if (flags.missingGrade) labels.push('grade');
-  if (flags.missingLanguage) labels.push('preferred language');
-  return labels;
-}

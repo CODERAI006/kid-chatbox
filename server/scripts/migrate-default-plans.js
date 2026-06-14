@@ -12,8 +12,8 @@ const DEFAULT_PLANS = [
     daily_quiz_limit: 1,
     daily_topic_limit: 1,
     monthly_cost: 0,
-    hide_ai_study: true,
-    hide_ai_quiz: true,
+    hide_ai_study: false,
+    hide_ai_quiz: false,
   },
   {
     name: 'Basic',

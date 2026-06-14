@@ -64,8 +64,9 @@ export const ModuleAccessGuard: React.FC<ModuleAccessGuardProps> = ({ children, 
         moduleAccess?: Record<string, boolean>;
       };
 
-      // Check if user is approved
-      if (userWithAccess.status !== 'approved') {
+      // Self-registered and Google users use status "enabled"; admin-approved users use "approved"
+      const allowedStatuses = ['approved', 'enabled'];
+      if (!userWithAccess.status || !allowedStatuses.includes(userWithAccess.status)) {
         setError(
           'Your account is pending approval. Please wait for admin approval before accessing this module.'
         );
