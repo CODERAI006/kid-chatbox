@@ -3,10 +3,11 @@
  */
 
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   VStack,
+  Text,
   Button,
   Divider,
   Drawer,
@@ -36,7 +37,7 @@ interface StudentSidebarProps {
   onClose?: () => void;
 }
 
-export const StudentSidebar: React.FC<StudentSidebarProps> = ({ isOpen, onClose }) => {
+export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -47,6 +48,17 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ isOpen, onClose 
   const sidebarBorder = useColorModeValue(adminColors.border.light, adminColors.border.dark);
   const navText = useColorModeValue('gray.600', 'gray.300');
   const navHoverBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+  const nameColor = useColorModeValue('gray.800', 'gray.100');
+  const muted = useColorModeValue('gray.500', 'gray.400');
+
+  const copyBuddyId = useCallback(async () => {
+    if (!user?.buddyId) return;
+    try {
+      await navigator.clipboard.writeText(user.buddyId);
+    } catch {
+      // Clipboard may be unavailable
+    }
+  }, [user?.buddyId]);
 
   useEffect(() => {
     authApi
@@ -136,7 +148,34 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ isOpen, onClose 
         <DrawerOverlay />
         <DrawerContent>
           <DrawerCloseButton />
-          <DrawerHeader fontWeight="semibold">Navigation</DrawerHeader>
+          <DrawerHeader borderBottomWidth="1px" borderColor={sidebarBorder} pb={4}>
+            <VStack align="start" spacing={1} pr={8}>
+              <Text fontWeight="semibold" fontSize="md" color={nameColor} noOfLines={2}>
+                {user?.name?.trim() || 'Student'}
+              </Text>
+              {user?.buddyId && (
+                <Text
+                  fontSize="sm"
+                  color="purple.600"
+                  fontWeight="medium"
+                  cursor="pointer"
+                  onClick={() => void copyBuddyId()}
+                  onKeyDown={(e) => e.key === 'Enter' && void copyBuddyId()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Buddy ID ${user.buddyId}. Click to copy.`}
+                  title="Click to copy Buddy ID"
+                >
+                  Buddy ID: {user.buddyId}
+                </Text>
+              )}
+              {!user?.buddyId && (
+                <Text fontSize="xs" color={muted}>
+                  Buddy ID pending
+                </Text>
+              )}
+            </VStack>
+          </DrawerHeader>
           <DrawerBody p={0}>{sidebarContent}</DrawerBody>
         </DrawerContent>
       </Drawer>

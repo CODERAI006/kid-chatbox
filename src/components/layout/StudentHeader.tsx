@@ -225,6 +225,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
                 borderWidth={1}
                 borderColor="purple.200"
                 flexShrink={0}
+                display={{ base: 'none', lg: 'flex' }}
                 cursor="pointer"
                 onClick={() => void copyBuddyId()}
                 onKeyDown={(e) => e.key === 'Enter' && void copyBuddyId()}
