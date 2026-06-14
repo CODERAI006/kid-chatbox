@@ -16,6 +16,7 @@ const CS_MAP: Record<string, string> = {
 
 /** Short labels so all 9 topics fit in two rows without scrolling. */
 const SHORT_LABEL: Partial<Record<EducationNewsCategoryId, string>> = {
+  all: 'All',
   science: 'Science',
   history: 'History',
   geography: 'Geography',

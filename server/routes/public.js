@@ -329,7 +329,7 @@ router.get('/education-news', async (req, res) => {
   try {
     const category = String(req.query.category || 'science').trim();
     const page = parseInt(req.query.page, 10) || 1;
-    const pageSize = parseInt(req.query.pageSize, 10) || 8;
+    const pageSize = Math.min(parseInt(req.query.pageSize, 10) || 20, 50);
     const forceRefresh = req.query.forceRefresh === 'true';
 
     const result = await getCategoryNews(category, { page, pageSize, forceRefresh });

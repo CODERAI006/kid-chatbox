@@ -1427,7 +1427,7 @@ export const publicApi = {
         articles: [],
         totalResults: 0,
         page: 1,
-        pageSize: 8,
+        pageSize: 20,
         message: 'Unable to load stories',
       };
     }

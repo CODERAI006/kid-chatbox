@@ -21,8 +21,11 @@ import type {
   EducationArticle,
   EducationNewsCategoryId,
 } from '@/types/educationNews';
-
-const PAGE_SIZE = 8;
+import {
+  ALL_NEWS_CATEGORY,
+  EDUCATION_NEWS_MOBILE_PAGE_SIZE,
+  EDUCATION_NEWS_WEB_PAGE_SIZE,
+} from '@/types/educationNews';
 
 function dedupeArticles(items: EducationArticle[]): EducationArticle[] {
   const seen = new Set<string>();
@@ -36,8 +39,9 @@ function dedupeArticles(items: EducationArticle[]): EducationArticle[] {
 
 export default function EducationTopicsPanel() {
   const isCompactListView = useCompactListView();
+  const pageSize = isCompactListView ? EDUCATION_NEWS_MOBILE_PAGE_SIZE : EDUCATION_NEWS_WEB_PAGE_SIZE;
   const [categories, setCategories] = useState<EducationCategory[]>([]);
-  const [activeId, setActiveId] = useState<EducationNewsCategoryId>('science');
+  const [activeId, setActiveId] = useState<EducationNewsCategoryId>('all');
   const [articles, setArticles] = useState<EducationArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -53,7 +57,6 @@ export default function EducationTopicsPanel() {
     publicApi.getEducationNewsTopics().then((res) => {
       if (res.success && res.categories.length) {
         setCategories(res.categories);
-        setActiveId(res.categories[0].id);
       }
     });
   }, []);
@@ -73,7 +76,7 @@ export default function EducationTopicsPanel() {
       const res = await publicApi.getEducationNewsByCategory({
         category: categoryId,
         page: pageNum,
-        pageSize: PAGE_SIZE,
+        pageSize,
         forceRefresh,
       });
       if (res.success) {
@@ -91,24 +94,42 @@ export default function EducationTopicsPanel() {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [pageSize]);
 
   useEffect(() => {
     if (activeId) fetchArticles(activeId, 1);
-  }, [activeId, fetchArticles]);
+  }, [activeId, fetchArticles, isCompactListView]);
 
-  const cat = activeCategory || categories.find((c) => c.id === activeId);
+  const cat = activeCategory || categories.find((c) => c.id === activeId) || (activeId === 'all' ? ALL_NEWS_CATEGORY : undefined);
+
+  const categoryById = useMemo(() => {
+    const map = new Map<EducationNewsCategoryId, EducationCategory>();
+    categories.forEach((c) => map.set(c.id, c));
+    return map;
+  }, [categories]);
+
+  const articleCategory = useCallback(
+    (article: EducationArticle) => {
+      if (activeId !== 'all') return cat ?? undefined;
+      return categoryById.get(article.category) ?? undefined;
+    },
+    [activeId, cat, categoryById],
+  );
 
   const openReader = useCallback(
     (article: EducationArticle) => {
+      const readerCategory = activeId === 'all'
+        ? categoryById.get(article.category)
+        : cat;
+      const readerCategoryId = activeId === 'all' ? article.category : activeId;
       navigate(
-        `/education-news/read/${encodeURIComponent(article.id)}?category=${activeId}`,
-        { state: { article, category: cat ?? undefined } },
+        `/education-news/read/${encodeURIComponent(article.id)}?category=${readerCategoryId}`,
+        { state: { article, category: readerCategory ?? undefined } },
       );
     },
-    [navigate, activeId, cat],
+    [navigate, activeId, cat, categoryById],
   );
-  const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+  const totalPages = Math.ceil(totalResults / pageSize);
   const hasMore = !search && page < totalPages;
 
   const loadMore = useCallback(() => {
@@ -126,6 +147,11 @@ export default function EducationTopicsPanel() {
     );
   }, [articles, search]);
 
+  const pickerCategories = useMemo(
+    () => [ALL_NEWS_CATEGORY, ...categories],
+    [categories],
+  );
+
   return (
     <VStack align="stretch" spacing={{ base: 4, md: 5 }} w="100%" minW={0}>
       <Box
@@ -141,7 +167,9 @@ export default function EducationTopicsPanel() {
               Stories for curious learners
             </Text>
             <Text fontSize={{ base: '2xs', sm: 'xs' }} color="blue.50" mt={0.5} noOfLines={1}>
-              Pick a topic below — tap any story to read in-app.
+              {activeId === 'all' && totalResults > 0
+                ? `${totalResults} stories from every topic — tap any story to read in-app.`
+                : 'Pick a topic below — tap any story to read in-app.'}
             </Text>
           </Box>
           <Button
@@ -162,7 +190,7 @@ export default function EducationTopicsPanel() {
       </Box>
 
       <EducationCategoryPicker
-        categories={categories}
+        categories={pickerCategories}
         activeId={activeId}
         onSelect={(id) => { setActiveId(id); setPage(1); }}
       />
@@ -210,7 +238,7 @@ export default function EducationTopicsPanel() {
               <EducationNewsListItem
                 key={article.id}
                 article={article}
-                category={cat || undefined}
+                category={articleCategory(article)}
                 variant={!search && page === 1 && index === 0 ? 'hero' : 'row'}
                 onRead={openReader}
               />
@@ -223,7 +251,7 @@ export default function EducationTopicsPanel() {
               loadingMore={loadingMore}
               onLoadMore={loadMore}
               observeKey={filtered.length}
-              loadMoreLabel={`Load ${PAGE_SIZE} more stories`}
+              loadMoreLabel={`Load ${pageSize} more stories`}
               endLabel={`You've read all ${totalResults} stories.`}
               spinnerColor="blue.400"
             />
@@ -234,7 +262,7 @@ export default function EducationTopicsPanel() {
               page={page}
               totalPages={totalPages}
               totalResults={totalResults}
-              pageSize={PAGE_SIZE}
+              pageSize={pageSize}
               loading={loading || refreshing}
               onPageChange={(p) => {
                 fetchArticles(activeId, p);

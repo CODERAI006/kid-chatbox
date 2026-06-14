@@ -51,16 +51,27 @@ async function syncCategory(categoryId, { forceRefresh = false, enrich = true } 
   return { articleCount: articles.length, cacheDate };
 }
 
+function dedupeArticles(items) {
+  const seen = new Set();
+  return items.filter((article) => {
+    const key = article.id || article.url;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function buildAllFromCache(cacheDate) {
   const all = [];
   for (const cat of EDUCATION_CATEGORIES) {
     const hit = await readCache(cat.id, cacheDate);
     if (hit?.payload?.articles?.length) {
-      all.push(...hit.payload.articles.slice(0, 6));
+      all.push(...hit.payload.articles);
     }
   }
-  all.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-  await writeCache('all', cacheDate, { articles: all, builtAt: new Date().toISOString() });
+  const merged = dedupeArticles(all);
+  merged.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  await writeCache('all', cacheDate, { articles: merged, builtAt: new Date().toISOString() });
 }
 
 async function runDailySync({ forceRefresh = false, triggerType = 'cron' } = {}) {

@@ -8,6 +8,7 @@ import type {
   EducationCategory,
   EducationNewsCategoryId,
 } from '@/types/educationNews';
+import { ALL_NEWS_CATEGORY } from '@/types/educationNews';
 
 type ReaderLocationState = {
   article?: EducationArticle;
@@ -51,6 +52,10 @@ export default function EducationNewsReader() {
 
   useEffect(() => {
     if (category || !categoryParam) return;
+    if (categoryParam === 'all') {
+      setCategory(ALL_NEWS_CATEGORY);
+      return;
+    }
     publicApi.getEducationNewsTopics().then((res) => {
       if (res.success) {
         const match = res.categories.find((c) => c.id === categoryParam);

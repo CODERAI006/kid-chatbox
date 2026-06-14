@@ -56,6 +56,19 @@ export interface EducationArticle {
   content?: string | null;
 }
 
+export const ALL_NEWS_CATEGORY: EducationCategory = {
+  id: 'all',
+  label: 'All News',
+  icon: '📰',
+  color: 'blue',
+  description: 'Latest stories across science, tech, sports, history & more',
+  topics: [],
+  exampleQuestions: [],
+};
+
+export const EDUCATION_NEWS_MOBILE_PAGE_SIZE = 8;
+export const EDUCATION_NEWS_WEB_PAGE_SIZE = 20;
+
 export interface EducationTopicsResponse {
   success: boolean;
   categories: EducationCategory[];

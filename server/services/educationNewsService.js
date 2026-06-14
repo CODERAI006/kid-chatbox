@@ -16,6 +16,26 @@ function paginate(items, page, pageSize) {
   return items.slice(start, start + pageSize);
 }
 
+function dedupeArticles(items) {
+  const seen = new Set();
+  return items.filter((article) => {
+    const key = article.id || article.url;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+const ALL_NEWS_CATEGORY = {
+  id: 'all',
+  label: 'All News',
+  icon: '📰',
+  color: 'blue',
+  description: 'Latest stories across science, tech, sports, history & more',
+  topics: [],
+  exampleQuestions: [],
+};
+
 function toNewsArticle(article) {
   return {
     source: article.source,
@@ -58,39 +78,32 @@ async function buildDailyCategory(categoryId, { forceRefresh = false } = {}) {
   };
 }
 
-async function buildDailyAll({ forceRefresh = false } = {}) {
-  const cacheDate = formatCacheDate();
-  const cacheKey = 'all';
-
-  if (!forceRefresh) {
-    const hit = await readCache(cacheKey, cacheDate);
-    if (hit?.payload?.articles?.length) {
-      return {
-        articles: hit.payload.articles,
-        cachedDate: cacheDate,
-        fromCache: true,
-        updatedAt: hit.updatedAt,
-      };
-    }
-  }
-
+/** Merge every topic cache — never serve a stale partial `all` snapshot. */
+async function mergeAllFromCategories({ forceRefresh = false } = {}) {
   const all = [];
   for (const cat of EDUCATION_CATEGORIES) {
-    const { articles } = await buildDailyCategory(cat.id, { forceRefresh: false });
-    all.push(...articles.slice(0, 6));
+    const { articles } = await buildDailyCategory(cat.id, { forceRefresh });
+    all.push(...articles);
   }
-  all.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  const merged = dedupeArticles(all);
+  merged.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  return merged;
+}
 
-  await writeCache(cacheKey, cacheDate, { articles: all, builtAt: new Date().toISOString() });
+async function buildDailyAll({ forceRefresh = false } = {}) {
+  const cacheDate = formatCacheDate();
+  const merged = await mergeAllFromCategories({ forceRefresh });
+
+  await writeCache('all', cacheDate, { articles: merged, builtAt: new Date().toISOString() });
   return {
-    articles: all,
+    articles: merged,
     cachedDate: cacheDate,
     fromCache: false,
     updatedAt: new Date().toISOString(),
   };
 }
 
-async function getCategoryNews(categoryId, { page = 1, pageSize = 8, forceRefresh = false } = {}) {
+async function getCategoryNews(categoryId, { page = 1, pageSize = 20, forceRefresh = false } = {}) {
   const validIds = [...EDUCATION_CATEGORIES.map((c) => c.id), 'all'];
   const id = validIds.includes(categoryId) ? categoryId : 'science';
 
@@ -98,17 +111,7 @@ async function getCategoryNews(categoryId, { page = 1, pageSize = 8, forceRefres
     ? await buildDailyAll({ forceRefresh })
     : await buildDailyCategory(id, { forceRefresh });
 
-  const category = id === 'all'
-    ? {
-        id: 'all',
-        label: 'All Education News',
-        icon: '📰',
-        color: 'blue',
-        description: 'Latest stories across science, tech, sports, history & more',
-        topics: [],
-        exampleQuestions: [],
-      }
-    : getCategoryById(id);
+  const category = id === 'all' ? ALL_NEWS_CATEGORY : getCategoryById(id);
 
   if (!category && id !== 'all') {
     return { success: false, status: 404, message: 'Unknown category' };
@@ -151,9 +154,19 @@ async function getAggregatedNews({ page = 1, pageSize = 10, forceRefresh = false
 async function getArticleById(categoryId, articleId) {
   const cacheDate = formatCacheDate();
   let article = await findArticle(categoryId, articleId, cacheDate);
+  if (!article && categoryId === 'all') {
+    await buildDailyAll({ forceRefresh: false });
+    article = await findArticle('all', articleId, cacheDate);
+  }
   if (!article && categoryId !== 'all') {
     await buildDailyCategory(categoryId);
     article = await findArticle(categoryId, articleId, cacheDate);
+  }
+  if (!article) {
+    for (const cat of EDUCATION_CATEGORIES) {
+      article = await findArticle(cat.id, articleId, cacheDate);
+      if (article) break;
+    }
   }
   if (!article) {
     return { success: false, status: 404, message: 'Story not found' };

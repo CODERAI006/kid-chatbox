@@ -61,7 +61,7 @@ export const QuizPageUpload: React.FC<QuizPageUploadProps> = ({
               📄 Generate from page photos (optional)
             </Text>
             <Text fontSize="xs" color="gray.600" mt={1}>
-              Upload up to {QUIZ_PAGE_IMAGE_MAX} photos of textbook pages, notes, or worksheets.
+              Upload or capture up to {QUIZ_PAGE_IMAGE_MAX} photos (up to 10MB each; auto-compressed for upload).
             </Text>
           </Box>
           <Button size="sm" colorScheme="purple" borderRadius="full" onClick={handlePick}
