@@ -20,16 +20,26 @@ const DEFAULT_COMPLEXITY = {
   'Class 12 / Grade 12': 'expert',
 };
 
+const COMPLEXITY_CHECK = `('basic', 'intermediate', 'advanced', 'expert')`;
+
 async function migrateWordOfDaySettings() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS word_of_day_settings (
       grade VARCHAR(64) PRIMARY KEY,
-      complexity VARCHAR(20) NOT NULL DEFAULT 'basic'
-        CHECK (complexity IN ('basic', 'intermediate', 'advanced')),
+      complexity VARCHAR(20) NOT NULL DEFAULT 'basic',
       enabled BOOLEAN NOT NULL DEFAULT true,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_by UUID REFERENCES users(id) ON DELETE SET NULL
     );
+  `);
+
+  // Table may already exist with an older CHECK that omits 'expert'.
+  await pool.query(`
+    ALTER TABLE word_of_day_settings DROP CONSTRAINT IF EXISTS word_of_day_settings_complexity_check;
+  `);
+  await pool.query(`
+    ALTER TABLE word_of_day_settings ADD CONSTRAINT word_of_day_settings_complexity_check
+      CHECK (complexity IN ${COMPLEXITY_CHECK});
   `);
 
   for (const [grade, complexity] of Object.entries(DEFAULT_COMPLEXITY)) {
