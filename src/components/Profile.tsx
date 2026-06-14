@@ -13,7 +13,6 @@ import {
   Button,
   Card,
   CardBody,
-  Select,
   Alert,
   AlertIcon,
   FormControl,
@@ -22,14 +21,23 @@ import {
   Link,
 } from '@/shared/design-system';
 import { User } from '@/types';
-import { LANGUAGES } from '@/constants/quiz';
 import { Language } from '@/types/quiz';
 import { profileApi } from '@/services/api';
 import { PullToRefresh } from './PullToRefresh';
 import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 import { APP_CONSTANTS } from '@/constants/app';
 import { PhoneCountryInput } from '@/components/profile/PhoneCountryInput';
-import { ProfileMandatoryFields, MandatoryProfileFormValues } from '@/components/profile/ProfileMandatoryFields';
+import {
+  EditableBirthDateField,
+  EditableGradeField,
+  EditableLanguageField,
+  EditableLanguageSelectField,
+  ReadOnlyBirthDateField,
+  ReadOnlyGradeField,
+  ReadOnlyAgeField,
+  MandatoryProfileFormValues,
+  getMissingFieldLabels,
+} from '@/components/profile/ProfileMandatoryFields';
 import { DEFAULT_PHONE_COUNTRY } from '@/constants/phoneCountries';
 import { splitStoredPhone, validateLocalPhone } from '@/utils/phoneInput';
 import { resolveProfileAge, deriveRegistrationAgeFields } from '@/utils/birthDate';
@@ -92,7 +100,16 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
   const missingBirthDate = !user.birthDate && !resolveProfileAge(user);
   const missingGrade = !isValidGrade(user.grade);
   const missingLanguage = !user.preferredLanguage;
+  const missingFieldLabels = getMissingFieldLabels({
+    missingBirthDate,
+    missingGrade,
+    missingLanguage,
+  });
   const showMandatorySection = missingBirthDate || missingGrade || missingLanguage;
+  const missingFieldsMessage =
+    missingFieldLabels.length > 0
+      ? `Please add your ${missingFieldLabels.join(', ')} below, then save.`
+      : '';
   const redirectedForIncomplete = Boolean(
     (location.state as { profileIncomplete?: boolean } | null)?.profileIncomplete
   );
@@ -250,9 +267,7 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     ? 'Please complete your profile before using the app.'
                     : 'A few details are still required after Google sign-in.'}
                 </Text>
-                <Text mt={1}>
-                  Add your date of birth, grade, and preferred language below, then save.
-                </Text>
+                <Text mt={1}>{missingFieldsMessage}</Text>
               </Box>
             </Alert>
           )}
@@ -292,43 +307,28 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     <Input type="text" value={user.buddyId || 'Generating…'} isDisabled bg="gray.100" size="lg" />
                   </FormControl>
 
-                  {showMandatorySection ? (
-                    <ProfileMandatoryFields
-                      values={mandatoryFields}
-                      onChange={setMandatoryFields}
-                      missingBirthDate={missingBirthDate}
-                      missingGrade={missingGrade}
-                      missingLanguage={missingLanguage}
+                  {missingBirthDate ? (
+                    <EditableBirthDateField
+                      value={mandatoryFields.birthDate}
+                      onChange={(birthDate) =>
+                        setMandatoryFields({ ...mandatoryFields, birthDate })
+                      }
                     />
                   ) : (
-                    <>
-                      <FormControl>
-                        <FormLabel>Date of birth</FormLabel>
-                        <Input
-                          type="text"
-                          value={formatDisplayDate(user.birthDate)}
-                          isDisabled
-                          bg="gray.100"
-                          size="lg"
-                        />
-                      </FormControl>
+                    <ReadOnlyBirthDateField displayValue={formatDisplayDate(user.birthDate)} />
+                  )}
 
-                      <FormControl>
-                        <FormLabel>Grade</FormLabel>
-                        <Input type="text" value={user.grade || 'Not set'} isDisabled bg="gray.100" size="lg" />
-                      </FormControl>
+                  {missingGrade ? (
+                    <EditableGradeField
+                      value={mandatoryFields.grade}
+                      onChange={(grade) => setMandatoryFields({ ...mandatoryFields, grade })}
+                    />
+                  ) : (
+                    user.grade && <ReadOnlyGradeField grade={user.grade} />
+                  )}
 
-                      <FormControl>
-                        <FormLabel>Age</FormLabel>
-                        <Input
-                          type="text"
-                          value={displayAge != null ? String(displayAge) : 'Not set'}
-                          isDisabled
-                          bg="gray.100"
-                          size="lg"
-                        />
-                      </FormControl>
-                    </>
+                  {!missingBirthDate && (
+                    <ReadOnlyAgeField age={displayAge} hasBirthDate={Boolean(user.birthDate)} />
                   )}
 
                   <PhoneCountryInput
@@ -340,22 +340,18 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     hasSavedCountry={Boolean(user.phone)}
                   />
 
-                  {!missingLanguage && (
-                    <FormControl isRequired>
-                      <FormLabel>Preferred Language</FormLabel>
-                      <Select
-                        value={preferredLanguage}
-                        onChange={(e) => setPreferredLanguage(e.target.value as Language)}
-                        size="lg"
-                        required
-                      >
-                        {Object.values(LANGUAGES).map((lang) => (
-                          <option key={lang} value={lang}>
-                            {lang}
-                          </option>
-                        ))}
-                      </Select>
-                    </FormControl>
+                  {missingLanguage ? (
+                    <EditableLanguageField
+                      value={mandatoryFields.preferredLanguage}
+                      onChange={(preferredLanguage) =>
+                        setMandatoryFields({ ...mandatoryFields, preferredLanguage })
+                      }
+                    />
+                  ) : (
+                    <EditableLanguageSelectField
+                      value={preferredLanguage}
+                      onChange={setPreferredLanguage}
+                    />
                   )}
 
                   <Text fontSize="xs" color="gray.500">
