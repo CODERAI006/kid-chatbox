@@ -53,8 +53,10 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
   const location = useLocation();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const isCompactLayout = useBreakpointValue({ base: true, lg: false });
-  const showTabletFooter = showFooter && useBreakpointValue({ base: false, md: true, lg: false });
-  const showFullFooter = showFooter && useBreakpointValue({ base: false, lg: true });
+  const tabletFooterBreakpoint = useBreakpointValue({ base: false, md: true, lg: false });
+  const fullFooterBreakpoint = useBreakpointValue({ base: false, lg: true });
+  const showTabletFooter = showFooter && tabletFooterBreakpoint;
+  const showFullFooter = showFooter && fullFooterBreakpoint;
   const isWideView = isStudentWideView(location.pathname, location.hash);
   const [sidebarVisible, setSidebarVisible] = useState(() => !isWideView);
   const bgColor = useColorModeValue('gray.50', 'gray.900');
