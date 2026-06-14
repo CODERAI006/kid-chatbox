@@ -1,5 +1,5 @@
 import { Box, HStack, Text, VStack, Image } from '@/shared/design-system';
-import { FaBookOpen, FaChevronRight } from 'react-icons/fa';
+import { FaChevronRight } from 'react-icons/fa';
 import type { EducationArticle, EducationCategory } from '@/types/educationNews';
 
 interface Props {
@@ -59,7 +59,7 @@ export default function EducationNewsListItem({
     >
       {isHero ? (
         <VStack align="stretch" spacing={0}>
-          <Box position="relative" h={{ base: '180px', md: '220px' }} bgGradient={grad}>
+          <Box position="relative" h={{ base: '140px', md: '168px' }} bgGradient={grad}>
             {article.urlToImage && (
               <Image
                 src={article.urlToImage}
@@ -88,12 +88,11 @@ export default function EducationNewsListItem({
               </Text>
             </Box>
           </Box>
-          <Box p={{ base: 4, md: 5 }}>
+          <Box p={{ base: 3, md: 4 }}>
             <MetaLine article={article} />
-            <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.600" lineHeight="tall" mt={2} noOfLines={3}>
+            <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.600" lineHeight="tall" mt={1.5} noOfLines={2}>
               {summary}
             </Text>
-            <ReadHint />
           </Box>
         </VStack>
       ) : (
@@ -144,10 +143,9 @@ export default function EducationNewsListItem({
             >
               {article.title}
             </Text>
-            <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.500" lineHeight="tall" noOfLines={2}>
+            <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.500" lineHeight="tall" noOfLines={1}>
               {summary}
             </Text>
-            <ReadHint small />
           </VStack>
           <Box alignSelf="center" color="gray.300" flexShrink={0} aria-hidden>
             <FaChevronRight size={14} />
@@ -160,20 +158,10 @@ export default function EducationNewsListItem({
 
 function MetaLine({ article, small }: { article: EducationArticle; small?: boolean }) {
   return (
-    <Text fontSize={small ? '2xs' : 'xs'} color="gray.400" fontWeight="medium">
+    <Text fontSize={small ? '2xs' : 'xs'} color="gray.400" fontWeight="medium" noOfLines={1}>
       {article.source.name}
       {' · '}
       {timeAgo(article.publishedAt)}
-      {article.readTimeMinutes ? ` · ${article.readTimeMinutes} min` : ''}
     </Text>
-  );
-}
-
-function ReadHint({ small }: { small?: boolean }) {
-  return (
-    <HStack spacing={1} mt={small ? 1 : 2} color="blue.600" fontWeight="semibold" fontSize={small ? '2xs' : 'xs'}>
-      <FaBookOpen size={small ? 11 : 13} aria-hidden />
-      <Text>Tap to open story</Text>
-    </HStack>
   );
 }

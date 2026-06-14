@@ -2,9 +2,15 @@
  * RSS + lightweight HTML scraping for kid education news (no external news API).
  */
 
+const crypto = require('crypto');
 const Parser = require('rss-parser');
 const cheerio = require('cheerio');
 const { EDUCATION_CATEGORIES } = require('./educationNewsCategories');
+
+function buildArticleId(categoryId, link) {
+  const hash = crypto.createHash('sha256').update(link).digest('base64url').slice(0, 22);
+  return `${categoryId}_${hash}`;
+}
 
 const parser = new Parser({
   timeout: 12000,
@@ -89,7 +95,7 @@ function normalizeItem(item, categoryId, sourceName) {
   const description = rawDesc.slice(0, 320);
 
   return {
-    id: `${categoryId}_${Buffer.from(link).toString('base64url').slice(0, 16)}`,
+    id: buildArticleId(categoryId, link),
     category: categoryId,
     title,
     description,
@@ -189,14 +195,16 @@ async function scrapeCategory(categoryId, { maxItems = 24, bypassCache = false }
   const feedResults = await Promise.all(feeds.map(fetchFeed));
   const wikiArticles = await fetchWikipediaSummaries(categoryId, 5);
 
-  const seen = new Set();
+  const seenUrls = new Set();
+  const seenIds = new Set();
   const articles = [];
 
   for (const feed of feedResults) {
     for (const item of feed.items) {
       const normalized = normalizeItem(item, categoryId, feed.title);
-      if (!normalized || seen.has(normalized.url)) continue;
-      seen.add(normalized.url);
+      if (!normalized || seenUrls.has(normalized.url) || seenIds.has(normalized.id)) continue;
+      seenUrls.add(normalized.url);
+      seenIds.add(normalized.id);
       articles.push(normalized);
       if (articles.length >= maxItems) break;
     }
@@ -204,8 +212,9 @@ async function scrapeCategory(categoryId, { maxItems = 24, bypassCache = false }
   }
 
   for (const w of wikiArticles) {
-    if (!seen.has(w.url)) {
-      seen.add(w.url);
+    if (!seenUrls.has(w.url) && !seenIds.has(w.id)) {
+      seenUrls.add(w.url);
+      seenIds.add(w.id);
       articles.push(w);
     }
   }
@@ -233,6 +242,7 @@ async function scrapeAllCategories({ maxPerCategory = 8 } = {}) {
 }
 
 module.exports = {
+  buildArticleId,
   scrapeCategory,
   scrapeAllCategories,
 };

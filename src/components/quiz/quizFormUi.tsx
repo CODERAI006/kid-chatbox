@@ -19,11 +19,13 @@ export const QuizPill = ({
   active,
   onClick,
   cs = 'blue',
+  fullWidth = false,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
   cs?: string;
+  fullWidth?: boolean;
 }) => (
   <Button
     size={{ base: 'xs', sm: 'sm' }}
@@ -32,9 +34,14 @@ export const QuizPill = ({
     borderRadius="full"
     onClick={onClick}
     fontWeight={active ? 'bold' : 'normal'}
-    flexShrink={0}
+    flexShrink={fullWidth ? undefined : 0}
+    w={fullWidth ? '100%' : undefined}
     fontSize={{ base: '2xs', sm: 'xs' }}
-    px={{ base: 2, sm: 3 }}
+    px={{ base: 1.5, sm: 2 }}
+    minW={0}
+    whiteSpace="nowrap"
+    overflow="hidden"
+    textOverflow="ellipsis"
   >
     {label}
   </Button>

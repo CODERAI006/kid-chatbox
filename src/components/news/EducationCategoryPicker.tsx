@@ -1,4 +1,4 @@
-import { Box, HStack } from '@/shared/design-system';
+import { Box, SimpleGrid } from '@/shared/design-system';
 import { QuizPill, QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import type { EducationCategory, EducationNewsCategoryId } from '@/types/educationNews';
 
@@ -14,6 +14,19 @@ const CS_MAP: Record<string, string> = {
   indigo: 'purple',
 };
 
+/** Short labels so all 9 topics fit in two rows without scrolling. */
+const SHORT_LABEL: Partial<Record<EducationNewsCategoryId, string>> = {
+  science: 'Science',
+  history: 'History',
+  geography: 'Geography',
+  current_affairs: 'News',
+  technology: 'Tech',
+  sports: 'Sports',
+  environment: 'Nature',
+  arts_culture: 'Arts',
+  general_knowledge: 'GK',
+};
+
 interface Props {
   categories: EducationCategory[];
   activeId: EducationNewsCategoryId;
@@ -24,25 +37,21 @@ export default function EducationCategoryPicker({ categories, activeId, onSelect
   return (
     <Box minW={0}>
       <QuizSectionLabel>Browse by topic</QuizSectionLabel>
-      <Box
-        overflowX="auto"
-        pb={1}
-        mx={{ base: -1, md: 0 }}
-        px={{ base: 1, md: 0 }}
-        css={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}
-      >
-        <HStack spacing={2} flexWrap={{ base: 'nowrap', lg: 'wrap' }} w="max-content" maxW="100%">
-          {categories.map((c) => (
+      <SimpleGrid columns={5} spacing={{ base: 1.5, md: 2 }} w="100%">
+        {categories.map((c) => {
+          const short = SHORT_LABEL[c.id] || c.label.split(' ')[0];
+          return (
             <QuizPill
               key={c.id}
-              label={`${c.icon} ${c.label}`}
+              label={`${c.icon} ${short}`}
               active={c.id === activeId}
               onClick={() => onSelect(c.id)}
               cs={CS_MAP[c.color] || 'blue'}
+              fullWidth
             />
-          ))}
-        </HStack>
-      </Box>
+          );
+        })}
+      </SimpleGrid>
     </Box>
   );
 }

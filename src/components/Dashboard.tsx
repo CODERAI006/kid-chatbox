@@ -23,9 +23,12 @@ import { PullToRefresh } from './PullToRefresh';
 import { WordOfTheDay } from './WordOfTheDay';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { isAppAdmin } from '@/utils/userAccess';
-import { type SuggestedTopicItem } from '@/components/dashboard/SuggestedTopicsCard';
 import { type RecentStudyItem } from '@/components/dashboard/MyStudyCard';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
+import {
+  SuggestedTopicsCard,
+  type SuggestedTopicItem,
+} from '@/components/dashboard/SuggestedTopicsCard';
 import { ActionTile } from '@/components/dashboard/ActionTile';
 import { type PlanInfo } from '@/components/dashboard/PlanSummaryCard';
 import { YourPlanPanel } from '@/components/dashboard/YourPlanPanel';
@@ -201,13 +204,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   canShowAiStudy={canShowAiStudy}
                   canStudy={!planInfo || planInfo.limits.remainingTopics > 0}
                   onStudyClick={goStudy}
-                  suggestedTopics={analytics ? suggestedTopicItems : undefined}
-                  hasQuizHistory={analytics ? analytics.total_quizzes > 0 : false}
                 />
               )}
               <UpcomingTestsSidebar planInfo={planInfo} />
             </VStack>
           </Box>
+
+          {analytics && (
+            <SuggestedTopicsCard
+              items={suggestedTopicItems}
+              hasQuizHistory={analytics.total_quizzes > 0}
+            />
+          )}
 
           {analytics && analytics.recent_activities.length > 0 && (
             <RecentActivityCard items={analytics.recent_activities} />

@@ -1,5 +1,5 @@
 /**
- * Compact topic card for dashboard suggested-topics grid.
+ * Compact topic row — matches RecentActivityCard row density.
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -8,10 +8,10 @@ import {
   Text,
   Badge,
   Progress,
-  Button,
+  HStack,
+  VStack,
   useColorModeValue,
 } from '@/shared/design-system';
-import { FiBookOpen } from 'react-icons/fi';
 
 export interface SuggestedTopicItem {
   name: string;
@@ -19,93 +19,66 @@ export interface SuggestedTopicItem {
   rank: number;
 }
 
-interface ScoreMeta {
-  label: string;
-  colorScheme: string;
-  progress: number;
+function scoreColorScheme(score?: number): string {
+  if (score === undefined) return 'orange';
+  if (score >= 70) return 'green';
+  if (score >= 50) return 'yellow';
+  return 'orange';
 }
 
-interface SuggestedTopicMiniCardProps {
+interface SuggestedTopicRowProps {
   item: SuggestedTopicItem;
-  meta: ScoreMeta;
-  compact?: boolean;
 }
 
-export function SuggestedTopicMiniCard({ item, meta, compact = false }: SuggestedTopicMiniCardProps) {
+export function SuggestedTopicRow({ item }: SuggestedTopicRowProps) {
   const navigate = useNavigate();
-  const titleColor = useColorModeValue('blue.700', 'blue.300');
   const subtitleColor = useColorModeValue('gray.600', 'gray.400');
-  const rowBg = useColorModeValue('white', 'gray.800');
   const rowBorder = useColorModeValue('gray.200', 'gray.600');
-  const isTop = item.rank === 1;
+  const rowHoverBg = useColorModeValue('blue.50', 'whiteAlpha.50');
+  const scheme = scoreColorScheme(item.score);
 
   return (
-    <Box
-      p={compact ? 3 : 4}
-      borderRadius="lg"
-      bg={rowBg}
+    <HStack
+      justify="space-between"
+      flexWrap="wrap"
+      spacing={3}
+      alignItems={{ base: 'start', sm: 'center' }}
+      p={2}
+      borderRadius="md"
       borderWidth="1px"
-      borderColor={isTop ? 'blue.300' : rowBorder}
-      boxShadow={isTop ? 'sm' : 'none'}
-      h="100%"
-      display="flex"
-      flexDirection="column"
+      borderColor={rowBorder}
+      cursor="pointer"
+      transition="background 0.15s"
+      _hover={{ bg: rowHoverBg }}
+      onClick={() => navigate('/study#ai-study')}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && navigate('/study#ai-study')}
+      aria-label={`Study ${item.name}`}
     >
-      <Box flex={1}>
-        <Badge
-          colorScheme={isTop ? 'blue' : 'gray'}
-          fontSize="2xs"
-          mb={2}
-          borderRadius="full"
-          px={2}
-        >
-          #{item.rank}
-        </Badge>
-        <Text
-          fontSize="sm"
-          fontWeight="semibold"
-          color={titleColor}
-          noOfLines={2}
-          lineHeight="short"
-          mb={1}
-        >
-          {item.name}
-        </Text>
-        <Badge colorScheme={meta.colorScheme} fontSize="2xs" mb={2}>
-          {meta.label}
-        </Badge>
-        {item.score !== undefined && (
-          <>
-            <Text fontSize="lg" fontWeight="bold" color={`${meta.colorScheme}.500`} mb={1}>
-              {item.score}%
-            </Text>
-            <Progress
-              value={meta.progress}
-              size="xs"
-              colorScheme={meta.colorScheme}
-              borderRadius="full"
-              mb={2}
-            />
-          </>
-        )}
-        {!compact && (
-          <Text fontSize="xs" color={subtitleColor} noOfLines={2}>
-            {item.score !== undefined && item.score < 50
-              ? 'Focus here first — score below 50%'
-              : 'A little more practice will help'}
+      <VStack align="start" spacing={0} flex={1} minW="120px">
+        <HStack spacing={2}>
+          <Badge colorScheme={item.rank === 1 ? 'blue' : 'gray'} fontSize="2xs">
+            #{item.rank}
+          </Badge>
+          <Text fontWeight="semibold" fontSize="sm" noOfLines={1}>
+            {item.name}
+          </Text>
+        </HStack>
+        {item.score === undefined && (
+          <Text fontSize="xs" color={subtitleColor} noOfLines={1}>
+            Tap to review
           </Text>
         )}
-      </Box>
-      <Button
-        size="xs"
-        mt={3}
-        w="full"
-        colorScheme="blue"
-        leftIcon={<FiBookOpen />}
-        onClick={() => navigate('/study#ai-study')}
-      >
-        Study
-      </Button>
-    </Box>
+      </VStack>
+      {item.score !== undefined && (
+        <Box width={{ base: '100%', sm: '100px' }} flexShrink={0}>
+          <Progress value={item.score} size="sm" colorScheme={scheme} borderRadius="md" />
+          <Text fontSize="xs" fontWeight="bold" mt={1} color={subtitleColor}>
+            {item.score}%
+          </Text>
+        </Box>
+      )}
+    </HStack>
   );
 }

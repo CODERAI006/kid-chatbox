@@ -24,18 +24,14 @@ import type {
 
 const PAGE_SIZE = 8;
 
-function formatCacheLabel(date?: string) {
-  if (!date) return "Today's edition";
-  try {
-    return new Date(date + 'T12:00:00').toLocaleDateString('en-IN', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return "Today's edition";
-  }
+function dedupeArticles(items: EducationArticle[]): EducationArticle[] {
+  const seen = new Set<string>();
+  return items.filter((article) => {
+    const key = article.id || article.url;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export default function EducationTopicsPanel() {
@@ -51,8 +47,6 @@ export default function EducationTopicsPanel() {
   const [totalResults, setTotalResults] = useState(0);
   const [activeCategory, setActiveCategory] = useState<EducationCategory | null>(null);
   const [search, setSearch] = useState('');
-  const [cachedDate, setCachedDate] = useState<string>();
-  const [fromCache, setFromCache] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -83,12 +77,10 @@ export default function EducationTopicsPanel() {
         forceRefresh,
       });
       if (res.success) {
-        setArticles((prev) => (append ? [...prev, ...res.articles] : res.articles));
+        setArticles((prev) => dedupeArticles(append ? [...prev, ...res.articles] : res.articles));
         setTotalResults(res.totalResults);
         setActiveCategory(res.category);
         setPage(pageNum);
-        setCachedDate(res.cachedDate);
-        setFromCache(res.fromCache ?? true);
       } else {
         setError(res.message || 'Could not load stories for this topic.');
       }
@@ -137,50 +129,36 @@ export default function EducationTopicsPanel() {
   return (
     <VStack align="stretch" spacing={{ base: 4, md: 5 }} w="100%" minW={0}>
       <Box
-        p={{ base: 3, md: 5 }}
+        p={{ base: 3, md: 4 }}
         borderRadius={{ base: 'xl', md: '2xl' }}
         bgGradient="linear(to-br, blue.500, blue.600, cyan.500)"
         color="white"
         boxShadow="md"
       >
-        <VStack align="stretch" spacing={3}>
-          <Box>
+        <HStack justify="space-between" align="center" spacing={3}>
+          <Box flex={1} minW={0}>
             <Text fontSize={{ base: 'sm', md: 'md' }} fontWeight="extrabold">
               Stories for curious learners
             </Text>
-            <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="blue.50" mt={1}>
-              AI-curated from trusted feeds — science, history, geography &amp; more.
+            <Text fontSize={{ base: '2xs', sm: 'xs' }} color="blue.50" mt={0.5} noOfLines={1}>
+              Pick a topic below — tap any story to read in-app.
             </Text>
           </Box>
-          <HStack flexWrap="wrap" gap={2} justify="space-between" align={{ base: 'stretch', sm: 'center' }}>
-            <HStack
-              spacing={2}
-              bg="whiteAlpha.200"
-              borderRadius="lg"
-              px={3}
-              py={1.5}
-              fontSize={{ base: '2xs', sm: 'xs' }}
-              fontWeight="semibold"
-            >
-              <Text aria-hidden>📅</Text>
-              <Text>{formatCacheLabel(cachedDate)}</Text>
-              {fromCache && !refreshing && <Text opacity={0.85}>· saved edition</Text>}
-            </HStack>
-            <Button
-              size="sm"
-              bg="whiteAlpha.250"
-              color="white"
-              _hover={{ bg: 'whiteAlpha.400' }}
-              leftIcon={<Text aria-hidden>🔄</Text>}
-              onClick={() => fetchArticles(activeId, 1, { forceRefresh: true })}
-              isLoading={refreshing}
-              loadingText="Refreshing"
-              flexShrink={0}
-            >
-              Refresh stories
-            </Button>
-          </HStack>
-        </VStack>
+          <Button
+            size="sm"
+            bg="whiteAlpha.250"
+            color="white"
+            _hover={{ bg: 'whiteAlpha.400' }}
+            aria-label="Refresh stories"
+            onClick={() => fetchArticles(activeId, 1, { forceRefresh: true })}
+            isLoading={refreshing}
+            flexShrink={0}
+            minW="auto"
+            px={3}
+          >
+            🔄
+          </Button>
+        </HStack>
       </Box>
 
       <EducationCategoryPicker
@@ -188,13 +166,6 @@ export default function EducationTopicsPanel() {
         activeId={activeId}
         onSelect={(id) => { setActiveId(id); setPage(1); }}
       />
-
-      {cat && (
-        <Text fontSize={{ base: 'xs', sm: 'sm' }} color="gray.500">
-          {cat.icon} <Text as="span" fontWeight="semibold" color="gray.700">{cat.label}</Text>
-          {' — '}{cat.description}
-        </Text>
-      )}
 
       {!loading && articles.length > 0 && (
         <Box minW={0}>
