@@ -14,6 +14,7 @@ import { WordOfDayDashboardList } from './wordOfDay/WordOfDayDashboardList';
 import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
 import FactsAndFunPreview from './facts/FactsAndFunPreview';
 import { MESSAGES } from '@/constants/app';
+import { prefetchWordOfDayDetails } from '@/utils/wordOfDayDetailCache';
 
 const toYMD = (d: Date): string => {
   const y = d.getFullYear();
@@ -62,12 +63,26 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as WordOfDayResponse;
-        if (parsed?.words?.length) { setData(parsed); setLoading(false); return; }
+        if (parsed?.words?.length) {
+          setData(parsed);
+          setLoading(false);
+          void prefetchWordOfDayDetails(
+            parsed.words.map((w) => w.word),
+            parsed.date,
+            parsed.grade,
+          );
+          return;
+        }
       }
       const response = await publicApi.getWordsOfTheDay(dateStr, gradeLabel);
       if (response.success && response.words?.length > 0) {
         setData(response);
         try { sessionStorage.setItem(cacheKey, JSON.stringify(response)); } catch { /* ignore */ }
+        void prefetchWordOfDayDetails(
+          response.words.map((w) => w.word),
+          response.date,
+          response.grade,
+        );
       } else {
         setError(true);
       }

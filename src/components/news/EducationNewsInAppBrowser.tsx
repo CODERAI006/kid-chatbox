@@ -19,6 +19,7 @@ import {
 import { FaExternalLinkAlt } from 'react-icons/fa';
 import { FiArrowLeft } from 'react-icons/fi';
 import type { EducationArticle, EducationCategory } from '@/types/educationNews';
+import { getInitialReaderMode, isEmbeddableArticleUrl } from '@/utils/articleEmbed';
 
 const LOAD_TIMEOUT_MS = 8000;
 
@@ -37,12 +38,13 @@ function buildSummaryBody(article: EducationArticle): string[] {
 }
 
 export default function EducationNewsInAppBrowser({ article, category, onClose }: Props) {
-  const [viewMode, setViewMode] = useState<ViewMode>('iframe');
-  const [iframeLoading, setIframeLoading] = useState(true);
-  const [loadSlow, setLoadSlow] = useState(false);
-
   const summaryParagraphs = useMemo(() => buildSummaryBody(article), [article]);
   const hasSummary = summaryParagraphs.length > 0 || (article.keyPoints?.length ?? 0) > 0;
+  const canEmbed = isEmbeddableArticleUrl(article.url);
+
+  const [viewMode, setViewMode] = useState<ViewMode>(() => getInitialReaderMode(article.url));
+  const [iframeLoading, setIframeLoading] = useState(canEmbed);
+  const [loadSlow, setLoadSlow] = useState(false);
 
   const resetLoadState = useCallback(() => {
     setIframeLoading(true);
@@ -56,8 +58,10 @@ export default function EducationNewsInAppBrowser({ article, category, onClose }
   }, []);
 
   useEffect(() => {
+    const mode = getInitialReaderMode(article.url);
+    setViewMode(mode);
     resetLoadState();
-    setViewMode('iframe');
+    setIframeLoading(mode === 'iframe' && isEmbeddableArticleUrl(article.url));
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
@@ -126,7 +130,7 @@ export default function EducationNewsInAppBrowser({ article, category, onClose }
             </Text>
           </Box>
           <HStack spacing={1} flexShrink={0}>
-            {hasSummary && viewMode === 'iframe' && (
+            {hasSummary && viewMode === 'iframe' && canEmbed && (
               <Button
                 size="xs"
                 variant="ghost"
@@ -137,7 +141,7 @@ export default function EducationNewsInAppBrowser({ article, category, onClose }
                 Summary
               </Button>
             )}
-            {viewMode === 'summary' && (
+            {viewMode === 'summary' && canEmbed && (
               <Button
                 size="xs"
                 variant="ghost"
@@ -170,7 +174,9 @@ export default function EducationNewsInAppBrowser({ article, category, onClose }
             {loadSlow && (
               <Alert status="info" mb={4} borderRadius="lg" fontSize="sm">
                 <AlertDescription>
-                  This site cannot load inside the app. Here is the story summary instead.
+                  {canEmbed
+                    ? 'This site cannot load inside the app. Here is the story summary instead.'
+                    : 'Google News links open on the publisher site. Here is the in-app summary.'}
                 </AlertDescription>
               </Alert>
             )}

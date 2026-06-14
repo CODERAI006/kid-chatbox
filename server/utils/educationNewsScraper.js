@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const Parser = require('rss-parser');
 const cheerio = require('cheerio');
 const { EDUCATION_CATEGORIES } = require('./educationNewsCategories');
+const { resolveGoogleNewsUrl, isGoogleNewsArticleUrl } = require('./googleNewsUrlDecoder');
 
 function buildArticleId(categoryId, link) {
   const hash = crypto.createHash('sha256').update(link).digest('base64url').slice(0, 22);
@@ -18,6 +19,7 @@ const parser = new Parser({
     item: [
       ['media:content', 'mediaContent', { keepArray: true }],
       ['media:thumbnail', 'mediaThumbnail', { keepArray: true }],
+      ['source', 'feedSource'],
     ],
   },
 });
@@ -86,13 +88,31 @@ function stripHtml(html) {
   return cheerio.load(html).text().replace(/\s+/g, ' ').trim();
 }
 
+function parseFeedSourceName(item, fallback) {
+  const raw = item.feedSource;
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  if (raw?._) return String(raw._).trim();
+  if (raw?.['#']) return String(raw['#']).trim();
+  return fallback;
+}
+
+function cleanGoogleNewsTitle(title, sourceName) {
+  if (!sourceName) return title;
+  const suffix = ` - ${sourceName}`;
+  if (title.endsWith(suffix)) return title.slice(0, -suffix.length).trim();
+  return title;
+}
+
 function normalizeItem(item, categoryId, sourceName) {
-  const title = (item.title || '').trim();
+  const feedSource = parseFeedSourceName(item, sourceName);
+  const rawTitle = (item.title || '').trim();
+  const title = cleanGoogleNewsTitle(rawTitle, feedSource);
   const link = item.link || item.guid || '';
   if (!title || !link) return null;
 
   const rawDesc = item.contentSnippet || stripHtml(item.content) || item.summary || '';
   const description = rawDesc.slice(0, 320);
+  const publisher = feedSource || sourceName || 'Education Feed';
 
   return {
     id: buildArticleId(categoryId, link),
@@ -102,8 +122,8 @@ function normalizeItem(item, categoryId, sourceName) {
     summary: description,
     url: link,
     urlToImage: pickImage(item),
-    source: { id: null, name: sourceName || 'Education Feed' },
-    author: item.creator || item.author || sourceName || 'Editor',
+    source: { id: null, name: publisher },
+    author: item.creator || item.author || publisher || 'Editor',
     publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
     content: null,
     funFact: null,
@@ -111,6 +131,16 @@ function normalizeItem(item, categoryId, sourceName) {
     kidSummary: null,
     readTimeMinutes: Math.max(2, Math.ceil(description.split(/\s+/).length / 120)),
   };
+}
+
+async function resolvePublisherUrls(articles, maxResolve = 8) {
+  const pending = articles.filter((a) => isGoogleNewsArticleUrl(a.url)).slice(0, maxResolve);
+  await Promise.all(pending.map(async (article) => {
+    const resolved = await resolveGoogleNewsUrl(article.url);
+    if (!resolved || resolved === article.url) return;
+    article.url = resolved;
+    article.id = buildArticleId(article.category, resolved);
+  }));
 }
 
 async function fetchFeed(url) {
@@ -220,6 +250,8 @@ async function scrapeCategory(categoryId, { maxItems = 24, bypassCache = false }
   }
 
   articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+  await resolvePublisherUrls(articles);
 
   const needImages = articles.filter((a) => !a.urlToImage).slice(0, 6);
   await Promise.all(needImages.map(async (a) => {

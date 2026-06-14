@@ -90,7 +90,7 @@ async function buildDailyPayload(date, gradeLabel, complexity) {
   const phrases = await generateDailyPhrases(date, gradeLabel, complexity, theme);
   const normalizedPhrases = phrases.map((p, i) => normalizePhrase(p, cacheDate, i + 1));
 
-  return {
+  const payload = {
     success: true,
     date: cacheDate,
     grade: gradeLabel,
@@ -103,6 +103,51 @@ async function buildDailyPayload(date, gradeLabel, complexity) {
     cached: false,
     sharedAcrossClasses: false,
   };
+
+  await pregenerateWordDetails(payload, cacheDate, gradeLabel, complexity);
+  return payload;
+}
+
+async function pregenerateWordDetails(daily, cacheDate, gradeLabel, complexity) {
+  if (!daily?.words?.length) return { built: 0, total: 0 };
+
+  const config = await getConfig();
+  const wordTexts = daily.words
+    .map((w) => String(w.word || '').trim().toLowerCase())
+    .filter(Boolean);
+
+  let built = 0;
+  await Promise.all(
+    wordTexts.map(async (word) => {
+      const detailKey = detailCacheKey(gradeLabel, word);
+      const cachedDetail = await readCache(detailKey, cacheDate);
+      if (cachedDetail?.word) return;
+
+      try {
+        const enriched = await enrichWord(word, complexity, true, gradeLabel, cacheDate, {
+          showQuiz: config.showQuiz,
+          showFunChallenge: config.showFunChallenge,
+        });
+        await writeCache(detailKey, cacheDate, {
+          success: true,
+          date: cacheDate,
+          grade: gradeLabel,
+          complexity,
+          theme: daily.theme || null,
+          word: enriched,
+          phrases: daily.phrases || [],
+          cached: false,
+          sharedAcrossClasses: false,
+        });
+        built += 1;
+        console.log(`[wordOfDayService] preloaded detail "${word}" @ ${cacheDate} (${gradeLabel})`);
+      } catch (err) {
+        console.error(`[wordOfDayService] detail preload "${word}" failed:`, err.message);
+      }
+    }),
+  );
+
+  return { built, total: wordTexts.length };
 }
 
 async function getDailyPayload(dateInput, grade) {
@@ -125,7 +170,9 @@ async function getDailyPayload(dateInput, grade) {
     const phrases = (cached.phrases || []).map((p, i) =>
       p.id ? p : normalizePhrase(p, cacheDate, i + 1),
     );
-    return { ...cached, grade: gradeLabel, complexity, phrases, cached: true };
+    const payload = { ...cached, grade: gradeLabel, complexity, phrases, cached: true };
+    void pregenerateWordDetails(payload, cacheDate, gradeLabel, complexity);
+    return payload;
   }
 
   const body = await buildDailyPayload(date, gradeLabel, complexity);
@@ -193,20 +240,43 @@ async function pregenerateForDate(dateInput) {
   const enabled = settings.filter((s) => s.enabled);
 
   let built = 0;
+  let detailsBuilt = 0;
   for (const row of enabled) {
     const key = gradeCacheKey(row.grade);
     const existing = await readCache(key, cacheDate);
-    if (existing?.words?.length) continue;
     try {
-      await getDailyPayload(cacheDate, row.grade);
-      built += 1;
-      console.log(`[wordOfDayService] pregenerated ${row.grade} @ ${cacheDate}`);
+      const daily = existing?.words?.length
+        ? {
+            ...existing,
+            grade: row.grade,
+            complexity: row.complexity || (await getComplexityForGrade(row.grade)) || 'intermediate',
+          }
+        : await getDailyPayload(cacheDate, row.grade);
+
+      if (!existing?.words?.length) {
+        built += 1;
+        console.log(`[wordOfDayService] pregenerated ${row.grade} @ ${cacheDate}`);
+      }
+
+      const detailResult = await pregenerateWordDetails(
+        daily,
+        cacheDate,
+        daily.grade || row.grade,
+        daily.complexity || row.complexity || 'intermediate',
+      );
+      detailsBuilt += detailResult.built;
     } catch (err) {
       console.error(`[wordOfDayService] pregenerate ${row.grade} failed:`, err.message);
     }
   }
 
-  return { cacheDate, built, total: enabled.length, skipped: built === 0 };
+  return {
+    cacheDate,
+    built,
+    detailsBuilt,
+    total: enabled.length,
+    skipped: built === 0 && detailsBuilt === 0,
+  };
 }
 
 async function listPhraseArchiveDates(grade, limit = 30) {
@@ -255,6 +325,7 @@ module.exports = {
   resolveGradeLabel,
   getDailyPayload,
   getWordDetail,
+  pregenerateWordDetails,
   pregenerateForDate,
   listPhraseArchiveDates,
   listPhrasesArchive,

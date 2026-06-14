@@ -13,6 +13,7 @@ import type { WordOfDayResponse } from '@/types/wordOfDay';
 import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
 import { WordOfDayQuiz } from './wordOfDay/WordOfDayQuiz';
 import { MESSAGES } from '@/constants/app';
+import { readWordDetailCache, writeWordDetailCache } from '@/utils/wordOfDayDetailCache';
 
 export const WordOfDayDetailPage: React.FC = () => {
   const { word } = useParams<{ word: string }>();
@@ -21,17 +22,33 @@ export const WordOfDayDetailPage: React.FC = () => {
   const date = searchParams.get('date') || '';
   const grade = searchParams.get('grade') || 'Class 5 / Grade 5';
 
-  const [data, setData] = useState<WordOfDayResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<WordOfDayResponse | null>(() => {
+    if (!word) return null;
+    return readWordDetailCache(word, date, grade);
+  });
+  const [loading, setLoading] = useState(() => {
+    if (!word) return true;
+    return !readWordDetailCache(word, date, grade);
+  });
   const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     if (!word) return;
+
+    const cached = readWordDetailCache(word, date, grade);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
     setLoading(true);
     setError(false);
     try {
       const response = await publicApi.getWordOfDayDetail(word, date, grade);
       if (response.success && response.word) {
+        writeWordDetailCache(word, date, grade, response);
         setData(response);
       } else {
         setError(true);
