@@ -1188,6 +1188,60 @@ export const publicApi = {
     }
   },
 
+  getExpressionDates: async (
+    grade?: string,
+    limit = 30,
+  ): Promise<import('@/types/wordOfDay').DailyPhrasesDatesResponse> => {
+    try {
+      const response = await apiClient.get('/public/words-of-day/phrases/dates', {
+        params: { grade, limit },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get expression dates:', error);
+      return { success: false, grade: grade || '', dates: [] };
+    }
+  },
+
+  getExpressionsArchive: async (
+    grade?: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      context?: string;
+      untilDate?: string;
+    },
+  ): Promise<import('@/types/wordOfDay').DailyPhrasesArchiveResponse> => {
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 20;
+    try {
+      const response = await apiClient.get('/public/words-of-day/phrases/archive', {
+        params: {
+          grade,
+          page,
+          limit,
+          context: options?.context,
+          untilDate: options?.untilDate,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get expressions archive:', error);
+      return {
+        success: false,
+        grade: grade || '',
+        untilDate: options?.untilDate || '',
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
+        items: [],
+        message: 'Failed to load expressions archive',
+      };
+    }
+  },
+
   /** Facts & Fun — 10 facts/day (shared across classes), one AI call saved in DB */
   getDailyFacts: async (
     date?: string,

@@ -5,7 +5,7 @@
 const { pool } = require('../config/database');
 const { DEFAULT_COMPLEXITY } = require('../scripts/migrate-word-of-day-settings');
 
-const VALID_COMPLEXITIES = ['basic', 'intermediate', 'advanced'];
+const VALID_COMPLEXITIES = ['basic', 'intermediate', 'advanced', 'expert'];
 
 function defaultComplexityForGrade(grade) {
   return DEFAULT_COMPLEXITY[grade] || 'basic';

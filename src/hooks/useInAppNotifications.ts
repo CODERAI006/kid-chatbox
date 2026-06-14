@@ -1,5 +1,5 @@
 /**
- * Polls in-app notifications and surfaces toasts + chime for new buddy events.
+ * Polls in-app notifications and surfaces toasts + chime for buddy and admin login events.
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/shared/design-system';
@@ -9,6 +9,7 @@ import type { UserNotification } from '@/types/notification';
 
 const POLL_MS = 30_000;
 const STORAGE_KEY = 'guru_seen_notification_ids';
+const TOAST_TYPES = new Set(['buddy_request', 'buddy_quiz_share', 'user_login']);
 
 function loadSeenIds(): Set<string> {
   try {
@@ -49,7 +50,7 @@ export function useInAppNotifications({ enabled = true }: Options = {}) {
       toast({
         title: item.title,
         description: item.body || undefined,
-        status: item.type === 'buddy_request' ? 'info' : 'success',
+        status: item.type === 'buddy_request' ? 'info' : item.type === 'user_login' ? 'warning' : 'success',
         duration: 10000,
         isClosable: true,
         position: 'top-right',
@@ -63,16 +64,14 @@ export function useInAppNotifications({ enabled = true }: Options = {}) {
     checkingRef.current = true;
     try {
       const { notifications } = await notificationsApi.list({ limit: 10, unreadOnly: true });
-      const buddyNotes = notifications.filter(
-        (n) => n.type === 'buddy_request' || n.type === 'buddy_quiz_share'
-      );
+      const toastNotes = notifications.filter((n) => TOAST_TYPES.has(n.type));
       if (!seededRef.current) {
-        buddyNotes.forEach((n) => seenRef.current.add(n.id));
+        toastNotes.forEach((n) => seenRef.current.add(n.id));
         saveSeenIds(seenRef.current);
         seededRef.current = true;
         return;
       }
-      buddyNotes.forEach(notifyNew);
+      toastNotes.forEach(notifyNew);
     } catch {
       /* silent when logged out or offline */
     } finally {

@@ -7,6 +7,7 @@ interface NewsPaginationProps {
   pageSize: number;
   loading: boolean;
   onPageChange: (page: number) => void;
+  itemLabel?: string;
 }
 
 function buildPages(current: number, total: number): (number | -1)[] {
@@ -28,6 +29,7 @@ export default function NewsPagination({
   pageSize,
   loading,
   onPageChange,
+  itemLabel = 'stories',
 }: NewsPaginationProps) {
   if (totalPages <= 1) return null;
 
@@ -51,7 +53,7 @@ export default function NewsPagination({
         <Text as="span" fontWeight="bold" color="blue.600">{to}</Text>
         {' of '}
         <Text as="span" fontWeight="bold" color="purple.600">{totalResults}</Text>
-        {' stories'}
+        {' '}{itemLabel}
       </Text>
 
       <HStack justify="center" flexWrap="wrap" gap={2}>

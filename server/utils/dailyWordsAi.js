@@ -33,7 +33,7 @@ function parseWordsJson(raw) {
  * @param {'basic'|'intermediate'|'advanced'} complexity
  * @returns {Promise<string[]>}
  */
-async function generateDailyWords(date, gradeLabel, complexity) {
+async function generateDailyWords(date, gradeLabel, complexity, theme = null) {
   const fallback = getWordsForDate(date, gradeLabel, complexity);
   if (!isLlmConfigured()) return fallback;
 
@@ -44,6 +44,8 @@ async function generateDailyWords(date, gradeLabel, complexity) {
   ].join('-');
 
   const cbse = getCbseVocabularyGuidance(gradeLabel, complexity);
+  const { themePromptBlock } = require('./wordOfDayThemes');
+  const themeBlock = theme ? `\n${themePromptBlock(theme)}\n` : '';
 
   try {
     const prompt = `Pick exactly ${WORD_COUNT} English vocabulary words for ${cbse.classLevel} students (about age ${cbse.age}) studying on the CBSE board in India.
@@ -52,14 +54,14 @@ Source: ${cbse.bookRef}
 Word style: ${cbse.wordStyle}
 Difficulty: ${complexity}
 Example level (do NOT copy these): ${cbse.examples}
-
+${themeBlock}
 Rules:
 - Words must appear in or match the level of NCERT/CBSE textbook passages, poems, or chapter glossaries for this class.
-- Prefer words students can use when speaking, writing, presenting, or discussing in class (e.g. explain, describe, persuade, clarify, express, suggest, agree, disagree).
-- One word per line of learning — mix a noun, verb, or adjective where possible.
+- Prefer words students can use when speaking, writing, presenting, or discussing in class.
+- Mix part of speech where possible (noun, verb, adjective).
 - No proper nouns, slang, or words far above this class level.
-- All ${WORD_COUNT} words must be different from each other.
-- Date seed ${dateStr} — vary choices day to day; avoid the most obvious classroom clichés.
+- All ${WORD_COUNT} words must be different from each other and thematically connected.
+- Date seed ${dateStr} — vary choices day to day.
 
 Return ONLY a JSON array of lowercase strings, e.g. ["habitat", "observe", "generous"]`;
 

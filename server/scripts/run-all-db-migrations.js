@@ -22,6 +22,7 @@ const { migrateOllamaCloudSettings } = require('./migrate-ollama-cloud-settings'
 const { migrateStudyPlan } = require('./migrate-study-plan');
 const { migrateCompetitiveTopics } = require('./migrate-competitive-topics');
 const { migrateWordOfDaySettings } = require('./migrate-word-of-day-settings');
+const { migrateWordOfDayConfig } = require('./migrate-word-of-day-config');
 const { migrateEducationNews } = require('./migrate-education-news');
 const { migrateNewsPipeline } = require('./migrate-news-pipeline');
 const { migrateDailyFacts } = require('./migrate-daily-facts');
@@ -47,6 +48,7 @@ async function runAllDbMigrations() {
   await migrateStudyPlan();
   await migrateCompetitiveTopics();
   await migrateWordOfDaySettings();
+  await migrateWordOfDayConfig();
   await migrateEducationNews();
   await migrateNewsPipeline();
   await migrateDailyFacts();

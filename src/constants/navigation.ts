@@ -24,7 +24,7 @@ import {
   FiUsers,
 } from 'react-icons/fi';
 
-export type NavAction = 'feedback';
+export type NavAction = 'feedback' | 'install';
 
 export type AppNavItem = {
   /** Stable route id (admin path or consumer path). */

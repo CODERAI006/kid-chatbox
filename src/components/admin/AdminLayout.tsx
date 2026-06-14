@@ -24,6 +24,8 @@ import {
 import { FiMenu, FiChevronLeft } from 'react-icons/fi';
 import { UpcomingTestsMarquee } from './UpcomingTestsMarquee';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { useInAppNotifications } from '@/hooks/useInAppNotifications';
 import { adminColors } from './adminTokens';
 import {
   APP_NAV_ITEMS,
@@ -44,6 +46,8 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
   const isTableView = ADMIN_TABLE_VIEW_PATHS.has(location.pathname);
   const [sidebarVisible, setSidebarVisible] = useState(() => !isTableView);
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  useInAppNotifications({ enabled: true });
 
   useEffect(() => {
     if (!isMobile) {
@@ -110,9 +114,12 @@ export const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
                 </Text>
               </Box>
             </HStack>
-            <Button size="sm" variant="outline" colorScheme="blue" onClick={() => navigate('/')}>
-              Back to App
-            </Button>
+            <HStack spacing={2}>
+              <NotificationBell enabled />
+              <Button size="sm" variant="outline" colorScheme="blue" onClick={() => navigate('/')}>
+                Back to App
+              </Button>
+            </HStack>
           </HStack>
         </Box>
         <UpcomingTestsMarquee />

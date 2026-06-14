@@ -7,13 +7,55 @@
  */
 
 const express = require('express');
-const { getDailyPayload, getWordDetail } = require('../services/wordOfDayService');
+const {
+  getDailyPayload,
+  getWordDetail,
+  listPhraseArchiveDates,
+  listPhrasesArchive,
+  PHRASES_ARCHIVE_PAGE_SIZE,
+} = require('../services/wordOfDayService');
 
 const router = express.Router();
+
+router.get('/phrases/dates', async (req, res) => {
+  try {
+    const limit = Math.min(60, Math.max(1, parseInt(req.query.limit, 10) || 30));
+    const body = await listPhraseArchiveDates(req.query.grade, limit);
+    res.json(body);
+  } catch (error) {
+    console.error('[words-of-day/phrases/dates]', error.message);
+    res.status(500).json({ success: false, dates: [] });
+  }
+});
+
+router.get('/phrases/archive', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || PHRASES_ARCHIVE_PAGE_SIZE));
+    const body = await listPhrasesArchive(req.query.grade, {
+      page,
+      limit,
+      context: req.query.context,
+      untilDate: req.query.untilDate,
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('[words-of-day/phrases/archive]', error.message);
+    res.status(500).json({
+      success: false,
+      items: [],
+      total: 0,
+      message: 'Failed to load expressions archive',
+    });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
     const body = await getDailyPayload(req.query.date, req.query.grade);
+    if (body.success === false) {
+      return res.status(body.status || 500).json(body);
+    }
     res.json(body);
   } catch (error) {
     console.error('[words-of-day] error:', error.message);

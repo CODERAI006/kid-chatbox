@@ -31,6 +31,7 @@ import { WordOfDaySettingsPage } from '@/components/admin/WordOfDaySettings';
 import { EducationNewsAdminPage } from '@/components/admin/EducationNewsAdmin';
 import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
+import ExpressionsPage from '@/components/ExpressionsPage';
 import NewsFeed from '@/components/NewsFeed';
 import EducationNewsFeed from '@/components/EducationNewsFeed';
 import EducationNewsReader from '@/components/news/EducationNewsReader';
@@ -384,6 +385,16 @@ export const App: React.FC = () => {
                     <StudyLibraryViewer />
                   </StudentLayout>
                 </ModuleAccessGuard>
+              </StudentRoute>
+            }
+          />
+          <Route
+            path="/expressions"
+            element={
+              <StudentRoute>
+                <StudentLayout user={user}>
+                  <ExpressionsPage />
+                </StudentLayout>
               </StudentRoute>
             }
           />

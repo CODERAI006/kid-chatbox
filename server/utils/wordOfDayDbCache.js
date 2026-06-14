@@ -12,9 +12,14 @@ function formatCacheDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-/** One payload per calendar day — shared across all classes (no per-grade AI). */
-function gradeCacheKey(_grade) {
-  return 'wotd_v8_cbse_common';
+/** Per-grade cache key — each class gets age-appropriate vocabulary. */
+function gradeCacheKey(grade) {
+  const slug = String(grade || 'common')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 48);
+  return `wotd_v9_${slug || 'common'}`;
 }
 
 function detailCacheKey(grade, word) {
@@ -60,6 +65,76 @@ async function writeCache(key, cacheDate, payload) {
   }
 }
 
+async function listCachedDates(cacheKey, limit = 30) {
+  try {
+    const r = await pool.query(
+      `SELECT cache_date::text AS date FROM word_of_the_day_cache
+       WHERE word_key = $1
+       ORDER BY cache_date DESC
+       LIMIT $2`,
+      [cacheKey, limit],
+    );
+    return r.rows.map((row) => row.date);
+  } catch (err) {
+    console.error('[wordOfDayCache] list dates failed:', err.message);
+    return [];
+  }
+}
+
+function archivePhrasesWhere(cacheKey, maxDate, context) {
+  const params = [cacheKey, maxDate];
+  let contextClause = '';
+  if (context === 'school' || context === 'daily') {
+    contextClause = `AND elem->>'context' = $3`;
+    params.push(context);
+  }
+  const base = `
+    FROM word_of_the_day_cache d
+    CROSS JOIN LATERAL jsonb_array_elements(d.payload->'phrases') WITH ORDINALITY AS t(elem, ord)
+    WHERE d.word_key = $1
+      AND d.cache_date <= $2::date
+      AND jsonb_typeof(d.payload->'phrases') = 'array'
+      ${contextClause}`;
+  return { base, params };
+}
+
+async function countArchivedPhrases(cacheKey, maxDate, context) {
+  try {
+    const { base, params } = archivePhrasesWhere(cacheKey, maxDate, context);
+    const r = await pool.query(`SELECT COUNT(*)::int AS total ${base}`, params);
+    return r.rows[0]?.total ?? 0;
+  } catch (err) {
+    console.error('[wordOfDayCache] count phrases archive failed:', err.message);
+    return 0;
+  }
+}
+
+async function listArchivedPhrases(cacheKey, maxDate, { page = 1, limit = 20, context } = {}) {
+  try {
+    const safeLimit = Math.min(50, Math.max(1, limit));
+    const safePage = Math.max(1, page);
+    const offset = (safePage - 1) * safeLimit;
+    const { base, params } = archivePhrasesWhere(cacheKey, maxDate, context);
+    const limitIdx = params.length + 1;
+    const offsetIdx = params.length + 2;
+    const r = await pool.query(
+      `SELECT d.cache_date::text AS edition_date, t.elem AS phrase_json, t.ord AS phrase_ord
+       ${base}
+       ORDER BY d.cache_date DESC, t.ord ASC
+       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      [...params, safeLimit, offset],
+    );
+    return r.rows.map((row) => ({
+      editionDate: row.edition_date,
+      phraseOrd: row.phrase_ord,
+      phrase: row.phrase_json,
+    }));
+  } catch (err) {
+    console.error('[wordOfDayCache] list phrases archive failed:', err.message);
+    return [];
+  }
+}
+
 module.exports = {
   formatCacheDate,
   gradeCacheKey,
@@ -67,4 +142,7 @@ module.exports = {
   enrichCacheKey,
   readCache,
   writeCache,
+  listCachedDates,
+  countArchivedPhrases,
+  listArchivedPhrases,
 };

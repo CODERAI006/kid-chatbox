@@ -6,7 +6,7 @@ export default function NewsFeed() {
     <StudentPageLayout
       icon="💡"
       title="Facts & Fun"
-      subtitle="10 facts daily · generated for your class · saved to read anytime"
+      subtitle="10 new facts every day · refreshes after midnight · saved to read anytime"
       accent="orange"
       maxW="1200px"
     >

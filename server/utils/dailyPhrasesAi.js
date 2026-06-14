@@ -32,7 +32,7 @@ function parsePhrasesJson(raw) {
  * @param {'basic'|'intermediate'|'advanced'} complexity
  * @returns {Promise<Array<{phrase:string,meaning:string,example:string,context:string}>>}
  */
-async function generateDailyPhrases(date, gradeLabel, complexity) {
+async function generateDailyPhrases(date, gradeLabel, complexity, theme = null) {
   const fallback = getPhrasesForDate(date, gradeLabel, complexity);
   if (!isLlmConfigured()) return fallback;
 
@@ -43,14 +43,19 @@ async function generateDailyPhrases(date, gradeLabel, complexity) {
   ].join('-');
   const cbse = getCbseVocabularyGuidance(gradeLabel, complexity);
   const levelHint =
-    complexity === 'advanced'
+    complexity === 'expert' || complexity === 'advanced'
       ? 'challenging idioms suitable for CBSE senior secondary learners'
       : complexity === 'intermediate'
         ? 'common idioms for CBSE middle-school learners'
         : 'simple, kid-friendly idioms for younger CBSE learners';
 
+  const themeHint = theme
+    ? `Today's vocabulary theme is "${theme.label}" — prefer expressions related to ${theme.description}`
+    : '';
+
   try {
     const prompt = `Generate exactly ${PHRASE_COUNT} English idioms and expressions for ${cbse.classLevel} CBSE board students (age ~${cbse.age}, ${levelHint}).
+${themeHint}
 Focus on phrases that help students communicate confidently in conversations, group work, presentations, and everyday English.
 Use contexts familiar from NCERT textbooks and Indian school life. Mix school and daily-life settings.
 Each phrase must be usable inside a full sentence.

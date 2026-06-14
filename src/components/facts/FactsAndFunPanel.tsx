@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box,
   Button,
@@ -9,6 +9,7 @@ import {
   Text,
   VStack,
 } from '@/shared/design-system';
+import { useCalendarDay } from '@/hooks/useCalendarDay';
 import { publicApi } from '@/services/api';
 import { QuizPill, QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import FactCard from './FactCard';
@@ -17,12 +18,6 @@ import FactsArchivePanel from './FactsArchivePanel';
 import type { DailyFact, DailyFactsResponse, FactSubjectId } from '@/types/dailyFacts';
 
 type ViewMode = 'today' | 'archive';
-
-const toYMD = (d: Date) => [
-  d.getFullYear(),
-  String(d.getMonth() + 1).padStart(2, '0'),
-  String(d.getDate()).padStart(2, '0'),
-].join('-');
 
 function getUserGrade(): string {
   try {
@@ -52,7 +47,8 @@ function formatDisplayDate(dateStr: string) {
 
 export default function FactsAndFunPanel() {
   const gradeLabel = getUserGrade();
-  const today = toYMD(new Date());
+  const today = useCalendarDay();
+  const prevTodayRef = useRef(today);
   const [selectedDate, setSelectedDate] = useState(today);
   const [data, setData] = useState<DailyFactsResponse | null>(null);
   const [archiveDates, setArchiveDates] = useState<string[]>([]);
@@ -80,6 +76,15 @@ export default function FactsAndFunPanel() {
       setLoading(false);
     }
   }, [gradeLabel]);
+
+  useEffect(() => {
+    if (prevTodayRef.current !== today) {
+      if (selectedDate === prevTodayRef.current) {
+        setSelectedDate(today);
+      }
+      prevTodayRef.current = today;
+    }
+  }, [today, selectedDate]);
 
   useEffect(() => {
     if (viewMode === 'today') loadFacts(selectedDate);
@@ -116,10 +121,10 @@ export default function FactsAndFunPanel() {
         <VStack align="stretch" spacing={3}>
           <Box>
             <Text fontSize={{ base: 'sm', md: 'md' }} fontWeight="extrabold">
-              10 facts for your class today
+              10 fresh facts today
             </Text>
             <Text fontSize={{ base: '2xs', sm: 'xs', md: 'sm' }} color="orange.50" mt={1}>
-              Science, geography, history, India, sports &amp; more — saved once per day for your class.
+              New edition every day · science, geography, history, India, sports &amp; more — saved in your library.
             </Text>
           </Box>
           <HStack

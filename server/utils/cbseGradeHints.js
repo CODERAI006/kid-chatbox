@@ -71,7 +71,7 @@ function getCbseVocabularyGuidance(gradeLabel, complexity) {
     classLevel: `Class ${cls}`,
     bookRef: CBSE_BOOKS.senior,
     wordStyle:
-      complexity === 'advanced'
+      complexity === 'expert' || complexity === 'advanced'
         ? 'advanced literary and argumentative vocabulary from Flamingo/Vistas and CBSE Class 11–12 writing tasks'
         : 'board-exam vocabulary from NCERT senior secondary English — precise, formal, and context-rich',
     examples: 'paradigm, eloquent, substantiate, nuanced, rhetoric',

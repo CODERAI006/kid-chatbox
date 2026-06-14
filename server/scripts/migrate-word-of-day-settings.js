@@ -16,8 +16,8 @@ const DEFAULT_COMPLEXITY = {
   'Class 8 / Grade 8': 'intermediate',
   'Class 9 / Grade 9': 'advanced',
   'Class 10 / Grade 10': 'advanced',
-  'Class 11 / Grade 11': 'advanced',
-  'Class 12 / Grade 12': 'advanced',
+  'Class 11 / Grade 11': 'expert',
+  'Class 12 / Grade 12': 'expert',
 };
 
 async function migrateWordOfDaySettings() {

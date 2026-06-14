@@ -28,6 +28,7 @@ const {
   setupNewUserAccount,
 } = require('../utils/registerNewUser');
 const { isProfileComplete } = require('../utils/profileComplete');
+const { notifyAdminsOfUserLogin } = require('../utils/adminLoginNotifications');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -199,6 +200,13 @@ router.post('/register', async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
+    await notifyAdminsOfUserLogin(pool, {
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      method: 'register',
+    });
+
     try {
       await sendWelcomeEmail({
         email: user.email,
@@ -315,14 +323,19 @@ router.post('/login', async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
+    await notifyAdminsOfUserLogin(pool, {
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      method: 'email',
+    });
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
-
-    const { age, birthDate } = deriveAgeFields(user);
 
     res.json({
       success: true,
@@ -406,6 +419,13 @@ router.post('/google', async (req, res, next) => {
       } catch (emailError) {
         console.error(`Failed to send welcome email to ${user.email}:`, emailError.message || emailError);
       }
+
+      await notifyAdminsOfUserLogin(pool, {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        method: 'google',
+      });
     } else {
       user = result.rows[0];
 
@@ -413,6 +433,21 @@ router.post('/google', async (req, res, next) => {
         'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
         [user.id]
       );
+
+      await trackEvent({
+        userId: user.id,
+        eventType: EVENT_TYPES.USER_LOGIN,
+        metadata: { method: 'google' },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      await notifyAdminsOfUserLogin(pool, {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        method: 'google',
+      });
     }
 
     const jwtToken = jwt.sign(
@@ -479,8 +514,10 @@ router.post('/social', async (req, res, next) => {
       );
 
       let user;
+      let isNewUser = false;
 
       if (result.rows.length === 0) {
+        isNewUser = true;
         const buddyId = await generateUniqueBuddyId(pool, name);
 
         await client.query('BEGIN');
@@ -497,7 +534,27 @@ router.post('/social', async (req, res, next) => {
         await client.query('COMMIT');
       } else {
         user = result.rows[0];
+        await pool.query(
+          'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+          [user.id]
+        );
       }
+
+      const eventType = isNewUser ? EVENT_TYPES.USER_REGISTER : EVENT_TYPES.USER_LOGIN;
+      await trackEvent({
+        userId: user.id,
+        eventType,
+        metadata: { method: provider },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      await notifyAdminsOfUserLogin(pool, {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        method: provider,
+      });
 
       const jwtToken = jwt.sign(
         { userId: user.id, email: user.email },

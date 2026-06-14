@@ -3,7 +3,7 @@
  * Browse and search existing study materials created by other users
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Fuse from 'fuse.js';
 import {
@@ -32,6 +32,9 @@ import { motion } from 'framer-motion';
 import { studyApi, authApi } from '@/services/api';
 import { SUBJECTS } from '@/constants/quiz';
 import { PullToRefresh } from './PullToRefresh';
+import { ListLoadMoreFooter } from '@/components/shared/ListLoadMoreFooter';
+import { useCompactListView } from '@/hooks/useCompactListView';
+import NewsPagination from './news/NewsPagination';
 
 interface StudySession {
   id: string;
@@ -56,14 +59,18 @@ interface StudySession {
   textContent?: string;
 }
 
+const PAGE_SIZE = 20;
+
 /**
  * Study Library component
  */
 export const StudyLibrary: React.FC = () => {
   const navigate = useNavigate();
+  const isCompactListView = useCompactListView();
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<StudySession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
@@ -75,12 +82,54 @@ export const StudyLibrary: React.FC = () => {
   });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
   const { user } = authApi.getCurrentUser();
   const userGrade = (user as { grade?: string } | undefined)?.grade;
 
+  const loadStudyLibrary = useCallback(async (pageNum: number, { append = false } = {}) => {
+    try {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setError(null);
+
+      const data = await studyApi.getStudyLibrary({
+        search: searchQuery || undefined,
+        subject: filters.subject || undefined,
+        age: filters.age ? parseInt(filters.age) : undefined,
+        difficulty: filters.difficulty || undefined,
+        language: filters.language || undefined,
+        limit: PAGE_SIZE,
+        offset: (pageNum - 1) * PAGE_SIZE,
+        sortBy: filters.sortBy as 'timestamp' | 'popularity',
+      });
+
+      if (data?.sessions) {
+        const nextSessions = data.sessions as StudySession[];
+        setSessions((prev) => (append ? [...prev, ...nextSessions] : nextSessions));
+        setTotalPages(data.pagination?.pages || 1);
+        setTotalResults(data.pagination?.total || nextSessions.length);
+      } else {
+        setSessions([]);
+        setTotalPages(1);
+        setTotalResults(0);
+      }
+    } catch (err: any) {
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to load study library. Please try again later.';
+      setError(errorMessage);
+      console.error('Study library load error:', err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [filters, searchQuery]);
+
   useEffect(() => {
-    loadStudyLibrary();
-  }, [filters, page]);
+    const append = isCompactListView && page > 1;
+    loadStudyLibrary(page, { append });
+  }, [filters, page, isCompactListView, loadStudyLibrary]);
 
   useEffect(() => {
     // Client-side fuzzy search using Fuse.js
@@ -98,45 +147,16 @@ export const StudyLibrary: React.FC = () => {
     }
   }, [searchQuery, sessions]);
 
-  const loadStudyLibrary = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const hasMore = page < totalPages;
 
-      const data = await studyApi.getStudyLibrary({
-        search: searchQuery || undefined,
-        subject: filters.subject || undefined,
-        age: filters.age ? parseInt(filters.age) : undefined,
-        difficulty: filters.difficulty || undefined,
-        language: filters.language || undefined,
-        limit: 20,
-        offset: (page - 1) * 20,
-        sortBy: filters.sortBy as 'timestamp' | 'popularity',
-      });
-
-      if (data && data.sessions) {
-        setSessions(data.sessions as StudySession[]);
-        setFilteredSessions(data.sessions as StudySession[]);
-        setTotalPages(data.pagination?.pages || 1);
-      } else {
-        setSessions([]);
-        setFilteredSessions([]);
-        setTotalPages(1);
-      }
-    } catch (err: any) {
-      const errorMessage =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to load study library. Please try again later.';
-      setError(errorMessage);
-      console.error('Study library load error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    setPage((p) => p + 1);
+  }, [hasMore, loading, loadingMore]);
 
   const handleRefresh = async () => {
-    await loadStudyLibrary();
+    setPage(1);
+    await loadStudyLibrary(1, { append: false });
   };
 
   const handleViewStudy = (sessionId: string) => {
@@ -399,27 +419,32 @@ export const StudyLibrary: React.FC = () => {
               ))}
             </SimpleGrid>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <HStack justify="center" spacing={2}>
-                <Button
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  isDisabled={page === 1}
-                >
-                  Previous
-                </Button>
-                <Text>
-                  Page {page} of {totalPages}
-                </Text>
-                <Button
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  isDisabled={page === totalPages}
-                >
-                  Next
-                </Button>
-              </HStack>
+            {/* Pagination — desktop only; mobile/tablet use infinite scroll */}
+            {totalPages > 1 && isCompactListView && (
+              <ListLoadMoreFooter
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                onLoadMore={loadMore}
+                observeKey={filteredSessions.length}
+                loadMoreLabel={`Load ${PAGE_SIZE} more`}
+                endLabel={`You've seen all ${totalResults} study materials.`}
+                spinnerColor="blue.400"
+              />
+            )}
+
+            {totalPages > 1 && !isCompactListView && (
+              <NewsPagination
+                page={page}
+                totalPages={totalPages}
+                totalResults={totalResults}
+                pageSize={PAGE_SIZE}
+                loading={loading}
+                itemLabel="materials"
+                onPageChange={(p) => {
+                  setPage(p);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
             )}
           </>
         ) : (

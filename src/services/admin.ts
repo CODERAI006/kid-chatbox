@@ -1213,6 +1213,28 @@ export const wordOfDayApi = {
     const response = await apiClient.put('/admin/word-of-day/settings', { settings });
     return response.data;
   },
+
+  getConfig: async (): Promise<{
+    success: boolean;
+    config: import('@/types/wordOfDay').WordOfDayConfig;
+    weeklyThemes: import('@/types/wordOfDay').WeeklyThemeInfo[];
+    gradeCategories: Record<string, import('@/types/wordOfDay').GradeCategoryInfo>;
+  }> => {
+    const response = await apiClient.get('/admin/word-of-day/config');
+    return response.data;
+  },
+
+  updateConfig: async (
+    config: Partial<import('@/types/wordOfDay').WordOfDayConfig>
+  ): Promise<{ success: boolean; config: import('@/types/wordOfDay').WordOfDayConfig; message?: string }> => {
+    const response = await apiClient.put('/admin/word-of-day/config', config);
+    return response.data;
+  },
+
+  regenerateToday: async (): Promise<{ success: boolean; message?: string; built?: number }> => {
+    const response = await apiClient.post('/admin/word-of-day/regenerate');
+    return response.data;
+  },
 };
 
 export const newsPipelineApi = {

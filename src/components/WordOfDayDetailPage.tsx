@@ -11,6 +11,7 @@ import {
 import { publicApi } from '@/services/api';
 import type { WordOfDayResponse } from '@/types/wordOfDay';
 import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
+import { WordOfDayQuiz } from './wordOfDay/WordOfDayQuiz';
 import { MESSAGES } from '@/constants/app';
 
 export const WordOfDayDetailPage: React.FC = () => {
@@ -92,7 +93,17 @@ export const WordOfDayDetailPage: React.FC = () => {
               <Badge colorScheme="purple">{data.complexity}</Badge>
             </HStack>
 
-            <Text fontSize="sm" color="gray.500">{data.grade} · {data.date}</Text>
+            <Text fontSize="sm" color="gray.500">
+              {data.grade} · {data.date}
+              {data.theme?.label && ` · Theme: ${data.theme.label}`}
+            </Text>
+
+            {entry.simpleMeaning && (
+              <Box bg="teal.50" p={4} borderRadius="lg" borderLeft="4px solid" borderLeftColor="teal.400">
+                <Text fontWeight="bold" color="teal.800" mb={1}>Simple meaning</Text>
+                <Text color="gray.700" fontSize="md">{entry.simpleMeaning}</Text>
+              </Box>
+            )}
 
             {entry.detailedExplanation && (
               <Box bg="purple.50" p={4} borderRadius="lg">
@@ -154,7 +165,7 @@ export const WordOfDayDetailPage: React.FC = () => {
 
             {(entry.realWorldExamples?.length || entry.schoolExample || entry.dailyLifeExample) && (
               <Box>
-                <Text fontWeight="bold" color="blue.700" mb={2}>🌍 Real-World Examples</Text>
+                <Text fontWeight="bold" color="blue.700" mb={2}>🌍 Example</Text>
                 <VStack spacing={2} align="stretch">
                   {entry.schoolExample && (
                     <Box bg="blue.50" p={3} borderRadius="md">
@@ -176,12 +187,23 @@ export const WordOfDayDetailPage: React.FC = () => {
                 </VStack>
               </Box>
             )}
+
+            {entry.funChallenge && (
+              <Box bg="pink.50" p={4} borderRadius="lg">
+                <Text fontWeight="bold" color="pink.800" mb={1}>🎮 Fun Challenge</Text>
+                <Text color="gray.700">{entry.funChallenge}</Text>
+              </Box>
+            )}
+
+            {entry.quiz && entry.quiz.options?.length >= 2 && (
+              <WordOfDayQuiz quiz={entry.quiz} word={entry.word} />
+            )}
           </VStack>
         </CardBody>
       </Card>
 
       <Box mt={6}>
-        <CommonPhrasesSection phrases={data.phrases} />
+        <CommonPhrasesSection phrases={data.phrases} editionDate={data.date} />
       </Box>
     </Box>
   );

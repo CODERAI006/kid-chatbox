@@ -19,7 +19,7 @@ import {
   useBreakpointValue,
   useColorModeValue,
 } from '@/shared/design-system';
-import { FiLogOut } from 'react-icons/fi';
+import { FiDownload, FiLogOut } from 'react-icons/fi';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { adminColors } from '@/components/admin/adminTokens';
@@ -30,6 +30,8 @@ import {
 } from '@/constants/navigation';
 import { SidebarNavList } from '@/components/layout/SidebarNavList';
 import { openAppFeedback } from '@/components/feedback/feedbackEvents';
+import { openAppInstall } from '@/components/layout/appInstallEvents';
+import { usePwaInstall } from '@/hooks/usePwaInstall';
 
 interface StudentSidebarProps {
   user: User | null;
@@ -43,6 +45,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
   const [isAdmin, setIsAdmin] = useState(false);
   const [moduleAccess, setModuleAccess] = useState<Record<string, boolean>>({});
   const isMobile = useBreakpointValue({ base: true, lg: false });
+  const { canInstall } = usePwaInstall();
 
   const sidebarBg = useColorModeValue(adminColors.surface.light, adminColors.surface.dark);
   const sidebarBorder = useColorModeValue(adminColors.border.light, adminColors.border.dark);
@@ -86,7 +89,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
   };
 
   const navEntries = useMemo(() => {
-    return getVisibleNavItems(isAdmin).map((item) => {
+    const items = getVisibleNavItems(isAdmin).map((item) => {
       const path = resolveConsumerNavPath(item, isAdmin);
       const moduleLocked =
         !isAdmin &&
@@ -103,7 +106,21 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
         action: path ? undefined : item.action,
       };
     });
-  }, [isAdmin, moduleAccess, location.pathname, location.hash]);
+
+    if (canInstall) {
+      items.push({
+        key: 'action:install',
+        label: 'Install App',
+        icon: FiDownload,
+        path: '',
+        isActive: false,
+        isDisabled: false,
+        action: 'install',
+      });
+    }
+
+    return items;
+  }, [isAdmin, moduleAccess, location.pathname, location.hash, canInstall]);
 
   const sidebarContent = (
     <VStack h="100%" align="stretch" spacing={0} py={4}>
@@ -114,6 +131,11 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({ user, isOpen, on
           onAction={(action) => {
             if (action === 'feedback') {
               openAppFeedback({ source: 'sidebar' });
+              if (isMobile && onClose) onClose();
+              return;
+            }
+            if (action === 'install') {
+              openAppInstall();
               if (isMobile && onClose) onClose();
             }
           }}

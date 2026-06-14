@@ -1182,5 +1182,63 @@ router.put('/word-of-day/settings', checkPermission('manage_users'), async (req,
   }
 });
 
+/**
+ * GET /api/admin/word-of-day/config
+ */
+router.get('/word-of-day/config', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { getConfig } = require('../utils/wordOfDayConfig');
+    const { WEEKLY_THEMES, GRADE_CATEGORIES } = require('../utils/wordOfDayThemes');
+    const config = await getConfig();
+    res.json({ success: true, config, weeklyThemes: WEEKLY_THEMES, gradeCategories: GRADE_CATEGORIES });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/word-of-day/config
+ */
+router.put('/word-of-day/config', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { updateConfig } = require('../utils/wordOfDayConfig');
+    const config = await updateConfig(req.body || {}, req.user?.id);
+    res.json({ success: true, config, message: 'Word of the Day config saved.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/word-of-day/regenerate — rebuild today's edition for all enabled grades
+ */
+router.post('/word-of-day/regenerate', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { pool } = require('../config/database');
+    const { formatCacheDate, gradeCacheKey } = require('../utils/wordOfDayDbCache');
+    const { pregenerateForDate } = require('../services/wordOfDayService');
+    const cacheDate = formatCacheDate(new Date());
+
+    const { rows } = await pool.query(
+      `SELECT grade FROM word_of_day_settings WHERE enabled = true`,
+    );
+    for (const row of rows) {
+      await pool.query(
+        `DELETE FROM word_of_the_day_cache WHERE word_key LIKE $1 AND cache_date = $2::date`,
+        [`${gradeCacheKey(row.grade)}%`, cacheDate],
+      );
+    }
+
+    const result = await pregenerateForDate(new Date());
+    res.json({
+      success: true,
+      message: `Regenerated Word of the Day for ${result.built} grade(s).`,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 

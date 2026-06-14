@@ -1,4 +1,4 @@
-export type UserNotificationType = 'buddy_request' | 'buddy_quiz_share' | string;
+export type UserNotificationType = 'buddy_request' | 'buddy_quiz_share' | 'user_login' | string;
 
 export interface UserNotification {
   id: string;

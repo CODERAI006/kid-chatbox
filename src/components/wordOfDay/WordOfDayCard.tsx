@@ -85,6 +85,12 @@ export const WordOfDayCard: React.FC<WordOfDayCardProps> = ({
 
           {firstMeaning?.definitions[0] && (
             <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.700" lineHeight="tall" pl={9}>
+              {entry.simpleMeaning || firstMeaning.definitions[0].definition}
+            </Text>
+          )}
+
+          {entry.simpleMeaning && firstMeaning?.definitions[0] && (
+            <Text fontSize="xs" color="gray.500" pl={9} fontStyle="italic">
               {firstMeaning.definitions[0].definition}
             </Text>
           )}

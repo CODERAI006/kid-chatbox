@@ -21,6 +21,7 @@ import { COMPACT_FOOTER_HEIGHT, MOBILE_BOTTOM_NAV_HEIGHT } from './layoutHeights
 import { StudentSidebar } from './StudentSidebar';
 import { LearningChatWidget } from '@/components/learning/LearningChatWidget';
 import { AppFeedbackModal } from '@/components/feedback/AppFeedbackModal';
+import { AppInstallModal } from '@/components/layout/AppInstallModal';
 import { useStudyPlanNotifications } from '@/hooks/useStudyPlanNotifications';
 import { useInAppNotifications } from '@/hooks/useInAppNotifications';
 import { User } from '@/types';
@@ -121,6 +122,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({
 
       <LearningChatWidget />
       <AppFeedbackModal />
+      <AppInstallModal />
     </Box>
   );
 };

@@ -16,17 +16,11 @@ import {
   Badge,
   Spinner,
 } from '@/shared/design-system';
+import { useCalendarDay } from '@/hooks/useCalendarDay';
 import { publicApi } from '@/services/api';
 import type { DailyFact } from '@/types/dailyFacts';
 
 const PREVIEW_COUNT = 3;
-
-const toYMD = (d: Date): string => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
 
 const BADGE_COLORS: Record<string, string> = {
   science: 'blue',
@@ -46,6 +40,7 @@ interface Props {
 
 export default function FactsAndFunPreview({ grade }: Props) {
   const navigate = useNavigate();
+  const today = useCalendarDay();
   const gradeLabel = grade || 'Class 5 / Grade 5';
   const [facts, setFacts] = useState<DailyFact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +48,7 @@ export default function FactsAndFunPreview({ grade }: Props) {
   const loadPreview = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await publicApi.getDailyFacts(toYMD(new Date()), gradeLabel);
+      const res = await publicApi.getDailyFacts(today, gradeLabel);
       if (res.success && res.facts?.length) {
         setFacts(res.facts.slice(0, PREVIEW_COUNT));
       } else {
@@ -64,7 +59,7 @@ export default function FactsAndFunPreview({ grade }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [gradeLabel]);
+  }, [gradeLabel, today]);
 
   useEffect(() => {
     loadPreview();
@@ -79,7 +74,7 @@ export default function FactsAndFunPreview({ grade }: Props) {
           <Box>
             <Heading size="sm" color="orange.600">💡 Facts &amp; Fun</Heading>
             <Text fontSize="xs" color="gray.500" mt={0.5}>
-              3 quick facts for {gradeLabel} today
+              3 of today&apos;s 10 facts · refreshes daily
             </Text>
           </Box>
 

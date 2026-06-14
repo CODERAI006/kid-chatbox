@@ -11,6 +11,8 @@ import {
 } from '@/shared/design-system';
 import { publicApi } from '@/services/api';
 import { QuizSectionLabel } from '@/components/quiz/quizFormUi';
+import { ListLoadMoreFooter } from '@/components/shared/ListLoadMoreFooter';
+import { useCompactListView } from '@/hooks/useCompactListView';
 import EducationNewsListItem from './EducationNewsListItem';
 import EducationCategoryPicker from './EducationCategoryPicker';
 import NewsPagination from './NewsPagination';
@@ -37,10 +39,12 @@ function formatCacheLabel(date?: string) {
 }
 
 export default function EducationTopicsPanel() {
+  const isCompactListView = useCompactListView();
   const [categories, setCategories] = useState<EducationCategory[]>([]);
   const [activeId, setActiveId] = useState<EducationNewsCategoryId>('science');
   const [articles, setArticles] = useState<EducationArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -63,9 +67,10 @@ export default function EducationTopicsPanel() {
   const fetchArticles = useCallback(async (
     categoryId: EducationNewsCategoryId,
     pageNum: number,
-    { forceRefresh = false } = {},
+    { forceRefresh = false, append = false } = {},
   ) => {
     if (forceRefresh) setRefreshing(true);
+    else if (append) setLoadingMore(true);
     else setLoading(true);
     setError(null);
     if (forceRefresh) setSearch('');
@@ -78,7 +83,7 @@ export default function EducationTopicsPanel() {
         forceRefresh,
       });
       if (res.success) {
-        setArticles(res.articles);
+        setArticles((prev) => (append ? [...prev, ...res.articles] : res.articles));
         setTotalResults(res.totalResults);
         setActiveCategory(res.category);
         setPage(pageNum);
@@ -91,6 +96,7 @@ export default function EducationTopicsPanel() {
       setError('Unable to reach the news service. Check your connection.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   }, []);
@@ -111,6 +117,12 @@ export default function EducationTopicsPanel() {
     [navigate, activeId, cat],
   );
   const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+  const hasMore = !search && page < totalPages;
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || refreshing || !hasMore) return;
+    fetchArticles(activeId, page + 1, { append: true });
+  }, [activeId, fetchArticles, hasMore, loading, loadingMore, page, refreshing]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -160,7 +172,7 @@ export default function EducationTopicsPanel() {
               color="white"
               _hover={{ bg: 'whiteAlpha.400' }}
               leftIcon={<Text aria-hidden>🔄</Text>}
-              onClick={() => fetchArticles(activeId, page, { forceRefresh: true })}
+              onClick={() => fetchArticles(activeId, 1, { forceRefresh: true })}
               isLoading={refreshing}
               loadingText="Refreshing"
               flexShrink={0}
@@ -234,7 +246,19 @@ export default function EducationTopicsPanel() {
             ))}
           </VStack>
 
-          {!search && totalPages > 1 && (
+          {!search && totalPages > 1 && isCompactListView && (
+            <ListLoadMoreFooter
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              observeKey={filtered.length}
+              loadMoreLabel={`Load ${PAGE_SIZE} more stories`}
+              endLabel={`You've read all ${totalResults} stories.`}
+              spinnerColor="blue.400"
+            />
+          )}
+
+          {!search && totalPages > 1 && !isCompactListView && (
             <NewsPagination
               page={page}
               totalPages={totalPages}

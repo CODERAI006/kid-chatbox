@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card, CardBody, Heading, Text, VStack, HStack,
-  Spinner, Divider, Button, IconButton,
+  Spinner, Divider, Button, IconButton, Badge,
 } from '@/shared/design-system';
 import { publicApi } from '@/services/api';
 import type { WordOfDayResponse } from '@/types/wordOfDay';
@@ -58,7 +58,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
     setError(false);
     try {
       const dateStr = toYMD(date);
-      const cacheKey = `wotd_v8_common:${dateStr}`;
+      const cacheKey = `wotd_v9:${gradeLabel}:${dateStr}`;
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as WordOfDayResponse;
@@ -101,6 +101,11 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
                   ? MESSAGES.WORD_OF_THE_DAY_SUBTITLE
                   : `${MESSAGES.WORD_OF_THE_DAY_SUBTITLE} — tap any word for full details`}
               </Text>
+              {data?.theme?.label && !loading && (
+                <Badge colorScheme="purple" fontSize="2xs" mt={1}>
+                  Today&apos;s theme: {data.theme.label}
+                </Badge>
+              )}
             </VStack>
             {!isToday(selectedDate) && (
               <Button size="xs" colorScheme="purple" variant="outline" onClick={() => setSelectedDate(new Date())}>
@@ -160,7 +165,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
                   date={data.date}
                 />
                 {showAttachedSections && (
-                  <CommonPhrasesSection phrases={data.phrases ?? []} compact />
+                  <CommonPhrasesSection phrases={data.phrases ?? []} compact editionDate={data.date} />
                 )}
               </VStack>
             ) : (
@@ -175,7 +180,7 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
                     date={data.date}
                   />
                 ))}
-                <CommonPhrasesSection phrases={data.phrases} />
+                <CommonPhrasesSection phrases={data.phrases} editionDate={data.date} />
               </VStack>
             )
           )}
