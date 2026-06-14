@@ -1,5 +1,5 @@
 /**
- * Mobile bottom navigation — Home, AI Study, AI Quiz, and My Schedules.
+ * Mobile bottom navigation — Home, AI Study, AI Quiz, News, and My Schedules.
  */
 
 import { useEffect, useState } from 'react';
@@ -85,6 +85,15 @@ const NAV_ITEMS: NavItem[] = [
       pathname === '/quiz' && (hash === '#ai-quiz' || hash === ''),
     isVisible: (ctx) => ctx.canShowAiQuiz,
     resolvePath: (ctx) => (ctx.hasQuizAccess ? '/quiz#ai-quiz' : '/quiz'),
+  },
+  {
+    path: '/education-news',
+    label: 'Education News',
+    shortLabel: 'News',
+    icon: '📰',
+    match: (pathname) =>
+      pathname === '/education-news' || pathname.startsWith('/education-news/'),
+    isVisible: () => true,
   },
   {
     path: '/my-schedules',

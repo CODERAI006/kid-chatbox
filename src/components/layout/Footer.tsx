@@ -61,6 +61,9 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'full' }) => {
                 />
               )}
             </RouterLink>
+            <RouterLink to="/education-news" style={{ ...linkStyle, fontSize: '0.7rem' }}>
+              News
+            </RouterLink>
           </HStack>
         </HStack>
       </Box>
@@ -114,6 +117,9 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'full' }) => {
               />
             )}
           </Button>
+          <RouterLink to="/education-news" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', ...linkStyle }}>
+            News
+          </RouterLink>
           <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.400">
             Made with ❤️ for kids
           </Text>

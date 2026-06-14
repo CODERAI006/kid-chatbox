@@ -117,9 +117,11 @@ async function pregenerateFactsAndFun() {
 
 async function pregenerateNews() {
   try {
-    const { cacheDate, built } = await pregenerateEducationNews();
+    const { cacheDate, built, skipped } = await pregenerateEducationNews();
     if (built > 0) {
       console.log(`[Scheduler] Education news pregenerated (${built} buckets) for ${cacheDate}`);
+    } else if (skipped) {
+      console.log(`[Scheduler] Education news already cached for ${cacheDate}`);
     }
   } catch (err) {
     console.error('[Scheduler] Education news pregenerate error:', err.message);
@@ -137,9 +139,9 @@ function startScheduler() {
   cron.schedule('20 0 * * *', pregenerateFactsAndFun, { timezone: 'Asia/Kolkata' });
   cron.schedule('30 0 * * *', pregenerateNews, { timezone: 'Asia/Kolkata' });
   updateQuizStatuses();
+  // Warm word-of-day / facts on boot if missing (no AI news pipeline — nightly cron only)
   setTimeout(() => pregenerateWordOfDay(), 15_000);
   setTimeout(() => pregenerateFactsAndFun(), 25_000);
-  setTimeout(() => pregenerateNews(), 35_000);
 
   console.log('✅ Quiz Scheduler Engine started (IST-aware job matching, 1-min / 5-min ticks)');
 }

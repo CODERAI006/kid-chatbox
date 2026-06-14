@@ -53,6 +53,7 @@ function pageHint(pathname: string, hash: string): string | null {
   if (pathname === '/study-buddies') return 'Study Buddy';
   if (pathname === '/news') return 'Facts & Fun';
   if (pathname === '/education-news') return 'Education News';
+  if (pathname.startsWith('/education-news/read')) return 'Reading story';
   if (pathname.startsWith('/word-of-day')) return 'Word of the day';
   if (pathname.startsWith('/study-library')) return 'Study library';
   return 'Keep learning today';

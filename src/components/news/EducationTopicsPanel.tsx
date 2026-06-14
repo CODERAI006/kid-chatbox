@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -12,7 +13,6 @@ import { publicApi } from '@/services/api';
 import { QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import EducationNewsListItem from './EducationNewsListItem';
 import EducationCategoryPicker from './EducationCategoryPicker';
-import EducationNewsBrowserModal from './EducationNewsBrowserModal';
 import NewsPagination from './NewsPagination';
 import type {
   EducationCategory,
@@ -49,7 +49,7 @@ export default function EducationTopicsPanel() {
   const [search, setSearch] = useState('');
   const [cachedDate, setCachedDate] = useState<string>();
   const [fromCache, setFromCache] = useState(true);
-  const [readerArticle, setReaderArticle] = useState<EducationArticle | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     publicApi.getEducationNewsTopics().then((res) => {
@@ -99,11 +99,17 @@ export default function EducationTopicsPanel() {
     if (activeId) fetchArticles(activeId, 1);
   }, [activeId, fetchArticles]);
 
-  const openReader = useCallback((article: EducationArticle) => {
-    setReaderArticle(article);
-  }, []);
-
   const cat = activeCategory || categories.find((c) => c.id === activeId);
+
+  const openReader = useCallback(
+    (article: EducationArticle) => {
+      navigate(
+        `/education-news/read/${encodeURIComponent(article.id)}?category=${activeId}`,
+        { state: { article, category: cat ?? undefined } },
+      );
+    },
+    [navigate, activeId, cat],
+  );
   const totalPages = Math.ceil(totalResults / PAGE_SIZE);
 
   const filtered = useMemo(() => {
@@ -118,15 +124,6 @@ export default function EducationTopicsPanel() {
 
   return (
     <VStack align="stretch" spacing={{ base: 4, md: 5 }} w="100%" minW={0}>
-      {readerArticle && (
-        <EducationNewsBrowserModal
-          article={readerArticle}
-          category={cat || undefined}
-          isOpen
-          onClose={() => setReaderArticle(null)}
-        />
-      )}
-
       <Box
         p={{ base: 3, md: 5 }}
         borderRadius={{ base: 'xl', md: '2xl' }}

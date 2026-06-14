@@ -162,10 +162,19 @@ async function getArticleById(categoryId, articleId) {
 }
 
 async function pregenerateForDate({ forceRefresh = false } = {}) {
+  const cacheDate = formatCacheDate();
+
+  if (!forceRefresh) {
+    const hit = await readCache('all', cacheDate);
+    if (hit?.payload?.articles?.length) {
+      return { cacheDate, built: 0, skipped: true };
+    }
+  }
+
   const result = await runDailySync({ forceRefresh, triggerType: 'cron' });
   if (result.skipped) {
     console.log('[educationNews] pregenerate skipped — sync already running');
-    return { cacheDate: formatCacheDate(), built: 0, skipped: true };
+    return { cacheDate, built: 0, skipped: true };
   }
   const built = Object.keys(result.stats?.categories || {}).length + 1;
   console.log(`[educationNews] pregenerated via pipeline for ${result.stats?.cacheDate}`);

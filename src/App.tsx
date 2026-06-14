@@ -33,6 +33,7 @@ import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import NewsFeed from '@/components/NewsFeed';
 import EducationNewsFeed from '@/components/EducationNewsFeed';
+import EducationNewsReader from '@/components/news/EducationNewsReader';
 import { authApi } from '@/services/api';
 import { User } from '@/types';
 import { getPostAuthPath } from '@/utils/profileComplete';
@@ -392,6 +393,16 @@ export const App: React.FC = () => {
               <StudentRoute>
                 <StudentLayout user={user}>
                   <NewsFeed />
+                </StudentLayout>
+              </StudentRoute>
+            }
+          />
+          <Route
+            path="/education-news/read/:articleId"
+            element={
+              <StudentRoute>
+                <StudentLayout user={user} showFooter={false}>
+                  <EducationNewsReader />
                 </StudentLayout>
               </StudentRoute>
             }
