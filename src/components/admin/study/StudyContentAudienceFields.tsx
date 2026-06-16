@@ -77,6 +77,9 @@ export const StudyContentAudienceFields: React.FC<Props> = ({ value, onChange })
   </>
 );
 
+/** Must match multer limit in server/routes/study-library-content.js */
+export const STUDY_LIBRARY_MAX_FILE_BYTES = 50 * 1024 * 1024;
+
 export const STUDY_CONTENT_FILE_ACCEPT: Record<string, string> = {
   pdf: '.pdf',
   ppt: '.ppt,.pptx',

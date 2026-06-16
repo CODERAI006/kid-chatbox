@@ -10,8 +10,7 @@ import {
 import { publicApi } from '@/services/api';
 import type { WordOfDayResponse } from '@/types/wordOfDay';
 import { WordOfDayCard } from './wordOfDay/WordOfDayCard';
-import { WordOfDayDashboardList } from './wordOfDay/WordOfDayDashboardList';
-import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
+import CommonPhrasesSection from './wordOfDay/CommonPhrasesSection';
 import FactsAndFunPreview from './facts/FactsAndFunPreview';
 import { MESSAGES } from '@/constants/app';
 import { prefetchWordOfDayDetails } from '@/utils/wordOfDayDetailCache';
@@ -54,30 +53,14 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
   const [error, setError] = useState(false);
   const gradeLabel = grade || 'Class 5 / Grade 5';
 
-  const loadWords = useCallback(async (date: Date) => {
+  const loadWords = useCallback(async (date: Date, bypassCache = false) => {
     setLoading(true);
     setError(false);
     try {
       const dateStr = toYMD(date);
-      const cacheKey = `wotd_v9:${gradeLabel}:${dateStr}`;
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached) as WordOfDayResponse;
-        if (parsed?.words?.length) {
-          setData(parsed);
-          setLoading(false);
-          void prefetchWordOfDayDetails(
-            parsed.words.map((w) => w.word),
-            parsed.date,
-            parsed.grade,
-          );
-          return;
-        }
-      }
-      const response = await publicApi.getWordsOfTheDay(dateStr, gradeLabel);
+      const response = await publicApi.getWordsOfTheDay(dateStr, gradeLabel, { bypassCache });
       if (response.success && response.words?.length > 0) {
         setData(response);
-        try { sessionStorage.setItem(cacheKey, JSON.stringify(response)); } catch { /* ignore */ }
         void prefetchWordOfDayDetails(
           response.words.map((w) => w.word),
           response.date,
@@ -166,52 +149,49 @@ export const WordOfTheDay: React.FC<WordOfTheDayProps> = ({
               <Text fontSize="sm" color="gray.500" textAlign="center">
                 Couldn't load today's words. Check your connection and try again.
               </Text>
-              <Button size="sm" colorScheme="purple" onClick={() => loadWords(selectedDate)}>Retry</Button>
+              <Button size="sm" colorScheme="purple" onClick={() => loadWords(selectedDate, true)}>Retry</Button>
             </VStack>
           )}
 
           {!loading && !error && data && (data.words?.length ?? 0) > 0 && (
-            isDashboard ? (
-              <VStack spacing={3} align="stretch">
-                <WordOfDayDashboardList
-                  words={data.words}
+            <VStack spacing={isDashboard ? 3 : 4} align="stretch">
+              {data.words.map((entry, i) => (
+                <WordOfDayCard
+                  key={entry.word}
+                  entry={entry}
+                  index={i}
                   complexity={data.complexity}
                   grade={data.grade}
                   date={data.date}
+                  compact={isDashboard}
                 />
-                {showAttachedSections && (
-                  <CommonPhrasesSection phrases={data.phrases ?? []} compact editionDate={data.date} />
-                )}
-              </VStack>
-            ) : (
-              <VStack spacing={4} align="stretch">
-                {data.words.map((entry, i) => (
-                  <WordOfDayCard
-                    key={entry.word}
-                    entry={entry}
-                    index={i}
-                    complexity={data.complexity}
-                    grade={data.grade}
-                    date={data.date}
-                  />
-                ))}
-                <CommonPhrasesSection phrases={data.phrases} editionDate={data.date} />
-              </VStack>
-            )
+              ))}
+            </VStack>
           )}
         </VStack>
       </CardBody>
     </Card>
   );
 
+  const expressionsSection =
+    showAttachedSections && !loading && !error && data?.phrases?.length ? (
+      <CommonPhrasesSection phrases={data.phrases} compact={isDashboard} />
+    ) : null;
+
   if (isDashboard) {
     return (
       <VStack id="word-of-day" spacing={3} align="stretch" scrollMarginTop="5rem">
         {wordCard}
+        {expressionsSection}
         {showAttachedSections && <FactsAndFunPreview grade={gradeLabel} />}
       </VStack>
     );
   }
 
-  return wordCard;
+  return (
+    <VStack spacing={3} align="stretch">
+      {wordCard}
+      {expressionsSection}
+    </VStack>
+  );
 };

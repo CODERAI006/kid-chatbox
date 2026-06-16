@@ -106,7 +106,7 @@ async function pregenerateFactsAndFun() {
   try {
     const { cacheDate, built, skipped } = await pregenerateDailyFacts(new Date());
     if (built > 0) {
-      console.log(`[Scheduler] Facts & Fun shared edition built for ${cacheDate}`);
+      console.log(`[Scheduler] Facts & Fun built for ${built} grade(s) @ ${cacheDate}`);
     } else if (skipped) {
       console.log(`[Scheduler] Facts & Fun already cached for ${cacheDate}`);
     }

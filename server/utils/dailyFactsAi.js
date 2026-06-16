@@ -1,10 +1,11 @@
 /**
- * Generate 10 daily facts via Ollama — each with detail fields + 10 related facts.
+ * Generate 10 daily facts via Ollama — category + topic driven, with detail fields.
  */
 
 const { ollamaChat, isLlmConfigured } = require('./ollamaClient');
 const { getCbseVocabularyGuidance } = require('./cbseGradeHints');
-const { DAILY_FACT_SUBJECTS, FACT_COUNT, MORE_FACTS_COUNT } = require('./dailyFactsSubjects');
+const { FACT_COUNT, MORE_FACTS_COUNT } = require('./dailyFactsSubjects');
+const { loadCategories, pickDailySlots, categoryBySlug } = require('./factsCategories');
 
 class FactsGenerationError extends Error {
   constructor(message) {
@@ -24,25 +25,34 @@ function parseMoreFacts(raw) {
     .slice(0, MORE_FACTS_COUNT);
 }
 
-function parseFactsJson(raw) {
+function parseFactsJson(raw, assignments, categories) {
   const text = String(raw || '').trim();
   const start = text.indexOf('[');
   const end = text.lastIndexOf(']');
   if (start === -1 || end === -1) return null;
+
+  const validSlugs = new Set(categories.map((c) => c.slug));
+
   try {
     const parsed = JSON.parse(text.slice(start, end + 1));
     if (!Array.isArray(parsed)) return null;
-    const validSubjects = new Set(DAILY_FACT_SUBJECTS.map((s) => s.id));
+
     return parsed
       .map((item, i) => {
-        const subject = validSubjects.has(item.subject)
-          ? item.subject
-          : DAILY_FACT_SUBJECTS[i % DAILY_FACT_SUBJECTS.length].id;
-        const meta = DAILY_FACT_SUBJECTS.find((s) => s.id === subject);
+        const slot = assignments[i] || assignments[i % assignments.length];
+        const slug = validSlugs.has(item.category)
+          ? item.category
+          : slot?.slug || categories[i % categories.length].slug;
+        const meta = categoryBySlug(categories, slug) || slot;
+        const topic = String(item.topic || slot?.topic || meta?.topics?.[0] || meta?.label || '')
+          .slice(0, 80);
+
         return {
           id: String(item.id || `fact-${i + 1}`),
-          subject,
-          emoji: String(item.emoji || meta?.emoji || '💡').slice(0, 4),
+          category: slug,
+          topic,
+          subject: slug,
+          emoji: String(item.emoji || meta?.emoji || slot?.emoji || '💡').slice(0, 4),
           title: String(item.title || 'Did you know?').slice(0, 80),
           fact: String(item.fact || '').slice(0, 420),
           explanation: String(item.explanation || item.fact || '').slice(0, 900),
@@ -59,13 +69,23 @@ function parseFactsJson(raw) {
   }
 }
 
-function buildPrompt(dateStr, gradeLabel, cbse, strict = false) {
-  const subjectList = DAILY_FACT_SUBJECTS.map((s) => `${s.id} (${s.label})`).join(', ');
+function buildPrompt(dateStr, gradeLabel, cbse, assignments, strict = false) {
+  const slotLines = assignments
+    .map(
+      (a, i) =>
+        `${i + 1}. category "${a.slug}" (${a.label}) — topic: "${a.topic}" — emoji hint: ${a.emoji}`,
+    )
+    .join('\n');
+
   const strictNote = strict
     ? '\nIMPORTANT: Return ONLY a raw JSON array. No markdown, no explanation.'
     : '';
+
   return `You are an expert CBSE teacher. Using ONLY your own knowledge (do NOT browse the web), invent exactly ${FACT_COUNT} original, true, kid-friendly facts for ${cbse.classLevel} students (age ~${cbse.age}).
-Cover ALL subjects — at least one fact each: ${subjectList}.
+
+Each fact MUST match its assigned category slug and topic below (one fact per row):
+${slotLines}
+
 Simple English, Indian school context where relevant, no scary or adult content.
 Date seed: ${dateStr} — make today's set unique.${strictNote}
 
@@ -73,8 +93,9 @@ Return ONLY a JSON array of ${FACT_COUNT} objects. EACH object MUST include a "m
 [
   {
     "id": "1",
-    "subject": "science",
-    "emoji": "🔬",
+    "category": "${assignments[0]?.slug || 'science'}",
+    "topic": "${assignments[0]?.topic || 'General'}",
+    "emoji": "${assignments[0]?.emoji || '💡'}",
     "title": "Short catchy title",
     "fact": "2-4 sentences a child can understand.",
     "explanation": "3-4 sentences explaining the main fact more clearly",
@@ -86,7 +107,7 @@ Return ONLY a JSON array of ${FACT_COUNT} objects. EACH object MUST include a "m
     ]
   }
 ]
-"subject" must be one of: ${DAILY_FACT_SUBJECTS.map((s) => s.id).join(', ')}.
+"category" must be the exact slug from the list above. "topic" must match the assigned topic for that row.
 Each "moreFacts" array must have exactly ${MORE_FACTS_COUNT} items related to that fact's topic.`;
 }
 
@@ -106,11 +127,7 @@ async function callOllama(prompt, gradeLabel, dateStr, numPredict = 12000) {
   return content;
 }
 
-/**
- * @param {Date} date
- * @param {string} gradeLabel
- */
-async function generateDailyFacts(date, gradeLabel) {
+async function generateDailyFacts(date, gradeLabel, complexity = 'intermediate') {
   if (!isLlmConfigured()) {
     throw new FactsGenerationError(
       'Ollama is not configured. Start local Ollama or set Ollama Cloud in admin settings.',
@@ -122,16 +139,27 @@ async function generateDailyFacts(date, gradeLabel) {
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
-  const cbse = getCbseVocabularyGuidance(gradeLabel, 'intermediate');
+  const cbse = getCbseVocabularyGuidance(gradeLabel, complexity);
+  const categories = await loadCategories();
+  const assignments = pickDailySlots(categories, dateStr, gradeLabel, FACT_COUNT);
 
   try {
-    let raw = await callOllama(buildPrompt(dateStr, gradeLabel, cbse), gradeLabel, dateStr);
-    let facts = parseFactsJson(raw);
+    let raw = await callOllama(
+      buildPrompt(dateStr, gradeLabel, cbse, assignments),
+      gradeLabel,
+      dateStr,
+    );
+    let facts = parseFactsJson(raw, assignments, categories);
 
     if (!facts || facts.length < 8) {
       console.warn('[dailyFactsAi] retrying Ollama with strict JSON prompt');
-      raw = await callOllama(buildPrompt(dateStr, gradeLabel, cbse, true), gradeLabel, dateStr, 14000);
-      facts = parseFactsJson(raw);
+      raw = await callOllama(
+        buildPrompt(dateStr, gradeLabel, cbse, assignments, true),
+        gradeLabel,
+        dateStr,
+        14000,
+      );
+      facts = parseFactsJson(raw, assignments, categories);
     }
 
     if (!facts || facts.length < 8) {

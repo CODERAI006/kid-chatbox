@@ -26,6 +26,8 @@ const { migrateWordOfDayConfig } = require('./migrate-word-of-day-config');
 const { migrateEducationNews } = require('./migrate-education-news');
 const { migrateNewsPipeline } = require('./migrate-news-pipeline');
 const { migrateDailyFacts } = require('./migrate-daily-facts');
+const { migrateDailyFactsSettings } = require('./migrate-daily-facts-settings');
+const { migrateFactsCategories } = require('./migrate-facts-categories');
 const { migrateAppFeedback } = require('./migrate-app-feedback');
 const { migrateStudyBuddies } = require('./migrate-study-buddies');
 const { migrateUserNotifications } = require('./migrate-user-notifications');
@@ -52,6 +54,8 @@ async function runAllDbMigrations() {
   await migrateEducationNews();
   await migrateNewsPipeline();
   await migrateDailyFacts();
+  await migrateDailyFactsSettings();
+  await migrateFactsCategories();
   await migrateAppFeedback();
   await migrateStudyBuddies();
   await migrateUserNotifications();

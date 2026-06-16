@@ -1,4 +1,4 @@
-/** PostgreSQL cache for Facts & Fun — one AI call saved per day (all classes). */
+/** PostgreSQL cache for Facts & Fun — per-class edition per calendar day. */
 
 const { pool } = require('../config/database');
 
@@ -11,13 +11,19 @@ function formatCacheDate(d) {
   ].join('-');
 }
 
-function gradeCacheKey(_grade) {
-  return 'facts_fun_common';
+/** Per-grade cache key — each class gets age-appropriate facts. */
+function gradeCacheKey(grade) {
+  const slug = String(grade || 'common')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 48);
+  return `facts_fun_v1_${slug || 'common'}`;
 }
 
-function detailCacheKey(_grade, factId) {
+function detailCacheKey(grade, factId) {
   const id = String(factId || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `facts_fun_common_detail_${id}`;
+  return `${gradeCacheKey(grade)}_detail_${id}`;
 }
 
 async function readCache(gradeKey, cacheDate) {
@@ -69,12 +75,12 @@ async function listCachedDates(gradeKey, limit = 30) {
   }
 }
 
-function archiveFactsWhere(gradeKey, maxDate, subject) {
+function archiveFactsWhere(gradeKey, maxDate, category) {
   const params = [gradeKey, maxDate];
-  let subjectClause = '';
-  if (subject) {
-    subjectClause = `AND elem->>'subject' = $3`;
-    params.push(subject);
+  let categoryClause = '';
+  if (category) {
+    categoryClause = `AND (elem->>'category' = $3 OR elem->>'subject' = $3)`;
+    params.push(category);
   }
   const base = `
     FROM daily_facts_cache d
@@ -82,13 +88,13 @@ function archiveFactsWhere(gradeKey, maxDate, subject) {
     WHERE d.grade_key = $1
       AND d.cache_date <= $2::date
       AND jsonb_typeof(d.payload->'facts') = 'array'
-      ${subjectClause}`;
+      ${categoryClause}`;
   return { base, params };
 }
 
-async function countArchivedFacts(gradeKey, maxDate, subject) {
+async function countArchivedFacts(gradeKey, maxDate, category) {
   try {
-    const { base, params } = archiveFactsWhere(gradeKey, maxDate, subject);
+    const { base, params } = archiveFactsWhere(gradeKey, maxDate, category);
     const r = await pool.query(`SELECT COUNT(*)::int AS total ${base}`, params);
     return r.rows[0]?.total ?? 0;
   } catch (err) {
@@ -97,12 +103,13 @@ async function countArchivedFacts(gradeKey, maxDate, subject) {
   }
 }
 
-async function listArchivedFacts(gradeKey, maxDate, { page = 1, limit = 20, subject } = {}) {
+async function listArchivedFacts(gradeKey, maxDate, { page = 1, limit = 20, category, subject } = {}) {
+  const filter = category || subject;
   try {
     const safeLimit = Math.min(50, Math.max(1, limit));
     const safePage = Math.max(1, page);
     const offset = (safePage - 1) * safeLimit;
-    const { base, params } = archiveFactsWhere(gradeKey, maxDate, subject);
+    const { base, params } = archiveFactsWhere(gradeKey, maxDate, filter);
     const limitIdx = params.length + 1;
     const offsetIdx = params.length + 2;
     const r = await pool.query(

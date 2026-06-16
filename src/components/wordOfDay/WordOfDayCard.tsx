@@ -20,10 +20,12 @@ interface WordOfDayCardProps {
   complexity: WordComplexity;
   grade: string;
   date: string;
+  /** Tighter layout for dashboard home. */
+  compact?: boolean;
 }
 
 export const WordOfDayCard: React.FC<WordOfDayCardProps> = ({
-  entry, index, complexity, grade, date,
+  entry, index, complexity, grade, date, compact = false,
 }) => {
   const navigate = useNavigate();
   const color = CARD_COLORS[index % CARD_COLORS.length];
@@ -46,18 +48,21 @@ export const WordOfDayCard: React.FC<WordOfDayCardProps> = ({
       cursor="pointer" onClick={goToDetail}
       _hover={{ boxShadow: 'md' }} transition="all 0.2s"
     >
-      <CardBody p={{ base: 3, md: 4 }}>
-        <VStack spacing={2} align="stretch">
+      <CardBody p={compact ? { base: 2, md: 3 } : { base: 3, md: 4 }}>
+        <VStack spacing={compact ? 1.5 : 2} align="stretch">
           <HStack justify="space-between" flexWrap="wrap" gap={2}>
             <HStack spacing={2} flexWrap="wrap">
               <Box
                 bg={color.border} color="white" borderRadius="full"
-                w={7} h={7} display="flex" alignItems="center" justifyContent="center"
-                fontSize="sm" fontWeight="bold" flexShrink={0}
+                w={compact ? 6 : 7} h={compact ? 6 : 7} display="flex" alignItems="center" justifyContent="center"
+                fontSize={compact ? 'xs' : 'sm'} fontWeight="bold" flexShrink={0}
               >
                 {index + 1}
               </Box>
-              <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="extrabold" color={color.num} textTransform="capitalize">
+              <Text
+                fontSize={compact ? { base: 'lg', md: 'xl' } : { base: 'xl', md: '2xl' }}
+                fontWeight="extrabold" color={color.num} textTransform="capitalize"
+              >
                 {entry.word}
               </Text>
               {entry.phonetic && (
@@ -84,19 +89,22 @@ export const WordOfDayCard: React.FC<WordOfDayCardProps> = ({
           )}
 
           {firstMeaning?.definitions[0] && (
-            <Text fontSize={{ base: 'sm', md: 'md' }} color="gray.700" lineHeight="tall" pl={9}>
+            <Text
+              fontSize={compact ? 'sm' : { base: 'sm', md: 'md' }}
+              color="gray.700" lineHeight="tall" pl={compact ? 8 : 9}
+            >
               {entry.simpleMeaning || firstMeaning.definitions[0].definition}
             </Text>
           )}
 
-          {entry.simpleMeaning && firstMeaning?.definitions[0] && (
+          {entry.simpleMeaning && firstMeaning?.definitions[0] && !compact && (
             <Text fontSize="xs" color="gray.500" pl={9} fontStyle="italic">
               {firstMeaning.definitions[0].definition}
             </Text>
           )}
 
           {(synonyms.length > 0 || antonyms.length > 0) && (
-            <Box pl={9}>
+            <Box pl={compact ? 8 : 9}>
               {synonyms.length > 0 && (
                 <HStack spacing={1} flexWrap="wrap" mb={1}>
                   <Text fontSize="xs" fontWeight="bold" color="green.700">Synonyms:</Text>
@@ -117,10 +125,10 @@ export const WordOfDayCard: React.FC<WordOfDayCardProps> = ({
           )}
 
           <Button
-            size="xs" variant="ghost" colorScheme={color.badge} alignSelf="flex-start" ml={9}
+            size="xs" variant="ghost" colorScheme={color.badge} alignSelf="flex-start" ml={compact ? 8 : 9}
             onClick={(e) => { e.stopPropagation(); goToDetail(); }}
           >
-            Full explanation →
+            {compact ? 'Details →' : 'Full explanation →'}
           </Button>
         </VStack>
       </CardBody>

@@ -3,20 +3,19 @@ import { publicApi } from '@/services/api';
 import {
   FACTS_ARCHIVE_PAGE_SIZE,
   type ArchivedFactItem,
-  type FactSubjectId,
 } from '@/types/dailyFacts';
 
 interface Options {
   gradeLabel: string;
   untilDate: string;
-  subjectFilter: FactSubjectId | 'all';
+  categoryFilter: string | 'all';
   enabled: boolean;
 }
 
 export function useFactsArchive({
   gradeLabel,
   untilDate,
-  subjectFilter,
+  categoryFilter,
   enabled,
 }: Options) {
   const [items, setItems] = useState<ArchivedFactItem[]>([]);
@@ -48,7 +47,7 @@ export function useFactsArchive({
         const res = await publicApi.getDailyFactsArchive(gradeLabel, {
           page: pageNum,
           limit: FACTS_ARCHIVE_PAGE_SIZE,
-          subject: subjectFilter === 'all' ? undefined : subjectFilter,
+          category: categoryFilter === 'all' ? undefined : categoryFilter,
           untilDate,
         });
 
@@ -71,7 +70,7 @@ export function useFactsArchive({
         setLoadingMore(false);
       }
     },
-    [gradeLabel, untilDate, subjectFilter],
+    [gradeLabel, untilDate, categoryFilter],
   );
 
   useEffect(() => {
@@ -81,7 +80,7 @@ export function useFactsArchive({
     }
     reset();
     loadPage(1, false);
-  }, [enabled, gradeLabel, untilDate, subjectFilter, loadPage, reset]);
+  }, [enabled, gradeLabel, untilDate, categoryFilter, loadPage, reset]);
 
   const loadMore = useCallback(() => {
     if (!enabled || !hasMore || loadingRef.current) return;

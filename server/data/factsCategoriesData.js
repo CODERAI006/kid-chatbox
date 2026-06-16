@@ -1,0 +1,765 @@
+module.exports = [
+  {
+    "slug": "space_and_astronomy",
+    "label": "Space & Astronomy",
+    "emoji": "🚀",
+    "topics": [
+      "Solar System",
+      "Planets",
+      "Stars",
+      "Galaxies",
+      "Black Holes",
+      "Moon Facts",
+      "Mars",
+      "Space Missions",
+      "Astronauts",
+      "Comets"
+    ],
+    "sortOrder": 1
+  },
+  {
+    "slug": "earth_and_nature",
+    "label": "Earth & Nature",
+    "emoji": "🌍",
+    "topics": [
+      "Volcanoes",
+      "Earthquakes",
+      "Mountains",
+      "Oceans",
+      "Rivers",
+      "Forests",
+      "Deserts",
+      "Weather",
+      "Climate",
+      "Natural Wonders"
+    ],
+    "sortOrder": 2
+  },
+  {
+    "slug": "animals",
+    "label": "Animals",
+    "emoji": "🦁",
+    "topics": [
+      "Mammals",
+      "Birds",
+      "Reptiles",
+      "Amphibians",
+      "Insects",
+      "Sea Creatures",
+      "Dinosaurs",
+      "Endangered Species",
+      "Animal Records",
+      "Animal Behaviors"
+    ],
+    "sortOrder": 3
+  },
+  {
+    "slug": "human_body",
+    "label": "Human Body",
+    "emoji": "🫀",
+    "topics": [
+      "Brain",
+      "Heart",
+      "Lungs",
+      "Bones",
+      "Muscles",
+      "Eyes",
+      "Blood",
+      "Nervous System",
+      "Digestion",
+      "Sleep"
+    ],
+    "sortOrder": 4
+  },
+  {
+    "slug": "science",
+    "label": "Science",
+    "emoji": "🔬",
+    "topics": [
+      "Physics",
+      "Chemistry",
+      "Biology",
+      "Genetics",
+      "Energy",
+      "Magnetism",
+      "Electricity",
+      "Light",
+      "Sound",
+      "Forces"
+    ],
+    "sortOrder": 5
+  },
+  {
+    "slug": "technology",
+    "label": "Technology",
+    "emoji": "💻",
+    "topics": [
+      "Computers",
+      "Internet",
+      "AI",
+      "Robotics",
+      "Coding",
+      "Cybersecurity",
+      "Mobile Apps",
+      "Cloud Computing",
+      "Data Science",
+      "Gaming"
+    ],
+    "sortOrder": 6
+  },
+  {
+    "slug": "mathematics",
+    "label": "Mathematics",
+    "emoji": "🔢",
+    "topics": [
+      "Numbers",
+      "Patterns",
+      "Geometry",
+      "Algebra",
+      "Statistics",
+      "Probability",
+      "Puzzles",
+      "Mental Math",
+      "Famous Mathematicians",
+      "Logic"
+    ],
+    "sortOrder": 7
+  },
+  {
+    "slug": "history",
+    "label": "History",
+    "emoji": "📜",
+    "topics": [
+      "Ancient Civilizations",
+      "Egypt",
+      "Rome",
+      "India",
+      "World Wars",
+      "Inventions",
+      "Historical Leaders",
+      "Archaeology",
+      "Medieval Times",
+      "Exploration"
+    ],
+    "sortOrder": 8
+  },
+  {
+    "slug": "geography",
+    "label": "Geography",
+    "emoji": "🗺️",
+    "topics": [
+      "Countries",
+      "Capitals",
+      "Flags",
+      "Continents",
+      "Cultures",
+      "Landmarks",
+      "Population Facts",
+      "Maps",
+      "Borders",
+      "Languages"
+    ],
+    "sortOrder": 9
+  },
+  {
+    "slug": "environment",
+    "label": "Environment",
+    "emoji": "🌱",
+    "topics": [
+      "Recycling",
+      "Renewable Energy",
+      "Wildlife Conservation",
+      "Pollution",
+      "Climate Change",
+      "Green Technology"
+    ],
+    "sortOrder": 10
+  },
+  {
+    "slug": "inventions",
+    "label": "Inventions",
+    "emoji": "💡",
+    "topics": [
+      "Telephone",
+      "Internet",
+      "Wheel",
+      "Airplane",
+      "Printing Press",
+      "Electricity",
+      "Computer",
+      "Smartphone",
+      "Medical Discoveries"
+    ],
+    "sortOrder": 11
+  },
+  {
+    "slug": "famous_people",
+    "label": "Famous People",
+    "emoji": "⭐",
+    "topics": [
+      "Scientists",
+      "Inventors",
+      "Explorers",
+      "Authors",
+      "Athletes",
+      "Artists",
+      "Entrepreneurs",
+      "Nobel Prize Winners"
+    ],
+    "sortOrder": 12
+  },
+  {
+    "slug": "literature",
+    "label": "Literature",
+    "emoji": "📚",
+    "topics": [
+      "Fairy Tales",
+      "Myths",
+      "Legends",
+      "Authors",
+      "Books",
+      "Poetry",
+      "Storytelling",
+      "Characters"
+    ],
+    "sortOrder": 13
+  },
+  {
+    "slug": "language_and_vocabulary",
+    "label": "Language & Vocabulary",
+    "emoji": "📝",
+    "topics": [
+      "Word Origins",
+      "Synonyms",
+      "Antonyms",
+      "Idioms",
+      "Proverbs",
+      "Expressions",
+      "Spelling Challenges"
+    ],
+    "sortOrder": 14
+  },
+  {
+    "slug": "arts",
+    "label": "Arts",
+    "emoji": "🎨",
+    "topics": [
+      "Painting",
+      "Sculpture",
+      "Music",
+      "Dance",
+      "Photography",
+      "Architecture",
+      "Theater"
+    ],
+    "sortOrder": 15
+  },
+  {
+    "slug": "music",
+    "label": "Music",
+    "emoji": "🎵",
+    "topics": [
+      "Instruments",
+      "Composers",
+      "Music Genres",
+      "World Music",
+      "Fun Music Facts"
+    ],
+    "sortOrder": 16
+  },
+  {
+    "slug": "sports",
+    "label": "Sports",
+    "emoji": "⚽",
+    "topics": [
+      "Olympics",
+      "Cricket",
+      "Football",
+      "Chess",
+      "Tennis",
+      "Basketball",
+      "World Records",
+      "Athletes"
+    ],
+    "sortOrder": 17
+  },
+  {
+    "slug": "food",
+    "label": "Food",
+    "emoji": "🍎",
+    "topics": [
+      "Fruits",
+      "Vegetables",
+      "World Cuisines",
+      "Nutrition",
+      "Cooking Facts",
+      "Food Origins"
+    ],
+    "sortOrder": 18
+  },
+  {
+    "slug": "health_and_wellness",
+    "label": "Health & Wellness",
+    "emoji": "💪",
+    "topics": [
+      "Exercise",
+      "Nutrition",
+      "Hygiene",
+      "Mental Health",
+      "Healthy Habits"
+    ],
+    "sortOrder": 19
+  },
+  {
+    "slug": "transportation",
+    "label": "Transportation",
+    "emoji": "🚂",
+    "topics": [
+      "Cars",
+      "Trains",
+      "Ships",
+      "Airplanes",
+      "Spacecraft",
+      "Future Transport"
+    ],
+    "sortOrder": 20
+  },
+  {
+    "slug": "engineering",
+    "label": "Engineering",
+    "emoji": "🏗️",
+    "topics": [
+      "Bridges",
+      "Buildings",
+      "Machines",
+      "Renewable Energy Systems"
+    ],
+    "sortOrder": 21
+  },
+  {
+    "slug": "ai_and_future_tech",
+    "label": "AI & Future Tech",
+    "emoji": "🤖",
+    "topics": [
+      "Generative AI",
+      "Machine Learning",
+      "Robots",
+      "Smart Homes",
+      "Self-Driving Cars"
+    ],
+    "sortOrder": 22
+  },
+  {
+    "slug": "business_and_money",
+    "label": "Business & Money",
+    "emoji": "💰",
+    "topics": [
+      "Saving",
+      "Banking",
+      "Entrepreneurship",
+      "Famous Companies",
+      "Financial Literacy"
+    ],
+    "sortOrder": 23
+  },
+  {
+    "slug": "cultures_around_the_world",
+    "label": "Cultures Around the World",
+    "emoji": "🌏",
+    "topics": [
+      "Festivals",
+      "Traditions",
+      "Clothing",
+      "Customs",
+      "Languages"
+    ],
+    "sortOrder": 24
+  },
+  {
+    "slug": "indian_knowledge",
+    "label": "Indian Knowledge",
+    "emoji": "🇮🇳",
+    "topics": [
+      "ISRO",
+      "Indian Scientists",
+      "Freedom Fighters",
+      "Monuments",
+      "States",
+      "Culture"
+    ],
+    "sortOrder": 25
+  },
+  {
+    "slug": "mythology",
+    "label": "Mythology",
+    "emoji": "⚡",
+    "topics": [
+      "Greek",
+      "Roman",
+      "Indian",
+      "Norse",
+      "Egyptian Mythology"
+    ],
+    "sortOrder": 26
+  },
+  {
+    "slug": "ocean_world",
+    "label": "Ocean World",
+    "emoji": "🐋",
+    "topics": [
+      "Coral Reefs",
+      "Sharks",
+      "Whales",
+      "Deep Sea Creatures"
+    ],
+    "sortOrder": 27
+  },
+  {
+    "slug": "adventure",
+    "label": "Adventure",
+    "emoji": "🧭",
+    "topics": [
+      "Exploration",
+      "Expeditions",
+      "Treasure Hunts",
+      "Survival Skills"
+    ],
+    "sortOrder": 28
+  },
+  {
+    "slug": "fun_facts",
+    "label": "Fun Facts",
+    "emoji": "🎉",
+    "topics": [
+      "Weird Facts",
+      "Amazing Records",
+      "Strange Animals",
+      "Bizarre Science"
+    ],
+    "sortOrder": 29
+  },
+  {
+    "slug": "brain_teasers",
+    "label": "Brain Teasers",
+    "emoji": "🧩",
+    "topics": [
+      "Logic Puzzles",
+      "Riddles",
+      "Spot Patterns",
+      "Guessing Games"
+    ],
+    "sortOrder": 30
+  },
+  {
+    "slug": "chess",
+    "label": "Chess",
+    "emoji": "♟️",
+    "topics": [
+      "Openings",
+      "Tactics",
+      "Grandmasters",
+      "Chess History"
+    ],
+    "sortOrder": 31
+  },
+  {
+    "slug": "coding",
+    "label": "Coding",
+    "emoji": "👨‍💻",
+    "topics": [
+      "Programming Languages",
+      "Algorithms",
+      "Computer Logic"
+    ],
+    "sortOrder": 32
+  },
+  {
+    "slug": "career_awareness",
+    "label": "Career Awareness",
+    "emoji": "👩‍⚕️",
+    "topics": [
+      "Doctor",
+      "Engineer",
+      "Pilot",
+      "Scientist",
+      "Teacher",
+      "Architect"
+    ],
+    "sortOrder": 33
+  },
+  {
+    "slug": "space_exploration",
+    "label": "Space Exploration",
+    "emoji": "🛰️",
+    "topics": [
+      "NASA",
+      "ISRO",
+      "SpaceX",
+      "Satellites",
+      "Telescopes"
+    ],
+    "sortOrder": 34
+  },
+  {
+    "slug": "sustainability",
+    "label": "Sustainability",
+    "emoji": "♻️",
+    "topics": [
+      "Water Saving",
+      "Energy Saving",
+      "Green Living"
+    ],
+    "sortOrder": 35
+  },
+  {
+    "slug": "agriculture",
+    "label": "Agriculture",
+    "emoji": "🌾",
+    "topics": [
+      "Farming",
+      "Crops",
+      "Food Production",
+      "Smart Farming"
+    ],
+    "sortOrder": 36
+  },
+  {
+    "slug": "safety",
+    "label": "Safety",
+    "emoji": "🦺",
+    "topics": [
+      "Internet Safety",
+      "Road Safety",
+      "Emergency Preparedness"
+    ],
+    "sortOrder": 37
+  },
+  {
+    "slug": "communication",
+    "label": "Communication",
+    "emoji": "🗣️",
+    "topics": [
+      "Public Speaking",
+      "Body Language",
+      "Storytelling"
+    ],
+    "sortOrder": 38
+  },
+  {
+    "slug": "leadership",
+    "label": "Leadership",
+    "emoji": "🏆",
+    "topics": [
+      "Teamwork",
+      "Motivation",
+      "Decision Making"
+    ],
+    "sortOrder": 39
+  },
+  {
+    "slug": "emotional_intelligence",
+    "label": "Emotional Intelligence",
+    "emoji": "💛",
+    "topics": [
+      "Empathy",
+      "Kindness",
+      "Gratitude",
+      "Confidence"
+    ],
+    "sortOrder": 40
+  },
+  {
+    "slug": "creativity",
+    "label": "Creativity",
+    "emoji": "✨",
+    "topics": [
+      "Drawing Challenges",
+      "Creative Thinking",
+      "Imagination"
+    ],
+    "sortOrder": 41
+  },
+  {
+    "slug": "daily_life_science",
+    "label": "Daily Life Science",
+    "emoji": "🧪",
+    "topics": [
+      "Kitchen Science",
+      "Home Experiments",
+      "Everyday Physics"
+    ],
+    "sortOrder": 42
+  },
+  {
+    "slug": "wonders_of_the_world",
+    "label": "Wonders of the World",
+    "emoji": "🏛️",
+    "topics": [
+      "Ancient Wonders",
+      "Modern Wonders"
+    ],
+    "sortOrder": 43
+  },
+  {
+    "slug": "festivals",
+    "label": "Festivals",
+    "emoji": "🪔",
+    "topics": [
+      "Diwali",
+      "Christmas",
+      "Eid",
+      "Holi",
+      "Lunar New Year"
+    ],
+    "sortOrder": 44
+  },
+  {
+    "slug": "wildlife",
+    "label": "Wildlife",
+    "emoji": "🦌",
+    "topics": [
+      "National Parks",
+      "Animal Habitats",
+      "Migration"
+    ],
+    "sortOrder": 45
+  },
+  {
+    "slug": "space_mysteries",
+    "label": "Space Mysteries",
+    "emoji": "🌌",
+    "topics": [
+      "Dark Matter",
+      "Alien Life",
+      "Cosmic Phenomena"
+    ],
+    "sortOrder": 46
+  },
+  {
+    "slug": "human_achievements",
+    "label": "Human Achievements",
+    "emoji": "🏅",
+    "topics": [
+      "World Records",
+      "Breakthrough Discoveries"
+    ],
+    "sortOrder": 47
+  },
+  {
+    "slug": "fun_challenges",
+    "label": "Fun Challenges",
+    "emoji": "🎯",
+    "topics": [
+      "Memory Games",
+      "Observation Games",
+      "Mini Quizzes"
+    ],
+    "sortOrder": 48
+  },
+  {
+    "slug": "stem_projects",
+    "label": "STEM Projects",
+    "emoji": "🔧",
+    "topics": [
+      "DIY Science",
+      "Coding Challenges",
+      "Engineering Tasks"
+    ],
+    "sortOrder": 49
+  },
+  {
+    "slug": "digital_citizenship",
+    "label": "Digital Citizenship",
+    "emoji": "📱",
+    "topics": [
+      "Responsible Internet Usage",
+      "Social Media Awareness"
+    ],
+    "sortOrder": 50
+  },
+  {
+    "slug": "future_careers",
+    "label": "Future Careers",
+    "emoji": "🚀",
+    "topics": [
+      "AI Engineer",
+      "Data Scientist",
+      "Game Developer"
+    ],
+    "sortOrder": 51
+  },
+  {
+    "slug": "languages",
+    "label": "Languages",
+    "emoji": "🗨️",
+    "topics": [
+      "French Facts",
+      "Spanish Facts",
+      "Sanskrit Facts"
+    ],
+    "sortOrder": 52
+  },
+  {
+    "slug": "ethics_and_values",
+    "label": "Ethics & Values",
+    "emoji": "🤝",
+    "topics": [
+      "Honesty",
+      "Respect",
+      "Responsibility",
+      "Fairness"
+    ],
+    "sortOrder": 53
+  },
+  {
+    "slug": "world_records",
+    "label": "World Records",
+    "emoji": "📊",
+    "topics": [
+      "Guinness Records",
+      "Natural Records"
+    ],
+    "sortOrder": 54
+  },
+  {
+    "slug": "puzzles_and_mysteries",
+    "label": "Puzzles & Mysteries",
+    "emoji": "🔍",
+    "topics": [
+      "Detective Challenges",
+      "Mystery Facts"
+    ],
+    "sortOrder": 55
+  },
+  {
+    "slug": "innovation",
+    "label": "Innovation",
+    "emoji": "💡",
+    "topics": [
+      "Startup Stories",
+      "Young Inventors"
+    ],
+    "sortOrder": 56
+  },
+  {
+    "slug": "space_for_kids",
+    "label": "Space for Kids",
+    "emoji": "👨‍🚀",
+    "topics": [
+      "Planet of the Day",
+      "Astronaut of the Week"
+    ],
+    "sortOrder": 57
+  },
+  {
+    "slug": "daily_knowledge",
+    "label": "Daily Knowledge",
+    "emoji": "📅",
+    "topics": [
+      "Today in History",
+      "Did You Know?",
+      "Fun Trivia"
+    ],
+    "sortOrder": 58
+  }
+];\n

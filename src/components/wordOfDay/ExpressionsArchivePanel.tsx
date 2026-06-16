@@ -98,6 +98,8 @@ export function ExpressionsArchivePanel({
           <ExpressionCard
             key={`${entry.editionDate}-${entry.phrase.id || i}`}
             expression={{ ...entry.phrase, editionDate: entry.editionDate }}
+            index={i}
+            showDate
             onOpenDetail={onOpenDetail}
           />
         ))}

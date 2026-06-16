@@ -28,6 +28,7 @@ import { QuizResultsAnalytics } from '@/components/admin/QuizResultsAnalytics';
 import { QuizSchedulerManagement } from '@/components/admin/QuizSchedulerManagement';
 import { OllamaCloudSettingsPage } from '@/components/admin/OllamaCloudSettings';
 import { WordOfDaySettingsPage } from '@/components/admin/WordOfDaySettings';
+import { FactsAndFunSettingsPage } from '@/components/admin/FactsAndFunSettings';
 import { EducationNewsAdminPage } from '@/components/admin/EducationNewsAdmin';
 import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
@@ -44,6 +45,7 @@ import { PastChatsPage } from '@/components/learning/PastChatsPage';
 import { MySchedulesPage } from '@/components/learning/MySchedulesPage';
 import { StudyBuddiesPage } from '@/components/study-buddy/StudyBuddiesPage';
 import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
+import { AppInstallModal } from '@/components/layout/AppInstallModal';
 
 /**
  * Theme configuration with dark mode support and responsive font sizes
@@ -236,6 +238,7 @@ export const App: React.FC = () => {
           }}
         >
         <GoogleAnalytics />
+        <AppInstallModal />
         {!loading && (
         <Routes>
           <Route
@@ -546,6 +549,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <WordOfDaySettingsPage />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/facts-and-fun"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <FactsAndFunSettingsPage />
                 </AdminLayout>
               </AdminGuard>
             }

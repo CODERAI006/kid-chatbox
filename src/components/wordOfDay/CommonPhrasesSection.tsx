@@ -1,8 +1,8 @@
 /**
- * Five idiomatic phrases — card grid with tap-for-detail and link to full archive.
+ * Expression of the Day — separate box, Facts & Fun orange theme.
  */
 
-import { useState, type FC } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -10,10 +10,8 @@ import {
   Heading,
   Text,
   VStack,
-  Badge,
-  HStack,
   Button,
-  SimpleGrid,
+  Box,
 } from '@/shared/design-system';
 import type { DailyPhrase } from '@/types/wordOfDay';
 import { MESSAGES } from '@/constants/app';
@@ -23,16 +21,14 @@ import type { ExpressionDetail } from './expressionUtils';
 
 interface CommonPhrasesSectionProps {
   phrases: DailyPhrase[];
-  /** Denser layout for dashboard sidebar. */
+  /** Denser layout for dashboard home. */
   compact?: boolean;
-  editionDate?: string;
 }
 
-export const CommonPhrasesSection: FC<CommonPhrasesSectionProps> = ({
+export function CommonPhrasesSection({
   phrases,
   compact = false,
-  editionDate,
-}) => {
+}: CommonPhrasesSectionProps) {
   const navigate = useNavigate();
   const [detailExpression, setDetailExpression] = useState<ExpressionDetail | null>(null);
 
@@ -42,50 +38,40 @@ export const CommonPhrasesSection: FC<CommonPhrasesSectionProps> = ({
 
   return (
     <>
-      <Card bg="teal.50" borderColor="teal.200" borderWidth={compact ? 1 : 1.5}>
-        <CardBody p={compact ? { base: 2, md: 3 } : { base: 3, md: 4 }}>
+      <Card bg="white" borderColor="orange.200" borderWidth={2} boxShadow="md">
+        <CardBody p={compact ? { base: 3, md: 4 } : { base: 3, md: 4 }}>
           <VStack spacing={compact ? 2 : 3} align="stretch">
-            <HStack justify="space-between" flexWrap="wrap" gap={1}>
-              <Heading size={compact ? 'xs' : 'sm'} color="teal.700">
-                💬 {phrases.length} expressions for better communication
+            <Box>
+              <Heading size="sm" color="orange.600">
+                💬 Expression of the Day
               </Heading>
-              <Badge colorScheme="purple" fontSize="2xs" variant="subtle">
-                AI daily
-              </Badge>
-            </HStack>
+              <Text fontSize="xs" color="gray.500" mt={0.5}>
+                {phrases.length} phrases for better communication · refreshes daily
+              </Text>
+            </Box>
+
             {!compact && (
               <Text fontSize="xs" color="gray.600">
                 {MESSAGES.IDIOMS_AI_LABEL} — tap any card for the full example.
               </Text>
             )}
 
-            {compact ? (
-              <VStack spacing={2} align="stretch">
-                {phrases.map((item, i) => (
-                  <ExpressionCard
-                    key={item.id || `${item.phrase}-${i}`}
-                    expression={{ ...item, editionDate }}
-                    index={i}
-                    onOpenDetail={openDetail}
-                  />
-                ))}
-              </VStack>
-            ) : (
-              <SimpleGrid minChildWidth={{ base: '100%', md: '240px' }} spacing={3}>
-                {phrases.map((item, i) => (
-                  <ExpressionCard
-                    key={item.id || `${item.phrase}-${i}`}
-                    expression={{ ...item, editionDate }}
-                    index={i}
-                    onOpenDetail={openDetail}
-                  />
-                ))}
-              </SimpleGrid>
-            )}
+            <VStack spacing={2} align="stretch">
+              {phrases.map((item, i) => (
+                <ExpressionCard
+                  key={item.id || `${item.phrase}-${i}`}
+                  expression={item}
+                  index={i}
+                  compact={compact}
+                  variant="facts"
+                  onOpenDetail={openDetail}
+                />
+              ))}
+            </VStack>
 
             <Button
               size="sm"
-              colorScheme="teal"
+              colorScheme="orange"
               variant="outline"
               alignSelf="flex-start"
               onClick={() => navigate('/expressions')}
@@ -103,4 +89,6 @@ export const CommonPhrasesSection: FC<CommonPhrasesSectionProps> = ({
       />
     </>
   );
-};
+}
+
+export default CommonPhrasesSection;

@@ -1237,6 +1237,33 @@ export const wordOfDayApi = {
   },
 };
 
+export const factsAndFunApi = {
+  getSettings: async (): Promise<{
+    success: boolean;
+    settings: import('@/types/dailyFacts').DailyFactsGradeSetting[];
+    complexities: string[];
+  }> => {
+    const response = await apiClient.get('/admin/facts-and-fun/settings');
+    return response.data;
+  },
+
+  updateSettings: async (
+    settings: import('@/types/dailyFacts').DailyFactsGradeSetting[],
+  ): Promise<{
+    success: boolean;
+    settings: import('@/types/dailyFacts').DailyFactsGradeSetting[];
+    message?: string;
+  }> => {
+    const response = await apiClient.put('/admin/facts-and-fun/settings', { settings });
+    return response.data;
+  },
+
+  regenerateToday: async (): Promise<{ success: boolean; message?: string; built?: number }> => {
+    const response = await apiClient.post('/admin/facts-and-fun/regenerate');
+    return response.data;
+  },
+};
+
 export const newsPipelineApi = {
   getStatus: async (): Promise<{
     success: boolean;

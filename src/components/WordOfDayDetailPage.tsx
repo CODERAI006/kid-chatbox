@@ -10,7 +10,7 @@ import {
 } from '@/shared/design-system';
 import { publicApi } from '@/services/api';
 import type { WordOfDayResponse } from '@/types/wordOfDay';
-import { CommonPhrasesSection } from './wordOfDay/CommonPhrasesSection';
+import CommonPhrasesSection from './wordOfDay/CommonPhrasesSection';
 import { WordOfDayQuiz } from './wordOfDay/WordOfDayQuiz';
 import { MESSAGES } from '@/constants/app';
 import { readWordDetailCache, writeWordDetailCache } from '@/utils/wordOfDayDetailCache';
@@ -220,7 +220,7 @@ export const WordOfDayDetailPage: React.FC = () => {
       </Card>
 
       <Box mt={6}>
-        <CommonPhrasesSection phrases={data.phrases} editionDate={data.date} />
+        <CommonPhrasesSection phrases={data.phrases} />
       </Box>
     </Box>
   );

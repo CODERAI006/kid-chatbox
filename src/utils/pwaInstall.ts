@@ -40,7 +40,7 @@ export function canOfferMobileInstall(): boolean {
 }
 
 export async function registerInstallServiceWorker(): Promise<void> {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator)) return;
 
   try {
     await navigator.serviceWorker.register('/sw.js');

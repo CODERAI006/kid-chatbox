@@ -42,10 +42,12 @@ import {
   StudyLibraryContent,
   type StudyLibraryContentType,
 } from '@/services/admin';
+import { getErrorMessage } from '@/services/api';
 import {
   StudyContentAudienceFields,
   STUDY_CONTENT_FILE_ACCEPT,
   STUDY_CONTENT_TYPES,
+  STUDY_LIBRARY_MAX_FILE_BYTES,
 } from './study/StudyContentAudienceFields';
 
 interface StudyLibraryContentFormData {
@@ -240,12 +242,12 @@ export const StudyLibraryContentManagement: React.FC = () => {
       setSelectedFile(null);
       loadContent();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save content';
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: getErrorMessage(err),
         status: 'error',
-        duration: 3000,
+        duration: 5000,
+        isClosable: true,
       });
     } finally {
       setFormLoading(false);
@@ -299,6 +301,23 @@ export const StudyLibraryContentManagement: React.FC = () => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const maxUploadLabel = formatFileSize(STUDY_LIBRARY_MAX_FILE_BYTES);
+
+  const handleFileSelected = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > STUDY_LIBRARY_MAX_FILE_BYTES) {
+      toast({
+        title: 'File too large',
+        description: `${file.name} exceeds the ${maxUploadLabel} limit. Try a smaller image or compress it first.`,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    setSelectedFile(file);
   };
 
   const formatDate = (dateString?: string): string => {
@@ -547,14 +566,15 @@ export const StudyLibraryContentManagement: React.FC = () => {
                 {formData.contentType !== 'text' && (
                   <FormControl isRequired={!selectedContent}>
                     <FormLabel>Upload File</FormLabel>
+                    <Text fontSize="xs" color="gray.500" mb={2}>
+                      Max file size: {maxUploadLabel}. Phone photos often exceed 1MB — if upload fails with 413, reload nginx config on the server.
+                    </Text>
                     <Input
                       type="file"
                       accept={STUDY_CONTENT_FILE_ACCEPT[formData.contentType] || '*'}
                       onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSelectedFile(file);
-                        }
+                        handleFileSelected(e.target.files?.[0]);
+                        e.target.value = '';
                       }}
                     />
                     {selectedContent?.fileName && !selectedFile && (
@@ -585,6 +605,17 @@ export const StudyLibraryContentManagement: React.FC = () => {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          if (file.size > STUDY_LIBRARY_MAX_FILE_BYTES) {
+                            toast({
+                              title: 'File too large',
+                              description: `${file.name} exceeds the ${maxUploadLabel} limit.`,
+                              status: 'error',
+                              duration: 5000,
+                              isClosable: true,
+                            });
+                            e.target.value = '';
+                            return;
+                          }
                           setSelectedFile(file);
                           const reader = new FileReader();
                           reader.onload = (event) => {

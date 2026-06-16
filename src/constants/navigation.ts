@@ -18,6 +18,7 @@ import {
   FiSettings,
   FiShield,
   FiSun,
+  FiZap,
   FiTarget,
   FiTrendingUp,
   FiUser,
@@ -52,6 +53,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: FiCalendar },
   { adminPath: '/admin/ollama-cloud', label: 'AI Settings', icon: FiCpu },
   { adminPath: '/admin/word-of-day', label: 'Word of the Day', icon: FiSun },
+  { adminPath: '/admin/facts-and-fun', label: 'Facts & Fun', icon: FiZap },
   { adminPath: '/admin/education-news', label: 'Education News', icon: FiGlobe },
   { adminPath: '/admin/feedback', label: 'Feedback', icon: FiMessageSquare },
 ];

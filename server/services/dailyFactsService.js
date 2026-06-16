@@ -1,11 +1,11 @@
 /**
- * Facts & Fun — 10 facts/day (shared across classes), ONE Ollama call, saved in PostgreSQL.
+ * Facts & Fun — 10 facts/day per grade, cached in PostgreSQL.
  */
 
 const { generateDailyFacts } = require('../utils/dailyFactsAi');
-const { DAILY_FACT_SUBJECTS } = require('../utils/dailyFactsSubjects');
-const { SHARED_AI_GRADE_LABEL } = require('../utils/dailyContentShared');
+const { loadCategories, normalizeFactCategory } = require('../utils/factsCategories');
 const { resolveGradeLabel, parseDateParam } = require('./wordOfDayService');
+const { getComplexityForGrade, getAllSettings } = require('../utils/dailyFactsSettings');
 const { normalizeFactDetail } = require('../utils/dailyFactsEnrich');
 const {
   formatCacheDate,
@@ -20,23 +20,34 @@ const {
 
 const ARCHIVE_PAGE_SIZE = 20;
 
-function withDetailFields(facts) {
-  return (facts || []).map((f) => normalizeFactDetail(f));
+function withDetailFields(facts, categories) {
+  return (facts || []).map((f) => normalizeFactCategory(normalizeFactDetail(f), categories));
 }
 
-async function buildDailyPayload(date) {
+async function categoriesPayload() {
+  const categories = await loadCategories();
+  return categories.map((c) => ({
+    slug: c.slug,
+    label: c.label,
+    emoji: c.emoji,
+  }));
+}
+
+async function buildDailyPayload(date, gradeLabel, complexity) {
   const cacheDate = formatCacheDate(date);
-  const facts = await generateDailyFacts(date, SHARED_AI_GRADE_LABEL);
+  const categories = await loadCategories();
+  const facts = await generateDailyFacts(date, gradeLabel, complexity);
   return {
     success: true,
     date: cacheDate,
-    grade: SHARED_AI_GRADE_LABEL,
-    facts: withDetailFields(facts),
-    subjects: DAILY_FACT_SUBJECTS,
+    grade: gradeLabel,
+    complexity,
+    facts: withDetailFields(facts, categories),
+    categories: categories.map((c) => ({ slug: c.slug, label: c.label, emoji: c.emoji })),
     factCount: facts.length,
     cached: false,
     source: 'ollama',
-    sharedAcrossClasses: true,
+    sharedAcrossClasses: false,
   };
 }
 
@@ -44,21 +55,43 @@ async function getDailyFacts(dateInput, grade) {
   const date = parseDateParam(dateInput);
   const cacheDate = formatCacheDate(date);
   const gradeLabel = await resolveGradeLabel(grade);
-  const key = gradeCacheKey(gradeLabel);
+  const complexity = await getComplexityForGrade(gradeLabel);
 
+  if (!complexity) {
+    return {
+      success: false,
+      status: 403,
+      date: cacheDate,
+      grade: gradeLabel,
+      facts: [],
+      categories: await categoriesPayload(),
+      message: 'Facts & Fun is disabled for this grade.',
+      source: 'ollama',
+    };
+  }
+
+  const key = gradeCacheKey(gradeLabel);
+  const categories = await loadCategories();
   const cached = await readCache(key, cacheDate);
   if (cached?.facts?.length) {
     return {
       ...cached,
       grade: gradeLabel,
-      facts: withDetailFields(cached.facts),
+      complexity: cached.complexity || complexity,
+      facts: withDetailFields(cached.facts, categories),
+      categories: cached.categories || categories.map((c) => ({
+        slug: c.slug,
+        label: c.label,
+        emoji: c.emoji,
+      })),
       cached: true,
       source: 'ollama',
+      sharedAcrossClasses: false,
     };
   }
 
   try {
-    const body = await buildDailyPayload(date);
+    const body = await buildDailyPayload(date, gradeLabel, complexity);
     await writeCache(key, cacheDate, body);
     return { ...body, grade: gradeLabel };
   } catch (err) {
@@ -71,7 +104,7 @@ async function getDailyFacts(dateInput, grade) {
       date: cacheDate,
       grade: gradeLabel,
       facts: [],
-      subjects: DAILY_FACT_SUBJECTS,
+      categories: await categoriesPayload(),
       message,
       source: 'ollama',
     };
@@ -91,12 +124,12 @@ async function listFactsArchive(grade, options = {}) {
   const maxDate = formatCacheDate(parseDateParam(options.untilDate));
   const page = Math.max(1, parseInt(options.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(options.limit, 10) || ARCHIVE_PAGE_SIZE));
-  const subjectRaw = String(options.subject || '').trim();
-  const subject = subjectRaw && subjectRaw !== 'all' ? subjectRaw : null;
+  const categoryRaw = String(options.category || options.subject || '').trim();
+  const category = categoryRaw && categoryRaw !== 'all' ? categoryRaw : null;
 
   const [total, rows] = await Promise.all([
-    countArchivedFacts(key, maxDate, subject),
-    listArchivedFacts(key, maxDate, { page, limit, subject }),
+    countArchivedFacts(key, maxDate, category),
+    listArchivedFacts(key, maxDate, { page, limit, category }),
   ]);
 
   const items = rows.map(({ editionDate, fact }) => ({
@@ -119,7 +152,11 @@ async function listFactsArchive(grade, options = {}) {
     totalPages,
     hasMore: page < totalPages,
     items,
-    subjects: DAILY_FACT_SUBJECTS,
+    categories: (await loadCategories()).map((c) => ({
+      slug: c.slug,
+      label: c.label,
+      emoji: c.emoji,
+    })),
   };
 }
 
@@ -176,21 +213,43 @@ async function getFactDetail(dateInput, grade, factIdParam) {
 async function pregenerateForDate(dateInput) {
   const date = parseDateParam(dateInput);
   const cacheDate = formatCacheDate(date);
-  const key = gradeCacheKey();
+  const settings = await getAllSettings();
+  const enabled = settings.filter((s) => s.enabled);
 
-  const existing = await readCache(key, cacheDate);
-  if (existing?.facts?.length) {
-    return { cacheDate, built: 0, total: 1, skipped: true };
+  let built = 0;
+  for (const row of enabled) {
+    const key = gradeCacheKey(row.grade);
+    const existing = await readCache(key, cacheDate);
+    if (existing?.facts?.length) continue;
+
+    try {
+      await getDailyFacts(cacheDate, row.grade);
+      built += 1;
+      console.log(`[dailyFactsService] pregenerated ${row.grade} @ ${cacheDate}`);
+    } catch (err) {
+      console.error(`[dailyFactsService] pregenerate ${row.grade} failed:`, err.message);
+    }
   }
 
-  try {
-    await getDailyFacts(cacheDate, SHARED_AI_GRADE_LABEL);
-    console.log(`[dailyFactsService] pregenerated shared edition @ ${cacheDate}`);
-    return { cacheDate, built: 1, total: 1 };
-  } catch (err) {
-    console.error('[dailyFactsService] pregenerate failed:', err.message);
-    return { cacheDate, built: 0, total: 1, error: err.message };
-  }
+  return {
+    cacheDate,
+    built,
+    total: enabled.length,
+    skipped: built === 0,
+  };
+}
+
+async function listCategories() {
+  const categories = await loadCategories();
+  return {
+    success: true,
+    categories: categories.map((c) => ({
+      slug: c.slug,
+      label: c.label,
+      emoji: c.emoji,
+      topics: c.topics,
+    })),
+  };
 }
 
 module.exports = {
@@ -198,6 +257,7 @@ module.exports = {
   getFactDetail,
   listArchiveDates,
   listFactsArchive,
+  listCategories,
   pregenerateForDate,
   parseDateParam,
   ARCHIVE_PAGE_SIZE,

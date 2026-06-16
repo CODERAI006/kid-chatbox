@@ -10,10 +10,21 @@ const {
   getFactDetail,
   listArchiveDates,
   listFactsArchive,
+  listCategories,
   ARCHIVE_PAGE_SIZE,
 } = require('../services/dailyFactsService');
 
 const router = express.Router();
+
+router.get('/categories', async (req, res) => {
+  try {
+    const body = await listCategories();
+    res.json(body);
+  } catch (error) {
+    console.error('[facts-and-fun/categories]', error.message);
+    res.status(500).json({ success: false, categories: [] });
+  }
+});
 
 router.get('/dates', async (req, res) => {
   try {
@@ -34,6 +45,7 @@ router.get('/archive', async (req, res) => {
       page,
       limit,
       subject: req.query.subject,
+      category: req.query.category || req.query.subject,
       untilDate: req.query.untilDate,
     });
     res.json(body);

@@ -194,7 +194,7 @@ export function ExpressionsPanel() {
           {filtered.map((phrase, i) => (
             <ExpressionCard
               key={phrase.id || `${phrase.phrase}-${i}`}
-              expression={{ ...phrase, editionDate: selectedDate }}
+              expression={phrase}
               index={i}
               onOpenDetail={openDetail}
             />

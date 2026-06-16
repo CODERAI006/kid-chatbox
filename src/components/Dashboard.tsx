@@ -32,6 +32,7 @@ import {
 import { ActionTile } from '@/components/dashboard/ActionTile';
 import { type PlanInfo } from '@/components/dashboard/PlanSummaryCard';
 import { YourPlanPanel } from '@/components/dashboard/YourPlanPanel';
+import { AppInstallButton } from '@/components/layout/AppInstallButton';
 
 interface DashboardProps {
   user: User;
@@ -161,6 +162,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               {heartGreeting}
             </Heading>
           </VStack>
+
+          <AppInstallButton />
 
           <StudentUpcomingTestsMarquee />
 

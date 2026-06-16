@@ -15,7 +15,8 @@ import { QuizPill, QuizSectionLabel } from '@/components/quiz/quizFormUi';
 import FactCard from './FactCard';
 import FactDetailModal from './FactDetailModal';
 import FactsArchivePanel from './FactsArchivePanel';
-import type { DailyFact, DailyFactsResponse, FactSubjectId } from '@/types/dailyFacts';
+import type { DailyFact, DailyFactsResponse, FactCategory } from '@/types/dailyFacts';
+import { resolveFactCategorySlug } from '@/utils/factCategoryUi';
 
 type ViewMode = 'today' | 'archive';
 
@@ -52,7 +53,7 @@ export default function FactsAndFunPanel() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [data, setData] = useState<DailyFactsResponse | null>(null);
   const [archiveDates, setArchiveDates] = useState<string[]>([]);
-  const [subjectFilter, setSubjectFilter] = useState<FactSubjectId | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailFact, setDetailFact] = useState<DailyFact | null>(null);
@@ -96,18 +97,18 @@ export default function FactsAndFunPanel() {
     });
   }, [gradeLabel]);
 
-  const subjects = data?.subjects || [];
+  const categories = data?.categories || [];
   const filtered = useMemo(() => {
     const facts = data?.facts || [];
-    if (subjectFilter === 'all') return facts;
-    return facts.filter((f) => f.subject === subjectFilter);
-  }, [data, subjectFilter]);
+    if (categoryFilter === 'all') return facts;
+    return facts.filter((f) => resolveFactCategorySlug(f) === categoryFilter);
+  }, [data, categoryFilter]);
 
-  const subjectMap = useMemo(() => {
-    const m = new Map<string, (typeof subjects)[0]>();
-    subjects.forEach((s) => m.set(s.id, s));
+  const categoryMap = useMemo(() => {
+    const m = new Map<string, FactCategory>();
+    categories.forEach((c) => m.set(c.slug, c));
     return m;
-  }, [subjects]);
+  }, [categories]);
 
   return (
     <VStack align="stretch" spacing={{ base: 4, md: 5 }} w="100%" minW={0}>
@@ -220,7 +221,7 @@ export default function FactsAndFunPanel() {
       </Text>
 
       <Box minW={0}>
-        <QuizSectionLabel>Filter by area</QuizSectionLabel>
+        <QuizSectionLabel>Filter by category</QuizSectionLabel>
         <Box
           overflowX="auto"
           pb={1}
@@ -233,17 +234,17 @@ export default function FactsAndFunPanel() {
         >
           <HStack spacing={2} flexWrap={{ base: 'nowrap', lg: 'wrap' }} w="max-content" maxW="100%">
             <QuizPill
-              label="All areas"
-              active={subjectFilter === 'all'}
-              onClick={() => setSubjectFilter('all')}
+              label="All categories"
+              active={categoryFilter === 'all'}
+              onClick={() => setCategoryFilter('all')}
               cs="gray"
             />
-            {subjects.map((s) => (
+            {categories.slice(0, 24).map((c) => (
               <QuizPill
-                key={s.id}
-                label={`${s.emoji} ${s.label}`}
-                active={subjectFilter === s.id}
-                onClick={() => setSubjectFilter(s.id as FactSubjectId)}
+                key={c.slug}
+                label={`${c.emoji} ${c.label}`}
+                active={categoryFilter === c.slug}
+                onClick={() => setCategoryFilter(c.slug)}
                 cs="orange"
               />
             ))}
@@ -255,8 +256,8 @@ export default function FactsAndFunPanel() {
         <FactsArchivePanel
           gradeLabel={gradeLabel}
           untilDate={today}
-          subjectFilter={subjectFilter}
-          subjects={subjects}
+          categoryFilter={categoryFilter}
+          categories={categories}
           onOpenDetail={setDetailFact}
         />
       ) : loading ? (
@@ -306,7 +307,7 @@ export default function FactsAndFunPanel() {
             <FactCard
               key={fact.id}
               fact={fact}
-              subjectMeta={subjectMap.get(fact.subject)}
+              categoryMeta={categoryMap.get(resolveFactCategorySlug(fact))}
               index={data?.facts?.indexOf(fact) ?? i}
               onOpenDetail={setDetailFact}
             />
@@ -316,13 +317,13 @@ export default function FactsAndFunPanel() {
 
       {viewMode === 'today' && !loading && filtered.length === 0 && !error && (
         <Text textAlign="center" fontSize={{ base: 'sm', md: 'md' }} color="gray.500" py={8}>
-          No facts in this area for the selected day.
+          No facts in this category for the selected day.
         </Text>
       )}
 
       <FactDetailModal
         fact={detailFact}
-        subjectMeta={detailFact ? subjectMap.get(detailFact.subject) : undefined}
+        categoryMeta={detailFact ? categoryMap.get(resolveFactCategorySlug(detailFact)) : undefined}
         isOpen={Boolean(detailFact)}
         onClose={() => setDetailFact(null)}
       />

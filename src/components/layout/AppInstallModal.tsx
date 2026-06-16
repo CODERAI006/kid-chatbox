@@ -14,6 +14,8 @@ import {
   Button,
   Text,
   VStack,
+  HStack,
+  Image,
   List,
   ListItem,
   useDisclosure,
@@ -63,6 +65,17 @@ export const AppInstallModal: React.FC = () => {
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={2}>
+          <HStack spacing={3} mb={4} p={3} bg="purple.50" borderRadius="lg">
+            <Image src="/icon-192.png" alt="Guru AI app icon" boxSize="48px" borderRadius="xl" />
+            <VStack align="start" spacing={0}>
+              <Text fontWeight="bold" fontSize="sm">
+                Guru AI
+              </Text>
+              <Text fontSize="xs" color="gray.600">
+                Home screen icon with one-tap access
+              </Text>
+            </VStack>
+          </HStack>
           {isIos ? (
             <VStack align="stretch" spacing={3}>
               <Text fontSize="sm" color="gray.600">
@@ -91,8 +104,12 @@ export const AppInstallModal: React.FC = () => {
             </VStack>
           )}
         </ModalBody>
-        {!isIos && hasNativePrompt && (
-          <ModalFooter>
+        <ModalFooter>
+          {isIos ? (
+            <Button colorScheme="purple" w="100%" onClick={onClose}>
+              Got it
+            </Button>
+          ) : hasNativePrompt ? (
             <Button
               colorScheme="purple"
               w="100%"
@@ -102,8 +119,12 @@ export const AppInstallModal: React.FC = () => {
             >
               Install now
             </Button>
-          </ModalFooter>
-        )}
+          ) : (
+            <Button variant="outline" w="100%" onClick={onClose}>
+              Close
+            </Button>
+          )}
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );

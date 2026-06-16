@@ -29,6 +29,7 @@ import { ThreeJSBackground } from '@/components/home/ThreeJSBackground';
 import { FloatingElement } from '@/components/home/FloatingElement';
 import { HeroSection, HeroButtons } from '@/components/home/HeroSection';
 import { LandingShowcase } from '@/components/home/LandingShowcase';
+import { AppInstallButton } from '@/components/layout/AppInstallButton';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { PricingPlansSection } from '@/components/pricing/PricingPlansSection';
@@ -178,7 +179,10 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
 
           {/* Buttons positioned below the circle */}
           <Box mt={{ base: 6, md: '460px' }} position="relative" zIndex={2}>
-            <HeroButtons onGetStarted={handleGetStarted} onLogin={handleLogin} />
+            <VStack spacing={4}>
+              <HeroButtons onGetStarted={handleGetStarted} onLogin={handleLogin} />
+              <AppInstallButton variant="outline" />
+            </VStack>
           </Box>
 
           <Box mt={{ base: 4, md: 8 }} position="relative" zIndex={2}>

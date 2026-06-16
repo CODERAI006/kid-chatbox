@@ -1,5 +1,22 @@
-/** Facts & Fun — 10 class-based facts per day, saved in DB. */
+/** Facts & Fun — per-class facts per day, saved in DB. */
 
+import type { WordComplexity } from '@/types/wordOfDay';
+
+export interface DailyFactsGradeSetting {
+  grade: string;
+  complexity: WordComplexity;
+  enabled: boolean;
+  updatedAt?: string | null;
+}
+
+export interface FactCategory {
+  slug: string;
+  label: string;
+  emoji: string;
+  topics?: string[];
+}
+
+/** @deprecated legacy subject ids — use category slug */
 export type FactSubjectId =
   | 'science'
   | 'geography'
@@ -9,7 +26,8 @@ export type FactSubjectId =
   | 'nature'
   | 'india'
   | 'sports'
-  | 'math';
+  | 'math'
+  | string;
 
 export interface FactSubject {
   id: FactSubjectId;
@@ -24,7 +42,10 @@ export interface RelatedFact {
 
 export interface DailyFact {
   id: string;
-  subject: FactSubjectId;
+  category: string;
+  topic?: string;
+  /** Legacy field — same as category slug when present */
+  subject?: string;
   emoji: string;
   title: string;
   fact: string;
@@ -58,6 +79,8 @@ export interface DailyFactsResponse {
   date: string;
   grade: string;
   facts: DailyFact[];
+  categories?: FactCategory[];
+  /** @deprecated use categories */
   subjects?: FactSubject[];
   factCount?: number;
   cached?: boolean;
@@ -86,6 +109,8 @@ export interface DailyFactsArchiveResponse {
   totalPages: number;
   hasMore: boolean;
   items: ArchivedFactItem[];
+  categories?: FactCategory[];
+  /** @deprecated use categories */
   subjects?: FactSubject[];
   message?: string;
 }

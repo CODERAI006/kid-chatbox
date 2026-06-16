@@ -1240,5 +1240,66 @@ router.post('/word-of-day/regenerate', checkPermission('manage_users'), async (r
   }
 });
 
+/**
+ * GET /api/admin/facts-and-fun/settings
+ */
+router.get('/facts-and-fun/settings', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { getAllSettings, VALID_COMPLEXITIES } = require('../utils/dailyFactsSettings');
+    const settings = await getAllSettings();
+    res.json({ success: true, settings, complexities: VALID_COMPLEXITIES });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/facts-and-fun/settings
+ */
+router.put('/facts-and-fun/settings', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { updateSettings } = require('../utils/dailyFactsSettings');
+    const updates = Array.isArray(req.body?.settings) ? req.body.settings : [];
+    if (!updates.length) {
+      return res.status(400).json({ success: false, message: 'settings array is required' });
+    }
+    const settings = await updateSettings(updates, req.user?.id);
+    res.json({ success: true, settings, message: 'Facts & Fun settings saved.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/facts-and-fun/regenerate — rebuild today's facts for all enabled grades
+ */
+router.post('/facts-and-fun/regenerate', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { pool } = require('../config/database');
+    const { formatCacheDate, gradeCacheKey } = require('../utils/dailyFactsDbCache');
+    const { pregenerateForDate } = require('../services/dailyFactsService');
+    const cacheDate = formatCacheDate(new Date());
+
+    const { rows } = await pool.query(
+      `SELECT grade FROM daily_facts_settings WHERE enabled = true`,
+    );
+    for (const row of rows) {
+      await pool.query(
+        `DELETE FROM daily_facts_cache WHERE grade_key = $1 AND cache_date = $2::date`,
+        [gradeCacheKey(row.grade), cacheDate],
+      );
+    }
+
+    const result = await pregenerateForDate(new Date());
+    res.json({
+      success: true,
+      message: `Regenerated Facts & Fun for ${result.built} grade(s).`,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 

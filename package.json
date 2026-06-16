@@ -32,6 +32,8 @@
     "db:migrate-education-news": "node server/scripts/migrate-education-news.js",
     "db:migrate-news-pipeline": "node server/scripts/migrate-news-pipeline.js",
     "db:migrate-daily-facts": "node server/scripts/migrate-daily-facts.js",
+    "db:migrate-daily-facts-settings": "node server/scripts/migrate-daily-facts-settings.js",
+    "db:migrate-facts-categories": "node server/scripts/migrate-facts-categories.js",
     "db:migrate-all": "node server/scripts/run-all-db-migrations.js",
     "db:test": "node test-db-connection.js",
     "tts:setup": "node server/scripts/setup-piper-tts.js"

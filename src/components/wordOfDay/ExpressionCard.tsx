@@ -1,111 +1,230 @@
-import type { KeyboardEvent } from 'react';
-import { Box, Badge, Text, VStack } from '@/shared/design-system';
+import { Box, Badge, Text, VStack, HStack, Card, CardBody } from '@/shared/design-system';
 import type { ExpressionDetail } from './expressionUtils';
 import { formatShortDate } from './expressionUtils';
+
+const CARD_COLORS = [
+  { bg: 'teal.50', border: 'teal.300', badge: 'teal', accent: 'teal.800' },
+  { bg: 'cyan.50', border: 'cyan.300', badge: 'cyan', accent: 'cyan.800' },
+  { bg: 'green.50', border: 'green.300', badge: 'green', accent: 'green.800' },
+];
 
 interface Props {
   expression: ExpressionDetail;
   index?: number;
   onOpenDetail?: (expression: ExpressionDetail) => void;
+  /** Show edition date on archive cards only. */
+  showDate?: boolean;
+  compact?: boolean;
+  /** Match Facts & Fun preview styling (orange boxes). */
+  variant?: 'default' | 'facts';
 }
 
-export function ExpressionCard({ expression, index, onOpenDetail }: Props) {
+function FactsStyleCard({
+  expression,
+  compact = false,
+  showDate = false,
+  interactive,
+  onActivate,
+}: {
+  expression: ExpressionDetail;
+  compact?: boolean;
+  showDate?: boolean;
+  interactive: boolean;
+  onActivate: () => void;
+}) {
   const isSchool = expression.context === 'school';
-  const accent = isSchool ? 'blue' : 'green';
 
   return (
     <Box
-      as="button"
-      type="button"
-      display="flex"
-      flexDirection="column"
-      h="100%"
-      minW={0}
-      w="100%"
-      textAlign="left"
-      bg="white"
-      borderRadius="xl"
+      p={compact ? 2.5 : 3}
+      borderRadius="md"
+      bg="orange.50"
       borderWidth="1px"
-      borderColor="gray.100"
-      boxShadow="sm"
-      overflow="hidden"
-      cursor={onOpenDetail ? 'pointer' : 'default'}
-      aria-label={onOpenDetail ? `${expression.phrase}. Tap for full details.` : undefined}
-      onClick={() => onOpenDetail?.(expression)}
-      onKeyDown={(e: KeyboardEvent<HTMLButtonElement>) => {
-        if (!onOpenDetail) return;
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpenDetail(expression);
-        }
-      }}
-      _hover={onOpenDetail ? { boxShadow: 'md', borderColor: 'teal.200' } : undefined}
-      _active={onOpenDetail ? { transform: 'scale(0.99)' } : undefined}
-      _focusVisible={{ outline: '2px solid', outlineColor: 'teal.400', outlineOffset: '2px' }}
-      transition="box-shadow 0.2s, border-color 0.2s, transform 0.1s"
+      borderColor="orange.100"
+      w="100%"
+      minW={0}
+      cursor={interactive ? 'pointer' : 'default'}
+      onClick={interactive ? onActivate : undefined}
+      _hover={interactive ? { borderColor: 'orange.200', boxShadow: 'sm' } : undefined}
+      transition="all 0.2s"
     >
-      <Box
-        px={{ base: 3, md: 4 }}
-        pt={{ base: 3, md: 4 }}
-        pb={2}
-        display="flex"
-        alignItems="flex-start"
-        justifyContent="space-between"
-        gap={2}
-        minW={0}
-      >
-        <Text fontSize={{ base: 'xl', md: '2xl' }} flexShrink={0} aria-hidden>
-          💬
-        </Text>
-        <Badge
-          fontSize={{ base: '2xs', sm: 'xs' }}
-          textTransform="uppercase"
-          letterSpacing="wide"
-          px={2}
-          py={0.5}
-          borderRadius="full"
-          colorScheme={accent}
-          variant="subtle"
-        >
-          {isSchool ? 'School' : 'Daily life'}
-        </Badge>
-      </Box>
-      <VStack align="stretch" px={{ base: 3, md: 4 }} pb={{ base: 3, md: 4 }} flex={1} spacing={2} minW={0}>
-        {expression.editionDate && (
-          <Text fontSize={{ base: '2xs', sm: 'xs' }} fontWeight="semibold" color="gray.400">
+      <VStack spacing={1.5} align="stretch" minW={0}>
+        <HStack justify="space-between" align="flex-start" flexWrap="wrap" gap={1}>
+          <Text
+            fontSize={compact ? 'sm' : 'md'}
+            fontWeight="bold"
+            color="gray.800"
+            lineHeight="snug"
+            wordBreak="break-word"
+            flex={1}
+          >
+            {expression.phrase}
+          </Text>
+          <Badge
+            fontSize="2xs"
+            textTransform="capitalize"
+            colorScheme={isSchool ? 'blue' : 'orange'}
+            flexShrink={0}
+          >
+            {isSchool ? 'School' : 'Daily life'}
+          </Badge>
+        </HStack>
+
+        {showDate && expression.editionDate && (
+          <Text fontSize="2xs" color="gray.500">
             {formatShortDate(expression.editionDate)}
           </Text>
         )}
-        {index != null && !expression.editionDate && (
-          <Text fontSize={{ base: '2xs', sm: 'xs' }} fontWeight="semibold" color="gray.400">
-            Expression #{index + 1}
-          </Text>
-        )}
+
         <Text
-          fontSize={{ base: 'sm', md: 'md' }}
-          fontWeight="extrabold"
-          color="teal.800"
-          lineHeight="snug"
-          wordBreak="break-word"
-        >
-          {expression.phrase}
-        </Text>
-        <Text
-          fontSize={{ base: 'xs', sm: 'sm' }}
+          fontSize="xs"
           color="gray.600"
-          lineHeight="relaxed"
-          flex={1}
-          noOfLines={{ base: 4, md: 5 }}
+          lineHeight="1.5"
+          noOfLines={compact ? 2 : 3}
           wordBreak="break-word"
         >
           {expression.meaning}
         </Text>
-        {onOpenDetail && (
-          <Text fontSize="2xs" color="teal.500" fontWeight="semibold" pt={1}>
+
+        {expression.example && (
+          <Text
+            fontSize="xs"
+            color="gray.500"
+            fontStyle="italic"
+            noOfLines={compact ? 2 : 2}
+            wordBreak="break-word"
+          >
+            &ldquo;{expression.example}&rdquo;
+          </Text>
+        )}
+
+        {interactive && (
+          <Text fontSize="2xs" color="orange.600" fontWeight="semibold">
             Tap for example &amp; usage →
           </Text>
         )}
       </VStack>
     </Box>
+  );
+}
+
+export function ExpressionCard({
+  expression,
+  index = 0,
+  onOpenDetail,
+  showDate = false,
+  compact = false,
+  variant = 'default',
+}: Props) {
+  const interactive = Boolean(onOpenDetail);
+  const handleActivate = () => onOpenDetail?.(expression);
+
+  if (variant === 'facts') {
+    return (
+      <FactsStyleCard
+        expression={expression}
+        compact={compact}
+        showDate={showDate}
+        interactive={interactive}
+        onActivate={handleActivate}
+      />
+    );
+  }
+
+  const isSchool = expression.context === 'school';
+  const color = CARD_COLORS[index % CARD_COLORS.length];
+
+  return (
+    <Card
+      bg={color.bg}
+      borderColor={color.border}
+      borderWidth={1.5}
+      w="100%"
+      minW={0}
+      cursor={interactive ? 'pointer' : 'default'}
+      onClick={interactive ? handleActivate : undefined}
+      _hover={interactive ? { boxShadow: 'md' } : undefined}
+      transition="all 0.2s"
+    >
+      <CardBody p={compact ? { base: 2, md: 2.5 } : { base: 3, md: 4 }}>
+        <VStack spacing={compact ? 1.5 : 2} align="stretch" minW={0}>
+          <HStack justify="space-between" align="flex-start" flexWrap="wrap" gap={1}>
+            <HStack spacing={2} flex={1} minW={0} align="flex-start">
+              <Box
+                bg={color.border}
+                color="white"
+                borderRadius="full"
+                w={compact ? 6 : 7}
+                h={compact ? 6 : 7}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                fontSize={compact ? 'xs' : 'sm'}
+                fontWeight="bold"
+                flexShrink={0}
+              >
+                {index + 1}
+              </Box>
+              <Text
+                fontSize={compact ? 'sm' : { base: 'md', md: 'lg' }}
+                fontWeight="extrabold"
+                color={color.accent}
+                lineHeight="snug"
+                wordBreak="break-word"
+                flex={1}
+              >
+                {expression.phrase}
+              </Text>
+            </HStack>
+            <Badge
+              fontSize="2xs"
+              textTransform="uppercase"
+              letterSpacing="wide"
+              colorScheme={isSchool ? 'blue' : 'orange'}
+              variant="subtle"
+              flexShrink={0}
+            >
+              {isSchool ? 'School' : 'Daily'}
+            </Badge>
+          </HStack>
+
+          {showDate && expression.editionDate && (
+            <Text fontSize="2xs" color="gray.500" pl={compact ? 8 : 9}>
+              {formatShortDate(expression.editionDate)}
+            </Text>
+          )}
+
+          <Text
+            fontSize={compact ? 'xs' : 'sm'}
+            color="gray.700"
+            lineHeight="tall"
+            pl={compact ? 8 : 9}
+            noOfLines={compact ? 2 : 3}
+            wordBreak="break-word"
+          >
+            {expression.meaning}
+          </Text>
+
+          {expression.example && (
+            <Text
+              fontSize="xs"
+              color="gray.500"
+              fontStyle="italic"
+              pl={compact ? 8 : 9}
+              noOfLines={compact ? 2 : 3}
+              wordBreak="break-word"
+            >
+              &ldquo;{expression.example}&rdquo;
+            </Text>
+          )}
+
+          {interactive && (
+            <Text fontSize="2xs" color={`${color.badge}.600`} fontWeight="semibold" pl={compact ? 8 : 9}>
+              Tap for example &amp; usage →
+            </Text>
+          )}
+        </VStack>
+      </CardBody>
+    </Card>
   );
 }

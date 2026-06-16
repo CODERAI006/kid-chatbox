@@ -8,15 +8,16 @@ import {
   Text,
   VStack,
 } from '@/shared/design-system';
-import type { ArchivedFactItem, DailyFact, FactSubject, FactSubjectId } from '@/types/dailyFacts';
+import type { ArchivedFactItem, DailyFact, FactCategory } from '@/types/dailyFacts';
 import FactCard from './FactCard';
 import { useFactsArchive } from './useFactsArchive';
+import { resolveFactCategorySlug } from '@/utils/factCategoryUi';
 
 interface Props {
   gradeLabel: string;
   untilDate: string;
-  subjectFilter: FactSubjectId | 'all';
-  subjects: FactSubject[];
+  categoryFilter: string | 'all';
+  categories: FactCategory[];
   onOpenDetail: (fact: DailyFact) => void;
 }
 
@@ -35,8 +36,8 @@ function formatShortDate(dateStr: string) {
 export default function FactsArchivePanel({
   gradeLabel,
   untilDate,
-  subjectFilter,
-  subjects,
+  categoryFilter,
+  categories,
   onOpenDetail,
 }: Props) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -44,11 +45,11 @@ export default function FactsArchivePanel({
     useFactsArchive({
       gradeLabel,
       untilDate,
-      subjectFilter,
+      categoryFilter,
       enabled: true,
     });
 
-  const subjectMap = new Map(subjects.map((s) => [s.id, s]));
+  const categoryMap = new Map(categories.map((c) => [c.slug, c]));
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -119,7 +120,7 @@ export default function FactsArchivePanel({
           <FactCard
             key={`${entry.editionDate}-${entry.fact.id}-${i}`}
             fact={entry.fact}
-            subjectMeta={subjectMap.get(entry.fact.subject)}
+            categoryMeta={categoryMap.get(resolveFactCategorySlug(entry.fact))}
             index={i}
             editionDate={entry.editionDate}
             onOpenDetail={onOpenDetail}

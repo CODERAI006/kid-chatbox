@@ -221,7 +221,22 @@ app.use((req, res, next) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(err.status || 500).json({
+
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        success: false,
+        message: 'File too large. Maximum upload size is 50MB.',
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err.message || 'Invalid upload',
+    });
+  }
+
+  const status = err.status || 500;
+  res.status(status).json({
     success: false,
     message: err.message || 'Internal server error',
   });

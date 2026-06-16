@@ -24,6 +24,10 @@ import {
   User,
 } from '@/types';
 import { QuizConfig } from '@/types/quiz';
+import {
+  fetchWordsOfTheDayCached,
+  type WordsOfDayCacheOptions,
+} from '@/utils/wordOfDayDailyCache';
 
 /**
  * All backend routes live under `/api`. If env omits `/api`, requests hit the wrong path and return 404.
@@ -154,6 +158,12 @@ export const getErrorMessage = (error: unknown): string => {
       return (
         error.response?.data?.message ||
         'Service temporarily unavailable. The AI or database may be starting up — try again in a moment.'
+      );
+    }
+    if (status === 413) {
+      return (
+        error.response?.data?.message ||
+        'File is too large to upload. Use an image under 50MB, or ask your admin to raise nginx client_max_body_size.'
       );
     }
     if (status) {
@@ -1135,28 +1145,39 @@ export const publicApi = {
   },
 
   /**
-   * Get Word of the Day + 5 phrases for a class and date
+   * Get Word of the Day + 5 expressions for a class and date.
+   * Cached per class per calendar day — first fetch hits the server, later loads reuse cache.
    */
   getWordsOfTheDay: async (
     date?: string,
-    grade?: string
+    grade?: string,
+    options?: WordsOfDayCacheOptions,
   ): Promise<import('@/types/wordOfDay').WordOfDayResponse> => {
+    const fail = (): import('@/types/wordOfDay').WordOfDayResponse => ({
+      success: false,
+      date: date || '',
+      grade: grade || '',
+      complexity: 'basic',
+      words: [],
+      phrases: [],
+    });
+
     try {
-      const params: Record<string, string> = {};
-      if (date) params.date = date;
-      if (grade) params.grade = grade;
-      const response = await apiClient.get('/public/words-of-day', { params });
-      return response.data;
+      return await fetchWordsOfTheDayCached(
+        async () => {
+          const params: Record<string, string> = {};
+          if (date) params.date = date;
+          if (grade) params.grade = grade;
+          const response = await apiClient.get('/public/words-of-day', { params });
+          return response.data;
+        },
+        grade,
+        date,
+        options,
+      );
     } catch (error) {
       console.error('Failed to get words of the day:', error);
-      return {
-        success: false,
-        date: date || '',
-        grade: grade || '',
-        complexity: 'basic',
-        words: [],
-        phrases: [],
-      };
+      return fail();
     }
   },
 
@@ -1242,31 +1263,40 @@ export const publicApi = {
     }
   },
 
-  /** Facts & Fun — 10 facts/day (shared across classes), one AI call saved in DB */
+  /** Facts & Fun — per-class facts/day, cached server + client */
   getDailyFacts: async (
     date?: string,
     grade?: string,
+    options?: { bypassCache?: boolean },
   ): Promise<import('@/types/dailyFacts').DailyFactsResponse> => {
-    try {
-      const response = await apiClient.get('/public/facts-and-fun', {
-        params: { date, grade },
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to get daily facts:', error);
-      const axiosErr = error as { response?: { data?: import('@/types/dailyFacts').DailyFactsResponse } };
-      if (axiosErr.response?.data?.message) {
-        return axiosErr.response.data;
+    const { fetchDailyFactsCached } = await import('@/utils/dailyFactsDailyCache');
+
+    const fetchFromApi = async (): Promise<import('@/types/dailyFacts').DailyFactsResponse> => {
+      try {
+        const response = await apiClient.get('/public/facts-and-fun', {
+          params: { date, grade },
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Failed to get daily facts:', error);
+        const axiosErr = error as {
+          response?: { data?: import('@/types/dailyFacts').DailyFactsResponse };
+        };
+        if (axiosErr.response?.data?.message) {
+          return axiosErr.response.data;
+        }
+        return {
+          success: false,
+          date: date || '',
+          grade: grade || '',
+          facts: [],
+          source: 'ollama',
+          message: 'Unable to load facts — is Ollama running?',
+        };
       }
-      return {
-        success: false,
-        date: date || '',
-        grade: grade || '',
-        facts: [],
-        source: 'ollama',
-        message: 'Unable to load facts — is Ollama running?',
-      };
-    }
+    };
+
+    return fetchDailyFactsCached(fetchFromApi, grade, date, options);
   },
 
   getDailyFactsDates: async (
@@ -1289,19 +1319,22 @@ export const publicApi = {
     options?: {
       page?: number;
       limit?: number;
+      category?: string;
+      /** @deprecated use category */
       subject?: string;
       untilDate?: string;
     },
   ): Promise<import('@/types/dailyFacts').DailyFactsArchiveResponse> => {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
+    const category = options?.category ?? options?.subject;
     try {
       const response = await apiClient.get('/public/facts-and-fun/archive', {
         params: {
           grade,
           page,
           limit,
-          subject: options?.subject,
+          category,
           untilDate: options?.untilDate,
         },
       });
