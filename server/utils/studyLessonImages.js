@@ -74,7 +74,8 @@ async function enrichLessonWithImages(input, ctx = {}) {
   const runOne = async (task) => {
     try {
       const prompt = await resolvePromptForTask(task, ctx);
-      const url = await generateQuizQuestionImage(prompt, ctx);
+      const result = await generateQuizQuestionImage(prompt, ctx);
+      const url = result?.imageUrl || result;
       if (task.type === 'intro') introImageUrl = url;
       else galleryImages.push({ url, label: task.label, keyword: task.keyword });
     } catch (err) {

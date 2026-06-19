@@ -45,7 +45,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             Q{question.number}. {question.question}
           </Text>
 
-          <QuizQuestionImage imageUrl={question.imageUrl} />
+          <QuizQuestionImage imageUrl={question.imageUrl} imagePrompt={question.imagePrompt} />
 
           <VStack spacing={3} align="stretch">
             {options.map((option) => {

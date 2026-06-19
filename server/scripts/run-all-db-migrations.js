@@ -17,6 +17,7 @@ const { migrateQuizLibrary } = require('./migrate-quiz-library');
 const { migrateQuizScheduler } = require('./migrate-quiz-scheduler');
 const { migrateQuizSchedulerV2 } = require('./migrate-quiz-scheduler-v2');
 const { migrateQuizAiJobs } = require('./migrate-quiz-ai-jobs');
+const { migrateQuizImagePrompt } = require('./migrate-quiz-image-prompt');
 const { migrateQuizSubtopics } = require('./migrate-quiz-subtopics');
 const { migrateOllamaCloudSettings } = require('./migrate-ollama-cloud-settings');
 const { migrateStudyPlan } = require('./migrate-study-plan');
@@ -45,6 +46,7 @@ async function runAllDbMigrations() {
   await migrateQuizScheduler();
   await migrateQuizSchedulerV2();
   await migrateQuizAiJobs();
+  await migrateQuizImagePrompt();
   await migrateQuizSubtopics();
   await migrateOllamaCloudSettings();
   await migrateStudyPlan();

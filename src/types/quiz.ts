@@ -28,6 +28,8 @@ export interface Question {
   question: string;
   /** Illustration URL when the question was generated with an image */
   imageUrl?: string | null;
+  /** Prompt sent to the image generator for this question */
+  imagePrompt?: string | null;
   options: {
     A: string;
     B: string;

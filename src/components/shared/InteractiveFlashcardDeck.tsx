@@ -15,6 +15,7 @@ import {
 import { MIN_FLASHCARD_COUNT } from '@/constants/flashcards';
 import type { FlashcardItem } from '@/utils/flashcardNormalize';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
+import { PortraitFlashcard } from '@/components/shared/PortraitFlashcard';
 
 export type { FlashcardItem };
 
@@ -145,24 +146,8 @@ export function InteractiveFlashcardDeck({
       <Progress value={masteryPct} size="xs" colorScheme="green" borderRadius="full" />
 
       <Box
-        as="button"
-        type="button"
+        position="relative"
         w="100%"
-        p={compact ? 4 : 5}
-        minH={compact ? '110px' : '130px'}
-        borderRadius="xl"
-        borderWidth={2}
-        borderColor={flipped ? 'green.400' : 'blue.400'}
-        bg={flipped ? 'green.50' : 'blue.50'}
-        textAlign="center"
-        cursor="pointer"
-        onClick={() => {
-          if (didSwipe.current) {
-            didSwipe.current = false;
-            return;
-          }
-          setFlipped((f) => !f);
-        }}
         onTouchStart={(e: TouchEvent) => {
           didSwipe.current = false;
           swipe.onTouchStart(e);
@@ -175,35 +160,24 @@ export function InteractiveFlashcardDeck({
         onPointerUp={swipe.onPointerUp}
         onPointerCancel={swipe.onPointerCancel}
         sx={{ touchAction: 'pan-y' }}
-        boxShadow="md"
-        transition="background 0.2s, border-color 0.2s"
       >
-        <HStack justify="center" mb={2} spacing={2}>
-          <Text fontSize="lg">{flipped ? '✅' : '❓'}</Text>
-          <Badge colorScheme={flipped ? 'green' : 'blue'}>
-            {flipped ? 'Answer' : 'Your question'}
-          </Badge>
-        </HStack>
-        {!flipped && (
-          <Text fontSize="xs" color="blue.700" mb={2} fontWeight="medium">
-            Think of the answer, then tap to reveal
-          </Text>
-        )}
-        <Text
-          fontSize={compact ? 'sm' : 'md'}
-          fontWeight="semibold"
-          lineHeight="tall"
-          whiteSpace="pre-wrap"
-          fontStyle={flipped ? 'normal' : 'italic'}
-        >
-          {flipped
-            ? current.back || 'Answer missing for this card.'
-            : current.front || 'Question missing for this card.'}
-        </Text>
-        <Text fontSize="xs" color="gray.500" mt={2}>
-          Tap to {flipped ? 'see question again' : 'check answer'} · swipe ← →
-        </Text>
+        <PortraitFlashcard
+          card={current}
+          flipped={flipped}
+          onFlip={() => {
+            if (didSwipe.current) {
+              didSwipe.current = false;
+              return;
+            }
+            setFlipped((f) => !f);
+          }}
+          compact={compact}
+        />
       </Box>
+
+      <Text fontSize="xs" color="gray.500" textAlign="center">
+        Tap card to flip · swipe ← → for next card
+      </Text>
 
       <HStack justify="center" spacing={2} flexWrap="wrap">
         <IconButton aria-label="Previous" size="sm" variant="outline" icon={<Text>←</Text>} onClick={goPrev} />
@@ -229,7 +203,7 @@ export function InteractiveFlashcardDeck({
           🔀 Shuffle
         </Button>
         <Text fontSize="xs" color="gray.500">
-          Space / Enter to flip · ← → or swipe cards
+          Space / Enter to flip · ← → or swipe
         </Text>
       </HStack>
     </VStack>

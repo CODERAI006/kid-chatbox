@@ -43,7 +43,7 @@ import {
 import { QuizConfig, AnswerResult, Question } from '@/types/quiz';
 import { QUIZ_CONSTANTS, SUBJECTS, MESSAGES } from '@/constants/quiz';
 import { isValidAnswer } from '@/utils/validation';
-import { isOllamaGeneratedImageUrl } from '@/utils/ollamaImageUrl';
+import { isQuizImageUrl } from '@/utils/ollamaImageUrl';
 import { User } from '@/types';
 import { useQuizTimer } from '@/contexts/QuizTimerContext';
 type QuizPhase = 'config' | 'loading' | 'checking' | 'quiz' | 'results';
@@ -365,7 +365,8 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
         return {
           number: index + 1,
           question: q.question_text,
-          imageUrl: isOllamaGeneratedImageUrl(q.question_image_url) ? q.question_image_url : null,
+          imageUrl: isQuizImageUrl(q.question_image_url) ? q.question_image_url : null,
+          imagePrompt: q.question_image_prompt || null,
           options: questionOptions,
           correctAnswer,
           explanation: q.explanation || '',
@@ -908,7 +909,8 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
         return {
           number: index + 1,
           question: q.question_text,
-          imageUrl: isOllamaGeneratedImageUrl(q.question_image_url) ? q.question_image_url : null,
+          imageUrl: isQuizImageUrl(q.question_image_url) ? q.question_image_url : null,
+          imagePrompt: q.question_image_prompt || null,
           options: questionOptions,
           correctAnswer,
           explanation: q.explanation || '',

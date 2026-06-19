@@ -86,25 +86,27 @@ async function copyLibraryToQuiz(libraryId, userId) {
     const text = q.question || q.question_text || '';
     const options = q.options || [];
     const correct = q.correctAnswer ?? q.correct_answer ?? '';
-    const imageUrl = sanitizeOllamaImageUrl(q.imageUrl || q.question_image_url || null);
-    await pool.query(
-      `INSERT INTO quiz_questions (
-        quiz_id, question_type, question_text, question_image_url, options,
-        correct_answer, explanation, points, order_index
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [
-        quizId,
-        imageUrl ? 'image_based' : 'multiple_choice',
-        text,
-        imageUrl,
-        JSON.stringify(options),
-        JSON.stringify(correct),
-        q.explanation || null,
-        q.points || 1,
-        i,
-      ]
-    );
+      const imageUrl = sanitizeOllamaImageUrl(q.imageUrl || q.question_image_url || null);
+      const imagePrompt = q.imagePrompt || q.question_image_prompt || null;
+      await pool.query(
+        `INSERT INTO quiz_questions (
+          quiz_id, question_type, question_text, question_image_url, question_image_prompt, options,
+          correct_answer, explanation, points, order_index
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          quizId,
+          imageUrl ? 'image_based' : 'multiple_choice',
+          text,
+          imageUrl,
+          imagePrompt ? String(imagePrompt).trim().slice(0, 2000) : null,
+          JSON.stringify(options),
+          JSON.stringify(correct),
+          q.explanation || null,
+          q.points || 1,
+          i,
+        ]
+      );
   }
 
   await pool.query(

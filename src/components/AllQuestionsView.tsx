@@ -63,7 +63,7 @@ export const AllQuestionsView: React.FC<AllQuestionsViewProps> = ({
                       </Text>
                     </motion.div>
 
-                    <QuizQuestionImage imageUrl={question.imageUrl} />
+                    <QuizQuestionImage imageUrl={question.imageUrl} imagePrompt={question.imagePrompt} />
 
                     <HStack spacing={2} flexWrap="wrap" w="100%">
                       {options.map((option, optIndex) => {

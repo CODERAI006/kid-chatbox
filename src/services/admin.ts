@@ -100,6 +100,7 @@ export interface QuizQuestion {
   questionType: string;
   questionText: string;
   questionImageUrl?: string;
+  questionImagePrompt?: string;
   options?: unknown;
   correctAnswer: unknown;
   explanation?: string;

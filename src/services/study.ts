@@ -7,6 +7,7 @@ import { User } from '@/types';
 import { aiApi, studyApi } from '@/services/api';
 import { buildStudyLessonPrompt } from '@/services/studyPrompt';
 import { normalizeFlashcardList } from '@/utils/flashcardNormalize';
+import { validateStudyInputs, validateLessonIntro, STUDY_PROMPT_LIMITS } from '@/utils/studyPromptLimits';
 
 export interface PracticeQuestion {
   question: string;
@@ -259,6 +260,15 @@ export async function generateLesson(
   const topic =
     config.subtopics.length === 1 ? config.subtopics[0] : config.subtopics.join(', ');
 
+  const inputCheck = validateStudyInputs({
+    topic,
+    subject: config.subject,
+    instructions: config.instructions,
+  });
+  if (!inputCheck.ok) {
+    throw new Error(inputCheck.message);
+  }
+
   const prompt = buildStudyLessonPrompt(config, kidName, classLevel, examStyle, studyOptions);
 
   try {
@@ -272,7 +282,7 @@ export async function generateLesson(
         { role: 'user', content: prompt },
       ],
       temperature: 0.65,
-      num_predict: 8192,
+      num_predict: STUDY_PROMPT_LIMITS.maxNumPredict,
     });
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -282,6 +292,17 @@ export async function generateLesson(
 
     if (!lesson.title || !getIntroductionText(lesson.introduction) || !lesson.summary) {
       throw new Error('Invalid lesson structure received');
+    }
+
+    const introError = validateLessonIntro(getIntroductionText(lesson.introduction));
+    if (introError) {
+      throw new Error(introError);
+    }
+
+    if ((lesson.flashcards?.length ?? 0) < STUDY_PROMPT_LIMITS.minFlashcards) {
+      throw new Error(
+        `Not enough flashcards (${lesson.flashcards?.length ?? 0}/${STUDY_PROMPT_LIMITS.minFlashcards}). Please try again.`,
+      );
     }
 
     const wantsVisuals =

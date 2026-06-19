@@ -126,17 +126,19 @@ async function runQuizAiGenerationJob(jobId) {
     for (let i = 0; i < generatedQuestions.length; i++) {
       const q = generatedQuestions[i];
       const imageUrl = sanitizeOllamaImageUrl(q.imageUrl || null);
+      const imagePrompt = q.imagePrompt ? String(q.imagePrompt).trim().slice(0, 2000) : null;
       await pool.query(
         `INSERT INTO quiz_questions (
-          quiz_id, question_type, question_text, question_image_url, options,
+          quiz_id, question_type, question_text, question_image_url, question_image_prompt, options,
           correct_answer, explanation, points, order_index
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           quiz.id,
           imageUrl ? 'image_based' : 'multiple_choice',
           q.question,
           imageUrl,
+          imagePrompt,
           JSON.stringify(q.options),
           JSON.stringify(q.correctAnswer),
           q.explanation,

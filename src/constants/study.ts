@@ -15,6 +15,8 @@ export const STUDY_MODE_MESSAGES = {
   LOADING_IMAGES_HINT: 'Generating photorealistic study photos…',
   ERROR_PROFILE_INCOMPLETE: 'Please complete your profile first. Go to Profile to set your age and preferred language.',
   ERROR_GENERATION_FAILED: 'Failed to generate lesson. Please try again.',
+  ERROR_INTRO_TOO_SHORT: 'Story introduction was too short. Please try again.',
+  ERROR_INSTRUCTIONS_TOO_LONG: 'Extra instructions are too long. Please shorten them.',
 } as const;
 
 

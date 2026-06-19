@@ -28,6 +28,7 @@
     "db:migrate-quiz-scheduler-v2": "node server/scripts/migrate-quiz-scheduler-v2.js",
     "db:migrate-quiz-library": "node server/scripts/migrate-quiz-library.js",
     "db:migrate-quiz-ai-jobs": "node server/scripts/migrate-quiz-ai-jobs.js",
+    "db:migrate-quiz-image-prompt": "node server/scripts/migrate-quiz-image-prompt.js",
     "db:migrate-study-plan": "node server/scripts/migrate-study-plan.js",
     "db:migrate-education-news": "node server/scripts/migrate-education-news.js",
     "db:migrate-news-pipeline": "node server/scripts/migrate-news-pipeline.js",

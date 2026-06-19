@@ -85,7 +85,7 @@ export const QuizInteractiveSession: React.FC<QuizInteractiveSessionProps> = ({
               {q.question}
             </Text>
 
-            <QuizQuestionImage imageUrl={q.imageUrl} />
+            <QuizQuestionImage imageUrl={q.imageUrl} imagePrompt={q.imagePrompt} />
 
             <VStack spacing={3} align="stretch">
               {options.map((opt, i) => {

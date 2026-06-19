@@ -1,87 +1,95 @@
 /**
- * CBSE study lesson prompt — 17-section structured output for Study Mode.
+ * CBSE study lesson prompt — story-first 17-section output for Study Mode.
  */
 import { QuizConfig } from '@/types/quiz';
 import type { StudyLessonOptions } from './study';
+import {
+  getAgeBandLabel,
+  getAgeBandStoryGuidance,
+  getStudyAgeBand,
+  resolveStudentAge,
+} from '@/utils/studyAgeProfile';
+import { STUDY_PROMPT_LIMITS } from '@/utils/studyPromptLimits';
 
 export function buildStudyLessonPrompt(
   config: QuizConfig,
   kidName: string,
   classLevel: string,
   examStyle: string,
-  studyOptions?: StudyLessonOptions
+  studyOptions?: StudyLessonOptions,
 ): string {
   const topic =
     config.subtopics.length === 1 ? config.subtopics[0] : config.subtopics.join(', ');
   const board = examStyle || studyOptions?.examStyle || config.examStyle || 'CBSE';
   const language = config.language || 'English';
   const grade = studyOptions?.gradeLevel || classLevel;
+  const studentAge = resolveStudentAge(config.age, grade);
+  const ageBand = getStudyAgeBand(studentAge);
+  const storyGuide = getAgeBandStoryGuidance(ageBand, kidName);
+  const extraInstructions = (config.instructions || '').trim().slice(
+    0,
+    STUDY_PROMPT_LIMITS.maxExtraInstructionsChars,
+  );
+  const lessonStyle = studyOptions?.lessonStyle || 'Story-based';
+  const showExamSection = ageBand === 'middle' || ageBand === 'secondary';
 
-  return `You are an expert CBSE teacher, instructional designer, storyteller, and visual learning specialist.
+  return `You are an expert teacher, storyteller, and visual learning specialist for Indian school students.
 
-Create engaging study content for:
-
+AUDIENCE: ${getAgeBandLabel(ageBand)} (about ${studentAge} years old)
 Topic: ${topic}
 Grade: ${grade}
 Board: ${board}
 Language: ${language}
 Subject: ${config.subject}
 Student name: ${kidName}
-${config.instructions ? `Extra instructions: ${config.instructions}` : ''}
+Lesson style: ${lessonStyle}
+${extraInstructions ? `Extra instructions (follow if safe): ${extraInstructions}` : ''}
 
-Generate content in JSON format using ALL 17 sections below.
+STORY RULE (CRITICAL):
+- Section 1 is "introduction.text" — a STORY opening, NOT a bullet list.
+- Write at least ${STUDY_PROMPT_LIMITS.minIntroLines} full lines (sentences). Each line should move the story forward with sensory detail, a character or scene, and a link to the topic.
+- ${storyGuide}
+- Separate story paragraphs with \\n\\n (double newline).
 
-Rules:
-1. Explain in simple age-appropriate language for ${grade}.
-2. Use real-world examples students can relate to.
-3. Use storytelling and analogies — speak directly to ${kidName} where natural.
-4. Keep explanations concise but complete.
-5. Include visual learning descriptions (what to draw, label, color-code).
-6. Include at least 20 flashcards (front/back pairs).
-7. Include quiz Q&A with answers and optional hints.
-8. Include 3–5 thinking questions (open-ended, no single answer in JSON).
-9. Include 4–6 suggested questions for "Ask AI Teacher".
-10. Avoid technical jargon unless defined in keyTerms.
-11. Ensure factual correctness for ${board} curriculum.
-12. Write in ${language}.
-13. Pick visuals only where a real photograph helps learning (wildlife, geography, science scenes, experiments, historical places). For each visual, write a full photorealistic imagePrompt (National Geographic / documentary style). Never ask for cartoons, clipart, vectors, or flat illustrations.
+AGE-APPROPRIATE SECTIONS:
+- Use simple words for younger students; add depth for older students.
+- funFacts / didYouKnow: surprising but true, kid-friendly.
+- ${showExamSection ? 'Include examNotes with board-focused tips.' : 'Omit examNotes or use an empty array [].'}
+- ${ageBand === 'early' ? 'Skip heavy exam jargon. commonMistakes and thinkingQuestions may be empty arrays.' : 'Include commonMistakes and thinkingQuestions.'}
+- Flashcards: short question on front (end with ?), clear answer on back — easy to read on a phone.
 
-Output JSON only with this exact shape:
+OUTPUT: Valid JSON only. No markdown fences.
+
 {
   "title": "Engaging chapter title",
-  "whyLearnThis": "2-3 sentences on why this topic matters for ${kidName} and real life",
-  "quickSummary": "3-5 sentence overview a student can read in 30 seconds",
+  "whyLearnThis": "2-3 sentences why this matters for ${kidName}",
+  "quickSummary": "3-5 sentence overview",
   "introduction": {
-    "text": "Hook paragraph(s) separated by \\n\\n",
-    "imageKeyword": "short label for hero image",
-    "imagePrompt": "Photorealistic wildlife scene showing a Bengal tiger in the Sundarbans, spotted deer grazing nearby, mangrove trees, sunlight filtering through leaves, National Geographic photography, ultra realistic, high detail, natural colors, educational image for children, no cartoons, no illustrations",
-    "imageCaption": "Short caption for intro image"
+    "text": "STORY: minimum ${STUDY_PROMPT_LIMITS.minIntroLines} lines/sentences with \\n\\n between paragraphs",
+    "imageKeyword": "short label",
+    "imagePrompt": "Photorealistic educational scene, National Geographic style, natural lighting, no cartoons",
+    "imageCaption": "Caption for intro image"
   },
-  "explanation": ["Detailed step 1...", "Detailed step 2...", "At least 4 steps"],
-  "visualLearningDescription": ["Describe diagram 1 to draw...", "Chart or map to sketch..."],
-  "realLifeAnalogy": "One vivid analogy connecting the topic to everyday life",
-  "examples": ["Real-world example 1", "Real-world example 2", "At least 3 examples"],
+  "explanation": ["Step 1...", "At least ${STUDY_PROMPT_LIMITS.minExplanationSteps} clear steps"],
+  "visualLearningDescription": ["What to draw or sketch..."],
+  "realLifeAnalogy": "One vivid analogy",
+  "examples": ["Example 1", "At least 3 examples"],
   "keyTerms": [{"term": "Word", "definition": "Simple definition"}],
-  "funFacts": ["Fun fact 1", "Fun fact 2", "At least 3"],
-  "didYouKnow": ["Surprising fact 1", "Surprising fact 2", "At least 2"],
-  "commonMistakes": ["Mistake students make and how to avoid it", "At least 3"],
-  "examNotes": ["Board exam tip 1", "Important marking point", "At least 4 CBSE-focused notes"],
+  "funFacts": ["At least 3 fun facts"],
+  "didYouKnow": ["At least 2 surprising facts"],
+  "commonMistakes": ${showExamSection ? '["Mistake and fix", "At least 2"]' : '[]'},
+  "examNotes": ${showExamSection ? '["Board tip 1", "At least 3 tips"]' : '[]'},
   "quizQuestions": [{"question": "...", "answer": "...", "hint": "optional"}],
-  "thinkingQuestions": ["Open question to ponder 1", "At least 3"],
-  "flashcards": [{"front": "Term or question", "back": "Definition or answer"}],
-  "oneMinuteRevision": ["Ultra-short bullet 1", "At least 8 quick revision lines"],
-  "askAiTeacherPrompts": ["Can you explain ...?", "At least 4 starter questions"],
+  "thinkingQuestions": ${ageBand === 'early' ? '[]' : '["Open question 1", "At least 3"]'},
+  "flashcards": [{"front": "Question ending with ?", "back": "Short answer"}],
+  "oneMinuteRevision": ["At least 8 ultra-short bullets"],
+  "askAiTeacherPrompts": ["At least 4 starter questions for Ask AI Teacher"],
   "keyPoints": ["Exactly 20 short key points"],
-  "summary": "One encouraging closing paragraph",
-  "imageKeywords": ["gallery keyword 1", "gallery keyword 2"],
-  "imageGallery": [
-    {
-      "keyword": "short label",
-      "label": "Gallery caption label",
-      "imagePrompt": "Full photorealistic scene description for this gallery image — National Geographic quality, real-world photography, natural lighting, high detail, no cartoons, no vectors, no text in image"
-    }
-  ]
+  "summary": "Encouraging closing paragraph",
+  "imageKeywords": ["keyword 1", "keyword 2"],
+  "imageGallery": [{"keyword": "label", "label": "Caption", "imagePrompt": "Photorealistic scene..."}]
 }
 
-Minimum counts: flashcards 20, keyPoints 20, keyTerms 8, quizQuestions 5.`;
+Minimum counts: flashcards ${STUDY_PROMPT_LIMITS.minFlashcards}, keyPoints ${STUDY_PROMPT_LIMITS.minKeyPoints}, keyTerms 8, quizQuestions 5.
+Keep every string concise — the JSON must fit in one response.`;
 }

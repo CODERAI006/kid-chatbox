@@ -566,6 +566,7 @@ export const quizApi = {
         question_type: string;
         question_text: string;
         question_image_url?: string;
+        question_image_prompt?: string;
         options: unknown;
         correct_answer: string;
         explanation?: string;
@@ -603,6 +604,7 @@ export const quizApi = {
         question_type: string;
         question_text: string;
         question_image_url?: string;
+        question_image_prompt?: string;
         options: unknown;
         correct_answer: string;
         explanation?: string;

@@ -277,7 +277,7 @@ MANDATORY INSTRUCTIONS - MUST FOLLOW STRICTLY:
     - Set needsImage to true ONLY when a visual genuinely helps (diagrams, maps, anatomy, geometry, science scenes, objects, experiments, habitats).
     - Do NOT mark pure grammar, vocabulary, spelling, or mental-math questions.
     - Target about ${targetImageCount} questions (~20% of ${numberOfQuestions}). Never mark more than ${maxImageCount}.
-    - When needsImage is true, include imagePrompt: a full photorealistic scene (National Geographic / documentary photography, real-world, natural lighting, high detail). Never cartoons, vectors, clipart, or flat illustrations. No text in the image.
+    - When needsImage is true, include imagePrompt: a photorealistic scene directly related to the question text (National Geographic / documentary photography, real-world, natural lighting, high detail). Never cartoons, vectors, clipart, or flat illustrations. No text in the image.
     - When needsImage is false, set imagePrompt to "".
 
 16. FINAL QUALITY ASSURANCE REQUIREMENTS:

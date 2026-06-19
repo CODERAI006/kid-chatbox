@@ -13,6 +13,13 @@ import {
   getIntroductionCaption,
 } from '@/services/study';
 import { resolveOllamaImageUrl } from '@/utils/ollamaImageUrl';
+import {
+  getStudyAgeBand,
+  getStudySectionVisibility,
+  getAgeBandLabel,
+  resolveStudentAge,
+} from '@/utils/studyAgeProfile';
+import { countIntroLines } from '@/utils/studyPromptLimits';
 import { AnimatedCard } from './AnimatedCard';
 import { StudyImageGallery } from './StudyImageGallery';
 import { StudyLessonSectionNav } from './StudyLessonSectionNav';
@@ -47,6 +54,10 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
   const introText = getIntroductionText(lesson.introduction);
   const introSrc = resolveOllamaImageUrl(lesson.introImageUrl);
   const introCaption = getIntroductionCaption(lesson.introduction) || topic;
+  const studentAge = resolveStudentAge(config.age, gradeLabel);
+  const ageBand = getStudyAgeBand(studentAge);
+  const sectionVisibility = getStudySectionVisibility(ageBand);
+  const storyLines = countIntroLines(introText);
 
   return (
     <Box padding={{ base: 4, md: 6 }} bg="gray.50" minHeight="100vh" style={{ fontSize }}>
@@ -63,6 +74,9 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
                   {studyMeta?.examStyle && (
                     <Badge colorScheme="purple" fontSize="sm" px={2} py={1} borderRadius="md">{studyMeta.examStyle}</Badge>
                   )}
+                  <Badge colorScheme="orange" fontSize="sm" px={2} py={1} borderRadius="md">
+                    {getAgeBandLabel(ageBand)}
+                  </Badge>
                 </HStack>
                 <Heading size="xl" color="blue.700" textAlign="center" fontSize={headingSize}>
                   📚 {lesson.title}
@@ -70,27 +84,54 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
                 <Text textAlign="center" color="gray.600">
                   Topic: <strong>{topic}</strong>
                 </Text>
-                <SimpleGrid columns={{ base: 1, md: introSrc ? 2 : 1 }} spacing={5} alignItems="start">
-                  {introSrc && (
-                    <Box borderRadius="xl" overflow="hidden" boxShadow="lg" borderWidth={2} borderColor="blue.100">
-                      <Image
-                        src={introSrc}
-                        alt={introCaption}
-                        w="100%"
-                        h={{ base: '200px', md: '260px' }}
-                        objectFit="cover"
-                      />
-                      <Box px={3} py={2} bg="blue.600">
-                        <Text color="white" fontSize="sm" fontWeight="semibold">{introCaption}</Text>
+
+                <Box
+                  p={{ base: 4, md: 5 }}
+                  borderRadius="2xl"
+                  bgGradient="linear(to-br, blue.50, purple.50)"
+                  borderWidth={2}
+                  borderColor="blue.200"
+                  boxShadow="md"
+                >
+                  <HStack justify="space-between" flexWrap="wrap" gap={2} mb={3}>
+                    <Badge colorScheme="blue" borderRadius="full" px={3}>
+                      📖 Story opening
+                    </Badge>
+                    <Text fontSize="xs" color="gray.500">
+                      {storyLines} lines · written for you
+                    </Text>
+                  </HStack>
+                  <SimpleGrid columns={{ base: 1, md: introSrc ? 2 : 1 }} spacing={5} alignItems="start">
+                    {introSrc && (
+                      <Box borderRadius="xl" overflow="hidden" boxShadow="lg" borderWidth={2} borderColor="blue.100">
+                        <Image
+                          src={introSrc}
+                          alt={introCaption}
+                          w="100%"
+                          h={{ base: '220px', md: '300px' }}
+                          objectFit="cover"
+                        />
+                        <Box px={3} py={2} bg="blue.600">
+                          <Text color="white" fontSize="sm" fontWeight="semibold">{introCaption}</Text>
+                        </Box>
                       </Box>
+                    )}
+                    <Box>
+                      {introText.split('\n\n').map((p, i) => (
+                        <Text
+                          key={i}
+                          lineHeight="1.9"
+                          color="gray.800"
+                          mb={4}
+                          fontSize={{ base: 'md', md: 'lg' }}
+                          fontFamily="Georgia, 'Times New Roman', serif"
+                        >
+                          {p.trim()}
+                        </Text>
+                      ))}
                     </Box>
-                  )}
-                  <Box>
-                    {introText.split('\n\n').map((p, i) => (
-                      <Text key={i} lineHeight="tall" color="gray.700" mb={3}>{p.trim()}</Text>
-                    ))}
-                  </Box>
-                </SimpleGrid>
+                  </SimpleGrid>
+                </Box>
               </VStack>
             </AnimatedCard>
           </Box>
@@ -101,7 +142,13 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
             </AnimatedCard>
           )}
 
-          <StudyLessonSections lesson={lesson} config={config} topic={topic} fontSize={fontSize} />
+          <StudyLessonSections
+            lesson={lesson}
+            config={config}
+            topic={topic}
+            fontSize={fontSize}
+            sectionVisibility={sectionVisibility}
+          />
 
           {lesson.summary && (
             <AnimatedCard delay={0.46} bg="gray.100" borderWidth={2} borderColor="gray.300">

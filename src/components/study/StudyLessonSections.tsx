@@ -9,12 +9,14 @@ import { PracticeQASection } from './PracticeQASection';
 import { StudyFlashcards } from './StudyFlashcards';
 import { StudySectionCard } from './StudySectionCard';
 import { StudyAskTeacher } from './StudyAskTeacher';
+import type { StudySectionVisibility } from '@/utils/studyAgeProfile';
 
 interface StudyLessonSectionsProps {
   lesson: Lesson;
   config: QuizConfig;
   topic: string;
   fontSize: string;
+  sectionVisibility: StudySectionVisibility;
 }
 
 const BulletList: React.FC<{ items: string[]; accent?: string }> = ({ items, accent = 'gray.700' }) => (
@@ -30,6 +32,7 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
   config,
   topic,
   fontSize,
+  sectionVisibility,
 }) => {
   const visualItems = lesson.visualLearningDescription ?? lesson.visualLearningSuggestions ?? [];
 
@@ -57,7 +60,7 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
         </StudySectionCard>
       )}
 
-      {visualItems.length > 0 && (
+      {sectionVisibility.visualLearning && visualItems.length > 0 && (
         <StudySectionCard id="visual-learning" title="🎨 Visual Learning Description" delay={0.2} titleColor="orange.700" borderColor="orange.200" bg="orange.50">
           <BulletList items={visualItems} />
         </StudySectionCard>
@@ -84,7 +87,7 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
         </StudySectionCard>
       )}
 
-      {(lesson.keyTerms?.length ?? 0) > 0 && (
+      {sectionVisibility.keyTerms && (lesson.keyTerms?.length ?? 0) > 0 && (
         <StudySectionCard id="key-terms" title="📝 Key Terms" delay={0.26} titleColor="blue.700" borderColor="blue.300" bg="blue.50">
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
             {lesson.keyTerms!.map((kt, i) => (
@@ -115,7 +118,7 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
         </StudySectionCard>
       )}
 
-      {(lesson.commonMistakes?.length ?? 0) > 0 && (
+      {sectionVisibility.commonMistakes && (lesson.commonMistakes?.length ?? 0) > 0 && (
         <StudySectionCard id="common-mistakes" title="⚠️ Common Mistakes" delay={0.32} titleColor="red.700" borderColor="red.200" bg="red.50">
           <VStack spacing={2} align="stretch">
             {lesson.commonMistakes!.map((m, i) => (
@@ -127,19 +130,19 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
         </StudySectionCard>
       )}
 
-      {(lesson.examNotes?.length ?? 0) > 0 && (
+      {sectionVisibility.examNotes && (lesson.examNotes?.length ?? 0) > 0 && (
         <StudySectionCard id="exam-notes" title="📋 Exam Notes" delay={0.34} titleColor="yellow.800" borderColor="yellow.300" bg="yellow.50">
           <BulletList items={lesson.examNotes!} accent="gray.800" />
         </StudySectionCard>
       )}
 
-      {(lesson.practiceQuestions?.length ?? 0) > 0 && (
+      {sectionVisibility.practiceQuestions && (lesson.practiceQuestions?.length ?? 0) > 0 && (
         <StudySectionCard id="questions-answers" title="✏️ Questions & Answers" delay={0.36} titleColor="blue.700" borderColor="blue.300" bg="blue.50">
           <PracticeQASection questions={lesson.practiceQuestions!} fontSize={fontSize} />
         </StudySectionCard>
       )}
 
-      {(lesson.thinkingQuestions?.length ?? 0) > 0 && (
+      {sectionVisibility.thinkingQuestions && (lesson.thinkingQuestions?.length ?? 0) > 0 && (
         <StudySectionCard id="thinking-questions" title="🧠 Thinking Questions" delay={0.38} titleColor="indigo.700" borderColor="indigo.200" bg="indigo.50">
           <VStack spacing={3} align="stretch">
             {lesson.thinkingQuestions!.map((q, i) => (
@@ -158,8 +161,8 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
         </StudySectionCard>
       )}
 
-      {(lesson.oneMinuteRevision?.length ?? 0) > 0 && (
-        <StudySectionCard id="one-minute-revision" title="⏱️ One-Minute Revision" delay={0.42} titleColor="orange.800" borderColor="orange.300" bg="orange.50">
+      {sectionVisibility.oneMinuteRevision && (lesson.oneMinuteRevision?.length ?? 0) > 0 && (
+        <StudySectionCard id="one-minute-revision" title="⏱️ Quick Review" delay={0.42} titleColor="orange.800" borderColor="orange.300" bg="orange.50">
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
             {lesson.oneMinuteRevision!.map((line, i) => (
               <HStack key={i} spacing={2} align="start">

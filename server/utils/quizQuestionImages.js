@@ -1,5 +1,5 @@
 /**
- * Attach Ollama Cloud illustrations to quiz questions the text LLM marks as visual.
+ * Attach illustrations to quiz questions — Ollama Cloud first, Pollinations fallback.
  */
 const { generateQuizQuestionImage } = require('./ollamaImageGenerate');
 const { wrapLlmImagePrompt, expandKeywordToImagePrompt } = require('./educationalImagePrompt');
@@ -17,6 +17,12 @@ function normalizeNeedsImage(value) {
   if (value === true) return true;
   if (typeof value === 'string') return /^(true|yes|1)$/i.test(value.trim());
   return false;
+}
+
+function getQuestionText(question) {
+  return String(question.question || question.question_text || '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Evenly spread indices when the LLM marks no visual questions. */
@@ -70,17 +76,22 @@ function selectImageQuestionIndices(questions, fraction = getImageFraction()) {
   return fallback;
 }
 
+/** Build an image prompt anchored to the quiz question text. */
 async function buildImagePrompt(question, ctx = {}) {
+  const qText = getQuestionText(question).slice(0, 280);
   const custom = String(question.imagePrompt || '').trim();
+  const ctxWithTopic = { ...ctx, topic: qText.slice(0, 120) || ctx.topic };
+
   if (custom) {
-    return wrapLlmImagePrompt(custom, ctx);
+    const scene = `${custom}. Quiz question context: ${qText}`;
+    return wrapLlmImagePrompt(scene, ctxWithTopic);
   }
-  const qText = String(question.question || '').replace(/\s+/g, ' ').slice(0, 220);
-  return expandKeywordToImagePrompt(qText, ctx);
+
+  return expandKeywordToImagePrompt(qText, ctxWithTopic);
 }
 
 function stripImageMeta(question) {
-  const { needsImage, imagePrompt, ...rest } = question;
+  const { needsImage, ...rest } = question;
   return rest;
 }
 
@@ -92,24 +103,36 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
   if (!Array.isArray(questions) || questions.length === 0) return questions;
 
   const indices = selectImageQuestionIndices(questions);
-  const enriched = questions.map((q) => ({ ...q, imageUrl: null }));
+  const enriched = questions.map((q) => ({ ...q, imageUrl: null, imagePrompt: null }));
 
   const generateOne = async (idx) => {
     const q = questions[idx];
+    const qText = getQuestionText(q);
     try {
       const prompt = await buildImagePrompt(q, ctx);
-      const imageUrl = sanitizeOllamaImageUrl(await generateQuizQuestionImage(prompt, ctx));
+      console.info('[quiz-images] generating', {
+        question: idx + 1,
+        questionText: qText.slice(0, 120),
+        imagePrompt: prompt.slice(0, 200),
+      });
+      const result = await generateQuizQuestionImage(prompt, ctx);
+      const imageUrl = sanitizeOllamaImageUrl(result?.imageUrl || null);
       if (!imageUrl) return false;
-      enriched[idx] = { ...enriched[idx], imageUrl };
+      enriched[idx] = {
+        ...enriched[idx],
+        imageUrl,
+        imagePrompt: String(result?.imagePrompt || prompt).trim(),
+      };
       console.info('[quiz-images] saved', {
         question: idx + 1,
         llmMarked: normalizeNeedsImage(q.needsImage),
         imageUrl,
+        imagePrompt: enriched[idx].imagePrompt?.slice(0, 200),
       });
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn('[quiz-images] skipped question', idx + 1, msg);
+      console.warn('[quiz-images] skipped question', idx + 1, qText.slice(0, 80), msg);
       return false;
     }
   };
@@ -127,7 +150,7 @@ async function enrichQuestionsWithImages(questions, ctx = {}) {
   console.info('[quiz-images] complete', { requested: indices.length, saved });
   if (indices.length > 0 && saved === 0) {
     console.warn(
-      '[quiz-images] no illustrations saved — enable Ollama Cloud API key and set image model in Admin'
+      '[quiz-images] no illustrations saved — check Ollama Cloud API key or Pollinations fallback'
     );
   }
 

@@ -3,7 +3,7 @@
  */
 
 import { Quiz, QuizQuestion } from '@/services/admin';
-import { isOllamaGeneratedImageUrl } from '@/utils/ollamaImageUrl';
+import { isQuizImageUrl } from '@/utils/ollamaImageUrl';
 
 /**
  * Parse and map question data from database format to frontend format
@@ -22,9 +22,13 @@ export const parseQuestions = (questions: unknown[]): QuizQuestion[] => {
     const rawImageUrl = (q.question_image_url !== undefined && q.question_image_url !== null)
       ? q.question_image_url
       : ((q.questionImageUrl !== undefined && q.questionImageUrl !== null) ? q.questionImageUrl : null);
-    const questionImageUrl = isOllamaGeneratedImageUrl(rawImageUrl)
+    const questionImageUrl = isQuizImageUrl(rawImageUrl)
       ? String(rawImageUrl).trim()
       : undefined;
+    const rawImagePrompt = (q.question_image_prompt !== undefined && q.question_image_prompt !== null)
+      ? q.question_image_prompt
+      : ((q.questionImagePrompt !== undefined && q.questionImagePrompt !== null) ? q.questionImagePrompt : null);
+    const questionImagePrompt = rawImagePrompt ? String(rawImagePrompt).trim() : undefined;
     const orderIndex = (q.order_index !== undefined && q.order_index !== null)
       ? q.order_index
       : ((q.orderIndex !== undefined && q.orderIndex !== null) ? q.orderIndex : 0);
@@ -62,6 +66,7 @@ export const parseQuestions = (questions: unknown[]): QuizQuestion[] => {
       questionType: questionType,
       questionText: questionText,
       questionImageUrl: questionImageUrl,
+      questionImagePrompt: questionImagePrompt,
       options: options || null,
       correctAnswer: correctAnswer || null,
       explanation: q.explanation !== undefined ? q.explanation : null,

@@ -18,6 +18,7 @@ import {
 import { Subject, Difficulty } from '@/types/quiz';
 import { isValidSubject } from '@/utils/validation';
 import { STUDY_MODE_MESSAGES } from '@/constants/study';
+import { STUDY_PROMPT_LIMITS } from '@/utils/studyPromptLimits';
 
 const CLASSES = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 const EXAM_STYLES = ['CBSE', 'NCERT', 'Olympiad', 'Competitive', 'ICSE', 'State Board'];
@@ -80,7 +81,7 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
   const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTY_LEVELS.BASIC);
   const [gradeLevel, setGradeLevel] = useState(userGrade || '');
   const [examStyle, setExamStyle] = useState('');
-  const [lessonStyle, setLessonStyle] = useState('Step-by-step');
+  const [lessonStyle, setLessonStyle] = useState('Story-based');
   const [lessonDepth, setLessonDepth] = useState('Standard (15 min)');
   const [contentFocus, setContentFocus] = useState<string[]>(['Q&A Practice', 'Diagrams & Images']);
   const [instructions, setInstructions] = useState('');
@@ -111,6 +112,7 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
 
   const handleSubmit = useCallback(() => {
     if (!isFormValid || submitLocked || isGenerating || !profileReady) return;
+    if (instructions.trim().length > STUDY_PROMPT_LIMITS.maxExtraInstructionsChars) return;
     setSubmitLocked(true);
     let finalSubtopics: string[] = [];
     if (subject === SUBJECTS.OTHER) {
@@ -272,7 +274,11 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
               </FormLabel>
               <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)}
                 placeholder="e.g., focus on diagrams, include Hindi examples, exam-style notes…"
-                rows={3} borderRadius="xl" borderWidth={2} borderColor="blue.200" />
+                rows={3} borderRadius="xl" borderWidth={2} borderColor="blue.200"
+                maxLength={STUDY_PROMPT_LIMITS.maxExtraInstructionsChars} />
+              <Text fontSize="xs" color="gray.500" mt={1} textAlign="right">
+                {instructions.length}/{STUDY_PROMPT_LIMITS.maxExtraInstructionsChars} characters
+              </Text>
             </FormControl>
 
             <Button colorScheme="blue" size="lg" onClick={handleSubmit}
