@@ -1301,5 +1301,69 @@ router.post('/facts-and-fun/regenerate', checkPermission('manage_users'), async 
   }
 });
 
+/**
+ * GET /api/admin/daily-content/overview — jobs, active grades, recent runs
+ */
+router.get('/daily-content/overview', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { getBatchOverview } = require('../services/dailyContentBatchJob');
+    const limit = Math.min(50, parseInt(req.query.limit, 10) || 20);
+    const overview = await getBatchOverview(limit);
+    res.json({ success: true, ...overview });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/daily-content/batch-runs — recent nightly batch job history
+ */
+router.get('/daily-content/batch-runs', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { listRecentBatchRuns } = require('../services/dailyContentBatchJob');
+    const limit = Math.min(50, parseInt(req.query.limit, 10) || 14);
+    const runs = await listRecentBatchRuns(limit);
+    res.json({ success: true, runs });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/daily-content/batch-run — trigger batch for active user grades
+ * Body: { jobId?, today?, date?, skipNews?, forceNewsRefresh?, sync? }
+ */
+router.post('/daily-content/batch-run', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const {
+      runDailyContentBatch,
+      enqueueDailyContentBatch,
+    } = require('../services/dailyContentBatchJob');
+
+    const options = {
+      jobId: req.body?.jobId,
+      today: req.body?.today === true,
+      targetDate: req.body?.date,
+      trigger: 'manual',
+      skipNews: req.body?.skipNews,
+      forceNewsRefresh: req.body?.forceNewsRefresh === true,
+    };
+
+    const result = req.body?.sync === true
+      ? await runDailyContentBatch(options)
+      : await enqueueDailyContentBatch(options);
+
+    res.json({
+      success: !result.skipped,
+      message: result.skipped
+        ? `Batch skipped: ${result.reason || 'unknown'}`
+        : result.message || `Daily content batch completed for ${result.targetDate}.`,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 

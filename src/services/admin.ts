@@ -1265,6 +1265,35 @@ export const factsAndFunApi = {
   },
 };
 
+export const dailyContentBatchApi = {
+  getOverview: async (limit = 20): Promise<import('@/types/dailyContentBatch').DailyContentBatchOverview> => {
+    const response = await apiClient.get('/admin/daily-content/overview', { params: { limit } });
+    return response.data;
+  },
+
+  listRuns: async (limit = 20): Promise<{
+    success: boolean;
+    runs: import('@/types/dailyContentBatch').DailyContentBatchRun[];
+  }> => {
+    const response = await apiClient.get('/admin/daily-content/batch-runs', { params: { limit } });
+    return response.data;
+  },
+
+  trigger: async (
+    options: import('@/types/dailyContentBatch').TriggerDailyContentBatchOptions = {},
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    runId?: number;
+    targetDate?: string;
+    skipped?: boolean;
+    reason?: string;
+  }> => {
+    const response = await apiClient.post('/admin/daily-content/batch-run', options);
+    return response.data;
+  },
+};
+
 export const newsPipelineApi = {
   getStatus: async (): Promise<{
     success: boolean;

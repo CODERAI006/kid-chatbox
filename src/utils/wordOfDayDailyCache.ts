@@ -6,7 +6,7 @@
 import type { WordOfDayResponse } from '@/types/wordOfDay';
 import { toYMD } from '@/utils/calendarDay';
 
-const STORAGE_PREFIX = 'wotd_daily_v10';
+const STORAGE_PREFIX = 'wotd_daily_v11';
 
 const memory = new Map<string, WordOfDayResponse>();
 const inflight = new Map<string, Promise<WordOfDayResponse>>();

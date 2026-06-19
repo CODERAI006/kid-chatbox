@@ -6,9 +6,13 @@ const cron = require('node-cron');
 const { pool } = require('../config/database');
 const { runSchedulerJobUnified } = require('./quizBatchGenerator');
 const { matchesRunTime, alreadyRanToday, DEFAULT_TIMEZONE } = require('../utils/timezoneUtils');
-const { pregenerateForDate } = require('./wordOfDayService');
-const { pregenerateForDate: pregenerateDailyFacts } = require('./dailyFactsService');
-const { pregenerateForDate: pregenerateEducationNews } = require('./educationNewsService');
+const {
+  runNightlyBatch,
+  runCatchupBatch,
+  runDailyContentBatch,
+  cleanupStaleBatchRuns,
+} = require('./dailyContentBatchJob');
+const { todayYmdInTimezone } = require('../utils/timezoneUtils');
 
 /**
  * @param {Object} job
@@ -91,40 +95,36 @@ let started = false;
 
 async function pregenerateWordOfDay() {
   try {
-    const { cacheDate, built, total, skipped } = await pregenerateForDate(new Date());
-    if (built > 0) {
-      console.log(`[Scheduler] Word of Day shared edition built for ${cacheDate}`);
-    } else if (skipped) {
-      console.log(`[Scheduler] Word of Day already cached for ${cacheDate}`);
+    const result = await runNightlyBatch();
+    if (result.skipped) {
+      console.log(`[Scheduler] Nightly content batch skipped: ${result.reason || 'unknown'}`);
     }
   } catch (err) {
-    console.error('[Scheduler] Word of Day pregenerate error:', err.message);
+    console.error('[Scheduler] Nightly content batch error:', err.message);
   }
 }
 
-async function pregenerateFactsAndFun() {
+async function runMorningCatchup() {
   try {
-    const { cacheDate, built, skipped } = await pregenerateDailyFacts(new Date());
-    if (built > 0) {
-      console.log(`[Scheduler] Facts & Fun built for ${built} grade(s) @ ${cacheDate}`);
-    } else if (skipped) {
-      console.log(`[Scheduler] Facts & Fun already cached for ${cacheDate}`);
+    const result = await runCatchupBatch();
+    if (!result.skipped) {
+      console.log(`[Scheduler] Morning catch-up batch completed for ${result.targetDate}`);
     }
   } catch (err) {
-    console.error('[Scheduler] Facts & Fun pregenerate error:', err.message);
+    console.error('[Scheduler] Morning catch-up batch error:', err.message);
   }
 }
 
-async function pregenerateNews() {
+async function warmTodayOnBoot() {
   try {
-    const { cacheDate, built, skipped } = await pregenerateEducationNews();
-    if (built > 0) {
-      console.log(`[Scheduler] Education news pregenerated (${built} buckets) for ${cacheDate}`);
-    } else if (skipped) {
-      console.log(`[Scheduler] Education news already cached for ${cacheDate}`);
-    }
+    const targetDate = todayYmdInTimezone(DEFAULT_TIMEZONE);
+    await runDailyContentBatch({
+      targetDate,
+      trigger: 'boot',
+      skipNews: true,
+    });
   } catch (err) {
-    console.error('[Scheduler] Education news pregenerate error:', err.message);
+    console.error('[Scheduler] Boot warm-up error:', err.message);
   }
 }
 
@@ -132,18 +132,21 @@ function startScheduler() {
   if (started) return;
   started = true;
 
+  cleanupStaleBatchRuns().catch((err) =>
+    console.error('[Scheduler] cleanupStaleBatchRuns error:', err.message),
+  );
+
   cron.schedule('* * * * *', tickJobs, { timezone: 'UTC' });
   cron.schedule('*/5 * * * *', updateQuizStatuses, { timezone: 'UTC' });
-  // 00:10 IST — build today's words for all grades before students open the app
-  cron.schedule('10 0 * * *', pregenerateWordOfDay, { timezone: 'Asia/Kolkata' });
-  cron.schedule('20 0 * * *', pregenerateFactsAndFun, { timezone: 'Asia/Kolkata' });
-  cron.schedule('30 0 * * *', pregenerateNews, { timezone: 'Asia/Kolkata' });
+  // 23:45 IST — pregenerate tomorrow's WOTD, expressions, facts & news for active user grades
+  cron.schedule('45 23 * * *', pregenerateWordOfDay, { timezone: 'Asia/Kolkata' });
+  // 00:20 IST — catch-up for today if nightly job missed anything
+  cron.schedule('20 0 * * *', runMorningCatchup, { timezone: 'Asia/Kolkata' });
   updateQuizStatuses();
-  // Warm word-of-day / facts on boot if missing (no AI news pipeline — nightly cron only)
-  setTimeout(() => pregenerateWordOfDay(), 15_000);
-  setTimeout(() => pregenerateFactsAndFun(), 25_000);
+  // Warm today's cache on boot for active user grades (skip news — nightly cron handles it)
+  setTimeout(() => warmTodayOnBoot(), 20_000);
 
-  console.log('✅ Quiz Scheduler Engine started (IST-aware job matching, 1-min / 5-min ticks)');
+  console.log('✅ Quiz Scheduler Engine started (IST nightly content batch @ 23:45, catch-up @ 00:20)');
 }
 
 module.exports = { startScheduler, runSchedulerJob };

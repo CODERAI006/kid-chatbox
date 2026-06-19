@@ -51,6 +51,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/admin/quiz-history', label: 'Quiz History', icon: FiClock },
   { adminPath: '/admin/study-library-content', label: 'Study Library', icon: FiBookOpen },
   { adminPath: '/admin/quiz-scheduler', label: 'Quiz Scheduler', icon: FiCalendar },
+  { adminPath: '/admin/daily-content-batch', label: 'Daily Content Batch', icon: FiClock },
   { adminPath: '/admin/ollama-cloud', label: 'AI Settings', icon: FiCpu },
   { adminPath: '/admin/word-of-day', label: 'Word of the Day', icon: FiSun },
   { adminPath: '/admin/facts-and-fun', label: 'Facts & Fun', icon: FiZap },
@@ -93,6 +94,7 @@ export const ADMIN_TABLE_VIEW_PATHS = new Set([
   '/admin/quiz-history',
   '/admin/study-library-content',
   '/admin/quiz-scheduler',
+  '/admin/daily-content-batch',
   '/admin/feedback',
 ]);
 

@@ -33,6 +33,7 @@ const { migrateAppFeedback } = require('./migrate-app-feedback');
 const { migrateStudyBuddies } = require('./migrate-study-buddies');
 const { migrateUserNotifications } = require('./migrate-user-notifications');
 const { migrateAppAnalyticsSettings } = require('./migrate-app-analytics-settings');
+const { migrateDailyContentBatch } = require('./migrate-daily-content-batch');
 
 async function runAllDbMigrations() {
   await migrateSchema();
@@ -62,6 +63,7 @@ async function runAllDbMigrations() {
   await migrateStudyBuddies();
   await migrateUserNotifications();
   await migrateAppAnalyticsSettings();
+  await migrateDailyContentBatch();
 }
 
 if (require.main === module) {

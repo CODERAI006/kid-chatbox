@@ -30,6 +30,7 @@ import { OllamaCloudSettingsPage } from '@/components/admin/OllamaCloudSettings'
 import { WordOfDaySettingsPage } from '@/components/admin/WordOfDaySettings';
 import { FactsAndFunSettingsPage } from '@/components/admin/FactsAndFunSettings';
 import { EducationNewsAdminPage } from '@/components/admin/EducationNewsAdmin';
+import { DailyContentBatchAdminPage } from '@/components/admin/DailyContentBatchAdmin';
 import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import ExpressionsPage from '@/components/ExpressionsPage';
@@ -559,6 +560,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <FactsAndFunSettingsPage />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/daily-content-batch"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <DailyContentBatchAdminPage />
                 </AdminLayout>
               </AdminGuard>
             }

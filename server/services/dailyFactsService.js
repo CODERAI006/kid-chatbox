@@ -5,6 +5,7 @@
 const { generateDailyFacts } = require('../utils/dailyFactsAi');
 const { loadCategories, normalizeFactCategory } = require('../utils/factsCategories');
 const { resolveGradeLabel, parseDateParam } = require('./wordOfDayService');
+const { gradesMatch } = require('../utils/normalizeGrade');
 const { getComplexityForGrade, getAllSettings } = require('../utils/dailyFactsSettings');
 const { normalizeFactDetail } = require('../utils/dailyFactsEnrich');
 const {
@@ -210,11 +211,18 @@ async function getFactDetail(dateInput, grade, factIdParam) {
   return body;
 }
 
-async function pregenerateForDate(dateInput) {
+async function pregenerateForDate(dateInput, options = {}) {
   const date = parseDateParam(dateInput);
   const cacheDate = formatCacheDate(date);
   const settings = await getAllSettings();
-  const enabled = settings.filter((s) => s.enabled);
+  const gradeFilter = Array.isArray(options.grades) ? options.grades : null;
+
+  let enabled = settings.filter((s) => s.enabled);
+  if (gradeFilter?.length) {
+    enabled = enabled.filter((row) =>
+      gradeFilter.some((g) => gradesMatch(g, row.grade)),
+    );
+  }
 
   let built = 0;
   for (const row of enabled) {

@@ -55,6 +55,7 @@ async function runStartupMigrations() {
   const { migrateStudyBuddies } = require('../scripts/migrate-study-buddies');
   const { migrateUserNotifications } = require('../scripts/migrate-user-notifications');
   const { migrateAppAnalyticsSettings } = require('../scripts/migrate-app-analytics-settings');
+  const { migrateDailyContentBatch } = require('../scripts/migrate-daily-content-batch');
 
   await runMigrationsQuietly(async () => {
     await migrateSchema();
@@ -76,6 +77,7 @@ async function runStartupMigrations() {
     await migrateStudyBuddies();
     await migrateUserNotifications();
     await migrateAppAnalyticsSettings();
+    await migrateDailyContentBatch();
   });
 }
 

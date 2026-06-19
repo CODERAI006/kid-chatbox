@@ -6,7 +6,7 @@ import type { DailyFactsResponse } from '@/types/dailyFacts';
 import { toYMD } from '@/utils/calendarDay';
 import { gradeCacheSegment } from '@/utils/wordOfDayDailyCache';
 
-const STORAGE_PREFIX = 'facts_fun_daily_v1';
+const STORAGE_PREFIX = 'facts_fun_daily_v2';
 
 const memory = new Map<string, DailyFactsResponse>();
 const inflight = new Map<string, Promise<DailyFactsResponse>>();

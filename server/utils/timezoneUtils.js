@@ -55,9 +55,44 @@ function alreadyRanToday(lastRunAt, date = new Date(), timeZone = DEFAULT_TIMEZO
   return today === last;
 }
 
+/** YYYY-MM-DD in the given timezone (en-CA locale). */
+function formatDateInTimezone(date = new Date(), timeZone = DEFAULT_TIMEZONE) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function addDaysToYmd(ymd, days) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+function todayYmdInTimezone(timeZone = DEFAULT_TIMEZONE) {
+  return formatDateInTimezone(new Date(), timeZone);
+}
+
+function tomorrowYmdInTimezone(timeZone = DEFAULT_TIMEZONE) {
+  return addDaysToYmd(todayYmdInTimezone(timeZone), 1);
+}
+
+/** Parse YYYY-MM-DD to a local Date (noon) for service date helpers. */
+function ymdToLocalDate(ymd) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
+
 module.exports = {
   DEFAULT_TIMEZONE,
   getZonedParts,
   matchesRunTime,
   alreadyRanToday,
+  formatDateInTimezone,
+  addDaysToYmd,
+  todayYmdInTimezone,
+  tomorrowYmdInTimezone,
+  ymdToLocalDate,
 };

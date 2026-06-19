@@ -233,11 +233,18 @@ async function getWordDetail(dateInput, grade, wordParam) {
   return body;
 }
 
-async function pregenerateForDate(dateInput) {
+async function pregenerateForDate(dateInput, options = {}) {
   const date = parseDateParam(dateInput);
   const cacheDate = formatCacheDate(date);
   const settings = await getAllSettings();
-  const enabled = settings.filter((s) => s.enabled);
+  const gradeFilter = Array.isArray(options.grades) ? options.grades : null;
+
+  let enabled = settings.filter((s) => s.enabled);
+  if (gradeFilter?.length) {
+    enabled = enabled.filter((row) =>
+      gradeFilter.some((g) => gradesMatch(g, row.grade)),
+    );
+  }
 
   let built = 0;
   let detailsBuilt = 0;
