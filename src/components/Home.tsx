@@ -30,6 +30,7 @@ import { FloatingElement } from '@/components/home/FloatingElement';
 import { HeroSection, HeroButtons } from '@/components/home/HeroSection';
 import { LandingShowcase } from '@/components/home/LandingShowcase';
 import { AppInstallButton } from '@/components/layout/AppInstallButton';
+import { useAutoAppInstallPrompt } from '@/hooks/useAutoAppInstallPrompt';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { PricingPlansSection } from '@/components/pricing/PricingPlansSection';
@@ -47,6 +48,7 @@ interface HomeProps {
  * Unified Home page component with integrated auth modal
  */
 export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
+  useAutoAppInstallPrompt();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isOpen, onOpen, onClose } = useDisclosure();

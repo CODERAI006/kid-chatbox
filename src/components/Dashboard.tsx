@@ -33,6 +33,7 @@ import { ActionTile } from '@/components/dashboard/ActionTile';
 import { type PlanInfo } from '@/components/dashboard/PlanSummaryCard';
 import { YourPlanPanel } from '@/components/dashboard/YourPlanPanel';
 import { AppInstallButton } from '@/components/layout/AppInstallButton';
+import { useAutoAppInstallPrompt } from '@/hooks/useAutoAppInstallPrompt';
 
 interface DashboardProps {
   user: User;
@@ -52,6 +53,7 @@ const emptyAnalytics: AnalyticsData = {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
+  useAutoAppInstallPrompt();
   const navigate = useNavigate();
   const { showAiStudy, showAiQuiz, loading: aiFlagsLoading } = usePlanAiFlags(user.id);
   const isAdmin = isAppAdmin(user as unknown as Record<string, unknown>);

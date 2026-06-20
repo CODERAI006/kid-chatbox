@@ -1,9 +1,8 @@
 /**
- * PWA install CTA — native Android prompt when available; iOS / fallback opens instructions modal.
+ * PWA install CTA — opens the install popup with the native Install button.
  */
 
-import { useCallback, useState } from 'react';
-import { Box, Button, HStack, Image, Text, useToast } from '@/shared/design-system';
+import { Box, Button, HStack, Image, Text } from '@/shared/design-system';
 import { FiDownload } from 'react-icons/fi';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { openAppInstall } from '@/components/layout/appInstallEvents';
@@ -13,42 +12,17 @@ type AppInstallButtonProps = {
 };
 
 export const AppInstallButton: React.FC<AppInstallButtonProps> = ({ variant = 'banner' }) => {
-  const { canInstall, platform, hasNativePrompt, promptInstall } = usePwaInstall();
-  const toast = useToast();
-  const [isInstalling, setIsInstalling] = useState(false);
-
-  const handleClick = useCallback(async () => {
-    if (platform === 'android' && hasNativePrompt) {
-      setIsInstalling(true);
-      try {
-        const outcome = await promptInstall();
-        if (outcome === 'accepted') {
-          toast({
-            title: 'App installed',
-            description: 'Guru AI is on your home screen.',
-            status: 'success',
-            duration: 4000,
-            isClosable: true,
-          });
-        }
-      } finally {
-        setIsInstalling(false);
-      }
-      return;
-    }
-
-    openAppInstall();
-  }, [hasNativePrompt, platform, promptInstall, toast]);
+  const { canInstall, platform } = usePwaInstall();
 
   if (!canInstall) return null;
 
   const label = platform === 'ios' ? 'Add to Home Screen' : 'Install App';
   const hint =
     platform === 'ios'
-      ? 'Tap to see how to add the Guru AI icon to your home screen.'
-      : hasNativePrompt
-        ? 'Install for quick access without the browser bar.'
-        : 'Tap for steps to add Guru AI to your home screen.';
+      ? 'Open the install popup to add the Guru AI icon to your home screen.'
+      : 'Open the install popup to add Guru AI to your device.';
+
+  const openPopup = () => openAppInstall();
 
   if (variant === 'outline') {
     return (
@@ -65,9 +39,7 @@ export const AppInstallButton: React.FC<AppInstallButtonProps> = ({ variant = 'b
         borderRadius="full"
         bg="rgba(255, 255, 255, 0.1)"
         backdropFilter="blur(10px)"
-        onClick={() => void handleClick()}
-        isLoading={isInstalling}
-        loadingText="Installing…"
+        onClick={openPopup}
         _hover={{ bg: 'rgba(255, 255, 255, 0.2)', transform: 'translateY(-2px)' }}
       >
         {label}
@@ -95,7 +67,12 @@ export const AppInstallButton: React.FC<AppInstallButtonProps> = ({ variant = 'b
           aria-hidden
         />
         <Box flex={1} minW={0}>
-          <Text fontWeight="bold" fontSize={{ base: 'sm', md: 'md' }} color="purple.700" _dark={{ color: 'purple.200' }}>
+          <Text
+            fontWeight="bold"
+            fontSize={{ base: 'sm', md: 'md' }}
+            color="purple.700"
+            _dark={{ color: 'purple.200' }}
+          >
             {label}
           </Text>
           <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.600" _dark={{ color: 'gray.300' }} noOfLines={2}>
@@ -107,11 +84,9 @@ export const AppInstallButton: React.FC<AppInstallButtonProps> = ({ variant = 'b
           size={{ base: 'sm', md: 'md' }}
           leftIcon={<FiDownload />}
           flexShrink={0}
-          onClick={() => void handleClick()}
-          isLoading={isInstalling}
-          loadingText="…"
+          onClick={openPopup}
         >
-          {platform === 'ios' ? 'How to' : 'Install'}
+          Install
         </Button>
       </HStack>
     </Box>

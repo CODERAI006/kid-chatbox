@@ -1,5 +1,5 @@
 /**
- * Mobile app install modal — native Android prompt or iOS / manual install steps.
+ * Install popup — primary Install button triggers native PWA install when supported.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -21,6 +21,7 @@ import {
   useDisclosure,
   useToast,
 } from '@/shared/design-system';
+import { FiDownload } from 'react-icons/fi';
 import { usePwaInstall } from '@/hooks/usePwaInstall';
 import { APP_INSTALL_OPEN_EVENT } from './appInstallEvents';
 
@@ -35,20 +36,52 @@ export const AppInstallModal: React.FC = () => {
     return () => window.removeEventListener(APP_INSTALL_OPEN_EVENT, onOpen);
   }, [onOpen]);
 
-  const handleNativeInstall = useCallback(async () => {
+  const handleInstall = useCallback(async () => {
     setIsInstalling(true);
     try {
+      if (hasNativePrompt) {
+        const outcome = await promptInstall();
+        if (outcome === 'accepted') {
+          toast({
+            title: 'App installed',
+            description: 'Guru AI is on your home screen.',
+            status: 'success',
+            duration: 4000,
+            isClosable: true,
+          });
+          onClose();
+        }
+        return;
+      }
+
+      if (platform === 'ios') {
+        toast({
+          title: 'Add to Home Screen',
+          description: 'Tap Share (↑) in Safari, then choose Add to Home Screen.',
+          status: 'info',
+          duration: 6000,
+          isClosable: true,
+        });
+        return;
+      }
+
       const outcome = await promptInstall();
-      if (outcome === 'accepted') {
-        toast({ title: 'App installed', status: 'success', duration: 3000, isClosable: true });
-        onClose();
+      if (outcome === 'unavailable') {
+        toast({
+          title: 'Install from browser menu',
+          description: 'Open menu (⋮) → Install app or Add to Home screen.',
+          status: 'info',
+          duration: 6000,
+          isClosable: true,
+        });
       }
     } finally {
       setIsInstalling(false);
     }
-  }, [onClose, promptInstall, toast]);
+  }, [hasNativePrompt, onClose, platform, promptInstall, toast]);
 
   const isIos = platform === 'ios';
+  const installLabel = isIos ? 'Add to Home Screen' : 'Install App';
   const title = isIos ? 'Install on iPhone / iPad' : 'Install Guru AI';
 
   return (
@@ -79,51 +112,55 @@ export const AppInstallModal: React.FC = () => {
           {isIos ? (
             <VStack align="stretch" spacing={3}>
               <Text fontSize="sm" color="gray.600">
-                Safari does not show a one-tap install button. Follow these steps:
+                Tap the button below, then complete these steps in Safari:
               </Text>
               <List spacing={2} fontSize="sm" pl={4} styleType="decimal">
-                <ListItem>Tap the <strong>Share</strong> button in Safari (square with arrow up).</ListItem>
-                <ListItem>Scroll and tap <strong>Add to Home Screen</strong>.</ListItem>
-                <ListItem>Tap <strong>Add</strong> in the top-right corner.</ListItem>
+                <ListItem>
+                  Tap <strong>Share</strong> (square with arrow up).
+                </ListItem>
+                <ListItem>
+                  Tap <strong>Add to Home Screen</strong>.
+                </ListItem>
+                <ListItem>
+                  Tap <strong>Add</strong> in the top-right corner.
+                </ListItem>
               </List>
             </VStack>
           ) : hasNativePrompt ? (
             <Text fontSize="sm" color="gray.600">
-              Install the app on your device for a full-screen experience without the browser bar.
+              Tap Install App to add Guru AI to your device. You get a full-screen app without the
+              browser bar.
             </Text>
           ) : (
             <VStack align="stretch" spacing={3}>
               <Text fontSize="sm" color="gray.600">
-                Use your browser menu to install this app:
+                Tap Install App, or use your browser menu:
               </Text>
               <List spacing={2} fontSize="sm" pl={4} styleType="decimal">
                 <ListItem>Open the browser menu (⋮).</ListItem>
-                <ListItem>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>.</ListItem>
+                <ListItem>
+                  Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>.
+                </ListItem>
                 <ListItem>Confirm to add Guru AI to your home screen.</ListItem>
               </List>
             </VStack>
           )}
         </ModalBody>
-        <ModalFooter>
-          {isIos ? (
-            <Button colorScheme="purple" w="100%" onClick={onClose}>
-              Got it
-            </Button>
-          ) : hasNativePrompt ? (
-            <Button
-              colorScheme="purple"
-              w="100%"
-              onClick={() => void handleNativeInstall()}
-              isLoading={isInstalling}
-              loadingText="Installing…"
-            >
-              Install now
-            </Button>
-          ) : (
-            <Button variant="outline" w="100%" onClick={onClose}>
-              Close
-            </Button>
-          )}
+        <ModalFooter gap={2} flexDirection={{ base: 'column', sm: 'row' }}>
+          <Button variant="ghost" onClick={onClose} w={{ base: '100%', sm: 'auto' }}>
+            Not now
+          </Button>
+          <Button
+            colorScheme="purple"
+            leftIcon={<FiDownload />}
+            flex={1}
+            w={{ base: '100%', sm: 'auto' }}
+            onClick={() => void handleInstall()}
+            isLoading={isInstalling}
+            loadingText="Installing…"
+          >
+            {installLabel}
+          </Button>
         </ModalFooter>
       </ModalContent>
     </Modal>

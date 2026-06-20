@@ -27,10 +27,10 @@ export function usePwaInstall() {
   useEffect(() => {
     void registerInstallServiceWorker();
 
-    const syncInstallState = () => {
+    const syncInstallState = (nativePromptReady = false) => {
       const installed = isStandaloneApp();
       setPlatform(getMobilePlatform());
-      setCanInstall(canOfferMobileInstall() && !installed);
+      setCanInstall(!installed && (canOfferMobileInstall() || nativePromptReady));
       if (installed) setDeferredPrompt(null);
     };
 
@@ -39,7 +39,7 @@ export function usePwaInstall() {
     const onBeforeInstallPrompt = (event: BeforeInstallPromptEvent) => {
       event.preventDefault();
       setDeferredPrompt(event);
-      syncInstallState();
+      syncInstallState(true);
     };
 
     const onAppInstalled = () => {
