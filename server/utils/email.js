@@ -25,14 +25,15 @@ function getEmailHeader() {
  * @returns {string} HTML footer section
  */
 function getEmailFooter() {
+  const baseUrl = (process.env.VITE_FRONTEND_URL || 'https://guru-ai.cloud').replace(/\/$/, '');
   return `
   <div style="text-align: center; margin-top: 30px; padding: 20px; color: #666; font-size: 12px; border-top: 1px solid #e0e0e0;">
     <p style="margin: 5px 0;">This is an automated email. Please do not reply to this message.</p>
     <p style="margin: 5px 0;">© ${new Date().getFullYear()} Guru ID. All rights reserved.</p>
     <p style="margin: 10px 0 0 0;">
-      <a href="#" style="color: #667eea; text-decoration: none;">Privacy Policy</a> | 
-      <a href="#" style="color: #667eea; text-decoration: none;">Terms of Service</a> | 
-      <a href="#" style="color: #667eea; text-decoration: none;">Contact Support</a>
+      <a href="${baseUrl}/privacy" style="color: #667eea; text-decoration: none;">Privacy Policy</a> | 
+      <a href="${baseUrl}/disclaimer" style="color: #667eea; text-decoration: none;">PII Disclaimer</a> | 
+      <a href="${baseUrl}/" style="color: #667eea; text-decoration: none;">Contact Support</a>
     </p>
   </div>
   `;

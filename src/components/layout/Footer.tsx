@@ -65,6 +65,12 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'full' }) => {
             <RouterLink to="/education-news" style={{ ...linkStyle, fontSize: '0.7rem' }}>
               News
             </RouterLink>
+            <RouterLink to="/privacy" style={{ ...linkStyle, fontSize: '0.7rem' }}>
+              Privacy
+            </RouterLink>
+            <RouterLink to="/disclaimer" style={{ ...linkStyle, fontSize: '0.7rem' }}>
+              Disclaimer
+            </RouterLink>
             <FooterMoreMenu size="compact" />
           </HStack>
         </HStack>
@@ -121,6 +127,12 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'full' }) => {
           </Button>
           <RouterLink to="/education-news" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', ...linkStyle }}>
             News
+          </RouterLink>
+          <RouterLink to="/privacy" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', ...linkStyle }}>
+            Privacy
+          </RouterLink>
+          <RouterLink to="/disclaimer" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', ...linkStyle }}>
+            Disclaimer
           </RouterLink>
           <FooterMoreMenu />
           <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.400">

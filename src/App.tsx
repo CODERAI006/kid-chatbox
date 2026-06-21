@@ -33,6 +33,8 @@ import { EducationNewsAdminPage } from '@/components/admin/EducationNewsAdmin';
 import { DailyContentBatchAdminPage } from '@/components/admin/DailyContentBatchAdmin';
 import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { PuzzleSettingsPage } from '@/components/admin/PuzzleSettings';
+import { SitePagesManagement } from '@/components/admin/SitePagesManagement';
+import { SitePageView } from '@/components/legal/SitePageView';
 import { PuzzleHub } from '@/components/puzzles/PuzzleHub';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import ExpressionsPage from '@/components/ExpressionsPage';
@@ -274,6 +276,8 @@ export const App: React.FC = () => {
               )
             }
           />
+          <Route path="/privacy" element={<SitePageView slug="privacy-policy" />} />
+          <Route path="/disclaimer" element={<SitePageView slug="pii-disclaimer" />} />
           <Route
             path="/dashboard"
             element={
@@ -612,6 +616,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <FeedbackManagement />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/site-pages"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <SitePagesManagement />
                 </AdminLayout>
               </AdminGuard>
             }

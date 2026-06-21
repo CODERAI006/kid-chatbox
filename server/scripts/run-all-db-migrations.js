@@ -38,6 +38,7 @@ const { migratePuzzles } = require('./migrate-puzzles');
 const { migratePuzzlesV2 } = require('./migrate-puzzles-v2');
 const { migratePuzzlesV3 } = require('./migrate-puzzles-v3');
 const { migratePuzzlesV4 } = require('./migrate-puzzles-v4');
+const { migrateSitePages } = require('./migrate-site-pages');
 
 async function runAllDbMigrations() {
   await migrateSchema();
@@ -72,6 +73,7 @@ async function runAllDbMigrations() {
   await migratePuzzlesV2();
   await migratePuzzlesV3();
   await migratePuzzlesV4();
+  await migrateSitePages();
 }
 
 if (require.main === module) {

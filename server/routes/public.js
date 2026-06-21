@@ -441,5 +441,39 @@ router.get('/plans', async (req, res, next) => {
   }
 });
 
+/** Public legal / static pages (privacy policy, PII disclaimer) */
+router.get('/pages/:slug', async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const result = await pool.query(
+      `SELECT id, slug, title, body, meta_description, is_published, created_at, updated_at
+       FROM site_pages
+       WHERE slug = $1 AND is_published = true`,
+      [slug]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Page not found' });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      success: true,
+      page: {
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        body: row.body,
+        metaDescription: row.meta_description,
+        isPublished: row.is_published,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 

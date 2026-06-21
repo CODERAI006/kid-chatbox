@@ -58,6 +58,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/admin/facts-and-fun', label: 'Facts & Fun', icon: FiZap },
   { adminPath: '/admin/puzzles', label: 'Puzzles', icon: FiGrid },
   { adminPath: '/admin/education-news', label: 'Education News', icon: FiGlobe },
+  { adminPath: '/admin/site-pages', label: 'Legal Pages', icon: FiShield },
   { adminPath: '/admin/feedback', label: 'Feedback', icon: FiMessageSquare },
 ];
 

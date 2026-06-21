@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
@@ -234,6 +234,24 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
               _hover={{ textDecoration: 'underline' }}
             >
               Pricing Plans
+            </Text>
+            <Text
+              as={RouterLink}
+              to="/privacy"
+              fontSize="sm"
+              color="cyan.300"
+              _hover={{ textDecoration: 'underline' }}
+            >
+              Privacy Policy
+            </Text>
+            <Text
+              as={RouterLink}
+              to="/disclaimer"
+              fontSize="sm"
+              color="cyan.300"
+              _hover={{ textDecoration: 'underline' }}
+            >
+              PII Disclaimer
             </Text>
             <Text fontSize="sm" color="whiteAlpha.600">
               Made with ❤️ for kids
