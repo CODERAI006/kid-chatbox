@@ -170,24 +170,53 @@ async function fetchKidsTrivia(limit = 5) {
   }
 }
 
+const SKILL_AREA_MAP = {
+  Math: 'Quantitative reasoning & problem-solving',
+  Logic: 'Logical deduction & analytical thinking',
+  Language: 'Reading comprehension & vocabulary',
+  Science: 'Scientific inquiry & application',
+  GK: 'General awareness of India & the world',
+  History: 'Historical literacy & cause-effect reasoning',
+  'Civic Sense': 'Responsible citizenship & democratic values',
+  'Financial Education': 'Money management & financial literacy',
+  'Brain Teaser': 'Creative & lateral thinking',
+  'Critical Thinking': 'Decision-making & evaluation skills',
+};
+
+function enrichScrapedPuzzle(p) {
+  const skill = SKILL_AREA_MAP[p.category] || 'Knowledge & reasoning';
+  let question = String(p.question || '').trim();
+  if (question.length < 90 && p.options?.length) {
+    question = `${question}\n\nApply your ${p.category} knowledge — read each option carefully. This builds ${skill.toLowerCase()}.`;
+  }
+  return {
+    ...p,
+    question: question.slice(0, 600),
+    skillArea: p.skillArea || skill,
+    generationPrompt: `Web scrape (${p.source || 'scraped'}): Fetch age-appropriate ${p.category} MCQ from Open Trivia DB / educational RSS. Enriched for 2–3 line context.`,
+  };
+}
+
 async function upsertScrapedPuzzle(puzzle) {
-  const hash = questionHash(puzzle.question);
+  const p = enrichScrapedPuzzle(puzzle);
+  const hash = questionHash(p.question);
   const id = nextId('W', hash);
   const existing = await pool.query(
     `SELECT id FROM puzzles WHERE id = $1 OR question = $2 LIMIT 1`,
-    [id, puzzle.question],
+    [id, p.question],
   );
   if (existing.rows.length) return { skipped: true, id: existing.rows[0].id };
 
   await pool.query(
     `INSERT INTO puzzles (id, category, puzzle_type, class_from, class_to, difficulty,
-      question, options, answer, explanation, time_limit, points, source, is_active)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11,$12,$13,true)
+      question, options, answer, explanation, time_limit, points, source, generation_prompt, skill_area, is_active)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11,$12,$13,$14,$15,true)
      ON CONFLICT (id) DO NOTHING`,
     [
-      id, puzzle.category, puzzle.puzzleType, puzzle.classFrom, puzzle.classTo, puzzle.difficulty,
-      puzzle.question, JSON.stringify(puzzle.options), JSON.stringify(puzzle.answer),
-      puzzle.explanation, puzzle.timeLimit, puzzle.points, puzzle.source || 'scraped',
+      id, p.category, p.puzzleType, p.classFrom, p.classTo, p.difficulty,
+      p.question, JSON.stringify(p.options), JSON.stringify(p.answer),
+      p.explanation, p.timeLimit, p.points, p.source || 'scraped',
+      p.generationPrompt, p.skillArea,
     ],
   );
   return { inserted: true, id };

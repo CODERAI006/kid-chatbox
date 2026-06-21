@@ -61,6 +61,7 @@ async function runStartupMigrations() {
   const { migratePuzzlesV2 } = require('../scripts/migrate-puzzles-v2');
   const { migratePuzzlesV3 } = require('../scripts/migrate-puzzles-v3');
   const { migratePuzzlesV4 } = require('../scripts/migrate-puzzles-v4');
+  const { migratePuzzlesV5 } = require('../scripts/migrate-puzzles-v5');
   const { migrateSitePages } = require('../scripts/migrate-site-pages');
 
   await runMigrationsQuietly(async () => {
@@ -88,6 +89,7 @@ async function runStartupMigrations() {
     await migratePuzzlesV2();
     await migratePuzzlesV3();
     await migratePuzzlesV4();
+    await migratePuzzlesV5();
     await migrateSitePages();
   });
 }

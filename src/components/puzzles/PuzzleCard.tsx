@@ -28,8 +28,13 @@ export function PuzzleCard({ puzzle: p, index, onClick, variant = 'light' }: Pro
       onClick={onClick}
     >
       <Text fontSize={variant === 'dark' ? 'xs' : 'sm'} fontWeight="bold" color={isDark ? 'cyan.300' : 'purple.700'} mb={1}>
-        {index != null ? `#${index + 1} ` : ''}{PUZZLE_CATEGORY_EMOJI[p.category] || '🧩'} {p.puzzleType}
+        {index != null ? `#${index + 1} ` : ''}{PUZZLE_CATEGORY_EMOJI[p.category] || '🧩'} {p.category}
       </Text>
+      {p.skillArea && (
+        <Text fontSize="2xs" color={isDark ? 'whiteAlpha.700' : 'gray.500'} mb={1} noOfLines={1}>
+          🎯 {p.skillArea}
+        </Text>
+      )}
       <Text fontSize="sm" noOfLines={3} color={isDark ? 'whiteAlpha.900' : 'gray.700'}>
         {p.question}
       </Text>

@@ -17,6 +17,9 @@ export interface Puzzle {
   explanation: string;
   timeLimit: number;
   points: number;
+  skillArea?: string | null;
+  source?: string;
+  generationPrompt?: string | null;
 }
 
 export interface DailyPuzzlesResponse {
@@ -26,6 +29,13 @@ export interface DailyPuzzlesResponse {
   puzzles: Puzzle[];
   puzzleCount?: number;
   cached?: boolean;
+  gradeLocked?: boolean;
+  categoryBreakdown?: Record<string, number>;
+  generationMeta?: {
+    aiGenerated?: number;
+    scraped?: number;
+    aiPromptSample?: string | null;
+  };
   message?: string;
 }
 
@@ -39,6 +49,8 @@ export interface PuzzleGlobalConfig {
   enabled: boolean;
   showOnHomepage: boolean;
   defaultGrade: string;
+  aiGenerationEnabled?: boolean;
+  autoScrapeEnabled?: boolean;
 }
 
 export interface PuzzleSettingsResponse {

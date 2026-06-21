@@ -1310,6 +1310,18 @@ export const puzzleAdminApi = {
     const response = await apiClient.get('/admin/puzzles/preview', { params: { grade, date } });
     return response.data;
   },
+
+  generateAi: async (grade: string): Promise<{
+    success: boolean;
+    message?: string;
+    generationPrompt?: string | null;
+    aiCount?: number;
+    scrapeCount?: number;
+    daily?: import('@/types/puzzle').DailyPuzzlesResponse;
+  }> => {
+    const response = await apiClient.post('/admin/puzzles/generate-ai', { grade });
+    return response.data;
+  },
 };
 
 export const dailyContentBatchApi = {

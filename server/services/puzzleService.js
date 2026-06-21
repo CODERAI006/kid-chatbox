@@ -14,12 +14,14 @@ const {
   applyGradeDifficultyPolicy,
   elevatePuzzleForGrade,
 } = require('../utils/puzzleDifficultyPolicy');
-const { resolveGradeLabel } = require('./wordOfDayService');
+const { getDailyCategoryPlan, DAILY_SKILL_CATEGORIES } = require('../data/puzzleCategoryConfig');
+const { ensureDailyContent } = require('./puzzleGeneratorService');
 const {
   getGlobalConfig,
   isGradeEnabled,
   getDailyCount,
 } = require('../utils/puzzleSettings');
+const { resolveGradeLabel } = require('./wordOfDayService');
 
 function formatCacheDate(date) {
   const d = date instanceof Date ? date : new Date(date);
@@ -33,8 +35,8 @@ function gradeCacheKey(gradeLabel) {
   return `grade:${gradeLabel}`;
 }
 
-function mapRow(row) {
-  return {
+function mapRow(row, opts = {}) {
+  const base = {
     id: row.id,
     category: row.category,
     puzzleType: row.puzzle_type,
@@ -47,7 +49,11 @@ function mapRow(row) {
     explanation: row.explanation,
     timeLimit: row.time_limit,
     points: row.points,
+    skillArea: row.skill_area || null,
+    source: row.source || 'seed',
   };
+  if (opts.includePrompt) base.generationPrompt = row.generation_prompt || null;
+  return base;
 }
 
 function mapSeed(p) {
@@ -135,10 +141,12 @@ async function ensureSeedPuzzles() {
 async function loadEligiblePuzzles(classNum) {
   await ensureSeedPuzzles();
   const r = await pool.query(
-    `SELECT * FROM puzzles WHERE is_active = true AND class_from <= $1 AND class_to >= $1`,
+    `SELECT * FROM puzzles WHERE is_active = true
+     AND class_from <= $1 AND class_to >= $1
+     ORDER BY ABS(($1 - (class_from + class_to) / 2.0)) ASC`,
     [classNum],
   );
-  return r.rows.map(mapRow);
+  return r.rows.map((row) => mapRow(row));
 }
 
 async function readCache(gradeKey, cacheDate) {
@@ -159,32 +167,46 @@ async function writeCache(gradeKey, cacheDate, payload) {
   );
 }
 
-/** Pick diverse puzzles — spread across categories and types. */
-function diversePick(items, count, seedStr) {
-  const picked = [];
-  const usedTypes = new Set();
-  const usedIds = new Set();
-  let pool = seededPick(items, items.length, seedStr);
+/** Pick 2 puzzles per skill category for balanced daily set. */
+function pickByCategoryQuota(items, count, categoryPlan, seedStr) {
+  const byCat = {};
+  for (const p of items) {
+    if (!byCat[p.category]) byCat[p.category] = [];
+    byCat[p.category].push(p);
+  }
 
-  for (const p of pool) {
-    if (picked.length >= count) break;
-    if (usedIds.has(p.id)) continue;
-    if (usedTypes.has(p.puzzleType) && picked.length < count - 2) continue;
-    picked.push(p);
-    usedIds.add(p.id);
-    usedTypes.add(p.puzzleType);
+  const picked = [];
+  const usedIds = new Set();
+  const perCat = Math.max(1, Math.floor(count / categoryPlan.length));
+
+  for (const slot of categoryPlan) {
+    const pool = seededPick(byCat[slot.category] || [], (byCat[slot.category] || []).length, `${seedStr}:${slot.category}`);
+    let added = 0;
+    for (const p of pool) {
+      if (added >= perCat || picked.length >= count) break;
+      if (usedIds.has(p.id)) continue;
+      picked.push({ ...p, skillArea: p.skillArea || slot.skillArea });
+      usedIds.add(p.id);
+      added += 1;
+    }
   }
 
   if (picked.length < count) {
-    for (const p of pool) {
+    const rest = seededPick(items.filter((p) => !usedIds.has(p.id)), items.length, `${seedStr}:fill`);
+    for (const p of rest) {
       if (picked.length >= count) break;
-      if (!usedIds.has(p.id)) {
-        picked.push(p);
-        usedIds.add(p.id);
-      }
+      picked.push(p);
     }
   }
   return picked;
+}
+
+function categoryBreakdown(puzzles) {
+  const breakdown = {};
+  for (const p of puzzles) {
+    breakdown[p.category] = (breakdown[p.category] || 0) + 1;
+  }
+  return breakdown;
 }
 
 async function listCachedDates(gradeLabel, untilDate, limit = 60) {
@@ -315,11 +337,15 @@ async function buildDailyPuzzles(dateInput, gradeInput) {
   }
 
   const count = await getDailyCount(gradeLabel);
+  const genMeta = await ensureDailyContent(cacheDate, gradeLabel, classNum);
+
   const eligible = await loadEligiblePuzzles(classNum);
+  const categoryPlan = getDailyCategoryPlan(classNum);
   const prioritized = prioritizePuzzles(eligible, classNum);
   const ordered = applyGradeDifficultyPolicy(prioritized, classNum, count);
-  const seed = `${cacheDate}:${gradeLabel}:${classNum}:v4-gk`;
-  const selected = diversePick(ordered, count, seed).map((p) => elevatePuzzleForGrade(p, classNum));
+  const seed = `${cacheDate}:${gradeLabel}:${classNum}:v5-ai`;
+  const selected = pickByCategoryQuota(ordered, count, categoryPlan, seed)
+    .map((p) => elevatePuzzleForGrade(p, classNum));
 
   return {
     success: true,
@@ -328,6 +354,12 @@ async function buildDailyPuzzles(dateInput, gradeInput) {
     classNum,
     puzzles: selected,
     puzzleCount: selected.length,
+    categoryBreakdown: categoryBreakdown(selected),
+    generationMeta: {
+      aiGenerated: genMeta.aiCount,
+      scraped: genMeta.scrapeCount,
+      aiPromptSample: genMeta.aiPrompt ? genMeta.aiPrompt.slice(0, 500) + '…' : null,
+    },
     cached: false,
   };
 }
@@ -350,10 +382,43 @@ async function getDailyPuzzles(dateInput, gradeInput) {
   return body;
 }
 
-async function getPuzzleById(id) {
+async function upsertPuzzle(data) {
+  await pool.query(
+    `INSERT INTO puzzles (id, category, puzzle_type, class_from, class_to, difficulty,
+      question, options, answer, explanation, time_limit, points, is_active,
+      source, generation_prompt, skill_area)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11,$12,$13,$14,$15,$16)
+     ON CONFLICT (id) DO UPDATE SET
+       category = EXCLUDED.category,
+       puzzle_type = EXCLUDED.puzzle_type,
+       class_from = EXCLUDED.class_from,
+       class_to = EXCLUDED.class_to,
+       difficulty = EXCLUDED.difficulty,
+       question = EXCLUDED.question,
+       options = EXCLUDED.options,
+       answer = EXCLUDED.answer,
+       explanation = EXCLUDED.explanation,
+       time_limit = EXCLUDED.time_limit,
+       points = EXCLUDED.points,
+       is_active = EXCLUDED.is_active,
+       source = COALESCE(EXCLUDED.source, puzzles.source),
+       generation_prompt = COALESCE(EXCLUDED.generation_prompt, puzzles.generation_prompt),
+       skill_area = COALESCE(EXCLUDED.skill_area, puzzles.skill_area),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      data.id, data.category, data.puzzleType, data.classFrom, data.classTo, data.difficulty,
+      data.question, JSON.stringify(data.options ?? null), JSON.stringify(data.answer),
+      data.explanation, data.timeLimit, data.points, data.isActive !== false,
+      data.source || 'seed', data.generationPrompt || null, data.skillArea || null,
+    ],
+  );
+  return getPuzzleById(data.id, { includePrompt: true });
+}
+
+async function getPuzzleById(id, opts = {}) {
   await ensureSeedPuzzles();
   const r = await pool.query(`SELECT * FROM puzzles WHERE id = $1 AND is_active = true`, [id]);
-  return r.rows.length ? mapRow(r.rows[0]) : null;
+  return r.rows.length ? mapRow(r.rows[0], { includePrompt: opts.includePrompt }) : null;
 }
 
 async function listAllPuzzles(filters = {}) {
@@ -372,35 +437,7 @@ async function listAllPuzzles(filters = {}) {
     `SELECT * FROM puzzles WHERE ${clauses.join(' AND ')} ORDER BY category, puzzle_type, id`,
     params,
   );
-  return r.rows.map(mapRow);
-}
-
-async function upsertPuzzle(data) {
-  await pool.query(
-    `INSERT INTO puzzles (id, category, puzzle_type, class_from, class_to, difficulty,
-      question, options, answer, explanation, time_limit, points, is_active)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11,$12,$13)
-     ON CONFLICT (id) DO UPDATE SET
-       category = EXCLUDED.category,
-       puzzle_type = EXCLUDED.puzzle_type,
-       class_from = EXCLUDED.class_from,
-       class_to = EXCLUDED.class_to,
-       difficulty = EXCLUDED.difficulty,
-       question = EXCLUDED.question,
-       options = EXCLUDED.options,
-       answer = EXCLUDED.answer,
-       explanation = EXCLUDED.explanation,
-       time_limit = EXCLUDED.time_limit,
-       points = EXCLUDED.points,
-       is_active = EXCLUDED.is_active,
-       updated_at = CURRENT_TIMESTAMP`,
-    [
-      data.id, data.category, data.puzzleType, data.classFrom, data.classTo, data.difficulty,
-      data.question, JSON.stringify(data.options ?? null), JSON.stringify(data.answer),
-      data.explanation, data.timeLimit, data.points, data.isActive !== false,
-    ],
-  );
-  return getPuzzleById(data.id);
+  return r.rows.map((row) => mapRow(row, { includePrompt: filters.includePrompt }));
 }
 
 async function regenerateToday(gradeLabel) {

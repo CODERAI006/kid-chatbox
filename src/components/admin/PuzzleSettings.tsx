@@ -19,6 +19,9 @@ export function PuzzleSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [lastPrompt, setLastPrompt] = useState<string | null>(null);
+  const [previewGrade, setPreviewGrade] = useState('Class 5 / Grade 5');
   const [global, setGlobal] = useState<PuzzleGlobalConfig>({
     enabled: true, showOnHomepage: true, defaultGrade: 'Class 5 / Grade 5',
   });
@@ -35,6 +38,7 @@ export function PuzzleSettingsPage() {
       setGlobal(res.global);
       setSettings(res.settings);
       setTypes(res.types || []);
+      setPreviewGrade(res.global.defaultGrade);
       const bankRes = await puzzleAdminApi.getBank();
       setBank(bankRes.puzzles);
     } catch (err) {
@@ -55,6 +59,27 @@ export function PuzzleSettingsPage() {
       toast({ title: 'Save failed', description: String(err), status: 'error', duration: 5000 });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGenerateAi = async () => {
+    setGeneratingAi(true);
+    try {
+      const res = await puzzleAdminApi.generateAi(previewGrade);
+      setLastPrompt(res.generationPrompt || null);
+      toast({
+        title: res.message || 'AI + scrape complete',
+        description: res.daily?.categoryBreakdown
+          ? `${Object.keys(res.daily.categoryBreakdown).length} categories covered`
+          : undefined,
+        status: 'success',
+        duration: 5000,
+      });
+      await load();
+    } catch (err) {
+      toast({ title: 'Generation failed', description: String(err), status: 'error', duration: 5000 });
+    } finally {
+      setGeneratingAi(false);
     }
   };
 
@@ -96,7 +121,7 @@ export function PuzzleSettingsPage() {
       <Box>
         <Heading size="md" mb={2}>Puzzle Module</Heading>
         <Text color="gray.600" fontSize="sm">
-          {DAILY_PUZZLE_COUNT} innovative puzzles per grade per day. Students can browse other classes and full history.
+          {DAILY_PUZZLE_COUNT} smart questions per class per day — AI + web scrape, balanced across all skill areas.
         </Text>
       </Box>
 
@@ -132,6 +157,32 @@ export function PuzzleSettingsPage() {
                       {settings.map((s) => <option key={s.grade} value={s.grade}>{s.grade}</option>)}
                     </Select>
                   </HStack>
+                  <HStack justify="space-between">
+                    <Text fontSize="sm">AI generation (Ollama)</Text>
+                    <Switch isChecked={global.aiGenerationEnabled !== false}
+                      onChange={(e) => setGlobal({ ...global, aiGenerationEnabled: e.target.checked })} />
+                  </HStack>
+                  <HStack justify="space-between">
+                    <Text fontSize="sm">Auto web scrape on daily build</Text>
+                    <Switch isChecked={global.autoScrapeEnabled !== false}
+                      onChange={(e) => setGlobal({ ...global, autoScrapeEnabled: e.target.checked })} />
+                  </HStack>
+                  <HStack flexWrap="wrap" gap={2}>
+                    <Text fontSize="sm" minW="140px">Generate for grade</Text>
+                    <Select size="sm" maxW="280px" value={previewGrade}
+                      onChange={(e) => setPreviewGrade(e.target.value)}>
+                      {settings.map((s) => <option key={s.grade} value={s.grade}>{s.grade}</option>)}
+                    </Select>
+                    <Button size="sm" colorScheme="purple" onClick={handleGenerateAi} isLoading={generatingAi}>
+                      Generate AI + scrape
+                    </Button>
+                  </HStack>
+                  {lastPrompt && (
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" mb={1}>Last batch prompt (admin only)</Text>
+                      <Textarea value={lastPrompt} readOnly rows={6} fontSize="xs" bg="gray.50" />
+                    </Box>
+                  )}
                 </VStack>
               </Box>
               <Box bg="white" p={4} borderRadius="lg" borderWidth={1} overflowX="auto">
@@ -170,14 +221,14 @@ export function PuzzleSettingsPage() {
           <TabPanel px={0}>
             <Box bg="white" p={4} borderRadius="lg" borderWidth={1} overflowX="auto">
               <Table size="sm">
-                <Thead><Tr><Th>ID</Th><Th>Type</Th><Th>Class</Th><Th>Diff</Th><Th></Th></Tr></Thead>
+                <Thead><Tr><Th>ID</Th><Th>Category</Th><Th>Source</Th><Th>Skill</Th><Th></Th></Tr></Thead>
                 <Tbody>
                   {bank.slice(0, 80).map((p) => (
                     <Tr key={p.id}>
-                      <Td>{p.id}</Td>
-                      <Td>{p.category} · {p.puzzleType}</Td>
-                      <Td>{p.classFrom}–{p.classTo}</Td>
-                      <Td>{p.difficulty}</Td>
+                      <Td fontSize="xs">{p.id}</Td>
+                      <Td fontSize="xs">{p.category} · {p.puzzleType}</Td>
+                      <Td fontSize="xs">{p.source || 'seed'}</Td>
+                      <Td fontSize="xs" maxW="180px" isTruncated>{p.skillArea || '—'}</Td>
                       <Td><Button size="xs" onClick={() => { setEditPuzzle(p); onOpen(); }}>Edit</Button></Td>
                     </Tr>
                   ))}
@@ -195,9 +246,19 @@ export function PuzzleSettingsPage() {
           <ModalBody pb={6}>
             {editPuzzle && (
               <VStack spacing={3} align="stretch">
-                <Textarea value={editPuzzle.question} onChange={(e) => setEditPuzzle({ ...editPuzzle, question: e.target.value })} rows={3} />
+                {editPuzzle.skillArea && (
+                  <Text fontSize="xs" color="teal.600">🎯 Skill: {editPuzzle.skillArea}</Text>
+                )}
+                <Text fontSize="xs" color="gray.500">Source: {editPuzzle.source || 'seed'}</Text>
+                <Textarea value={editPuzzle.question} onChange={(e) => setEditPuzzle({ ...editPuzzle, question: e.target.value })} rows={4} />
                 <Input value={String(editPuzzle.answer)} onChange={(e) => setEditPuzzle({ ...editPuzzle, answer: e.target.value })} />
                 <Textarea value={editPuzzle.explanation} onChange={(e) => setEditPuzzle({ ...editPuzzle, explanation: e.target.value })} rows={3} />
+                {editPuzzle.generationPrompt && (
+                  <Box>
+                    <Text fontSize="xs" fontWeight="bold" mb={1}>Generation prompt</Text>
+                    <Textarea value={editPuzzle.generationPrompt} readOnly rows={5} fontSize="xs" bg="gray.50" />
+                  </Box>
+                )}
                 <Button colorScheme="blue" onClick={savePuzzle}>Save</Button>
               </VStack>
             )}

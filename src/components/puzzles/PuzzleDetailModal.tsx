@@ -51,6 +51,9 @@ export function PuzzleDetailModal({ puzzle, isOpen, onClose }: Props) {
         <ModalBody pb={6}>
           <VStack align="stretch" spacing={4}>
             <Badge colorScheme="purple" alignSelf="flex-start">{puzzle.category}</Badge>
+            {puzzle.skillArea && (
+              <Text fontSize="xs" color="teal.600">🎯 Skill: {puzzle.skillArea}</Text>
+            )}
             <Text whiteSpace="pre-wrap" fontWeight="medium">{puzzle.question}</Text>
 
             {puzzle.options?.length ? (

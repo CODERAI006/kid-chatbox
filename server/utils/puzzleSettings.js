@@ -16,6 +16,8 @@ async function updateGlobalConfig(patch, userId) {
   let i = 1;
   if (typeof patch.enabled === 'boolean') { fields.push(`enabled = $${i++}`); vals.push(patch.enabled); }
   if (typeof patch.showOnHomepage === 'boolean') { fields.push(`show_on_homepage = $${i++}`); vals.push(patch.showOnHomepage); }
+  if (typeof patch.aiGenerationEnabled === 'boolean') { fields.push(`ai_generation_enabled = $${i++}`); vals.push(patch.aiGenerationEnabled); }
+  if (typeof patch.autoScrapeEnabled === 'boolean') { fields.push(`auto_scrape_enabled = $${i++}`); vals.push(patch.autoScrapeEnabled); }
   if (patch.defaultGrade) { fields.push(`default_grade = $${i++}`); vals.push(patch.defaultGrade); }
   if (!fields.length) return getGlobalConfig();
   fields.push('updated_at = CURRENT_TIMESTAMP');

@@ -33,6 +33,8 @@ router.get('/settings', checkPermission('manage_users'), async (_req, res, next)
         enabled: global.enabled,
         showOnHomepage: global.show_on_homepage,
         defaultGrade: global.default_grade,
+        aiGenerationEnabled: global.ai_generation_enabled !== false,
+        autoScrapeEnabled: global.auto_scrape_enabled !== false,
       },
       settings: settings.map((s) => ({
         grade: s.grade,
@@ -62,6 +64,8 @@ router.put('/settings', checkPermission('manage_users'), async (req, res, next) 
         enabled: global.enabled,
         showOnHomepage: global.show_on_homepage,
         defaultGrade: global.default_grade,
+        aiGenerationEnabled: global.ai_generation_enabled !== false,
+        autoScrapeEnabled: global.auto_scrape_enabled !== false,
       },
       settings: settings.map((s) => ({
         grade: s.grade,
@@ -80,6 +84,7 @@ router.get('/bank', checkPermission('manage_users'), async (req, res, next) => {
     const puzzles = await listAllPuzzles({
       category: req.query.category,
       puzzleType: req.query.puzzleType,
+      includePrompt: true,
     });
     res.json({ success: true, puzzles, count: puzzles.length });
   } catch (err) {
@@ -103,7 +108,9 @@ router.put('/bank/:id', checkPermission('manage_users'), async (req, res, next) 
       explanation: body.explanation,
       timeLimit: body.timeLimit,
       points: body.points,
-      isActive: body.isActive,
+      skillArea: body.skillArea,
+      source: body.source,
+      generationPrompt: body.generationPrompt,
     });
     res.json({ success: true, puzzle, message: 'Puzzle saved.' });
   } catch (err) {
@@ -145,6 +152,31 @@ router.get('/preview', checkPermission('manage_users'), async (req, res, next) =
     const grade = req.query.grade || 'Class 5 / Grade 5';
     const result = await getDailyPuzzles(req.query.date, grade);
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /api/admin/puzzles/generate-ai?grade= — force AI + scrape for a grade */
+router.post('/generate-ai', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const { ensureDailyContent } = require('../services/puzzleGeneratorService');
+    const { regenerateToday } = require('../services/puzzleService');
+    const { parseClassNum } = require('../data/puzzleMeta');
+    const { resolveGradeLabel } = require('../services/wordOfDayService');
+    const grade = await resolveGradeLabel(req.body?.grade || req.query.grade || 'Class 5 / Grade 5');
+    const classNum = parseClassNum(grade);
+    const cacheDate = new Date().toISOString().slice(0, 10);
+    const gen = await ensureDailyContent(cacheDate, grade, classNum);
+    await regenerateToday(grade);
+    const daily = await getDailyPuzzles(new Date(), grade);
+    res.json({
+      success: true,
+      message: `Generated ${gen.aiCount} AI + ${gen.scrapeCount} scraped puzzles for ${grade}.`,
+      generationPrompt: gen.aiPrompt,
+      ...gen,
+      daily,
+    });
   } catch (err) {
     next(err);
   }
