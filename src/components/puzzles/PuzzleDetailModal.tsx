@@ -1,14 +1,15 @@
 /**
- * Puzzle detail modal — attempt, reveal answer, show explanation.
+ * Puzzle detail modal — check answer with ✓ / ✗ icons, no difficulty shown.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton,
-  VStack, Text, Button, Badge, HStack, Box, useToast,
+  VStack, Text, Button, Badge, HStack, Box, Flex, Icon,
 } from '@/shared/design-system';
+import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import type { Puzzle } from '@/types/puzzle';
-import { PUZZLE_CATEGORY_EMOJI, DIFFICULTY_COLOR } from '@/constants/puzzles';
+import { PUZZLE_CATEGORY_EMOJI } from '@/constants/puzzles';
 
 interface Props {
   puzzle: Puzzle | null;
@@ -17,34 +18,25 @@ interface Props {
 }
 
 export function PuzzleDetailModal({ puzzle, isOpen, onClose }: Props) {
-  const toast = useToast();
   const [selected, setSelected] = useState<string | number | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [isCorrect, setIsCorrect] = useState(false);
 
   useEffect(() => {
     if (!puzzle || !isOpen) return;
     setSelected(null);
     setRevealed(false);
-    setTimeLeft(puzzle.timeLimit);
+    setIsCorrect(false);
   }, [puzzle, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !puzzle || revealed || timeLeft <= 0) return;
-    const t = setTimeout(() => setTimeLeft((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [isOpen, puzzle, revealed, timeLeft]);
-
   const checkAnswer = useCallback(() => {
-    if (!puzzle || selected == null) return;
+    if (!puzzle) return;
+    if (puzzle.options?.length && selected == null) return;
     setRevealed(true);
-    const correct = String(selected) === String(puzzle.answer);
-    toast({
-      title: correct ? 'Correct! 🎉' : 'Not quite — learn from the explanation',
-      status: correct ? 'success' : 'info',
-      duration: 3000,
-    });
-  }, [puzzle, selected, toast]);
+    if (puzzle.options?.length) {
+      setIsCorrect(String(selected) === String(puzzle.answer));
+    }
+  }, [puzzle, selected]);
 
   if (!puzzle) return null;
 
@@ -54,53 +46,70 @@ export function PuzzleDetailModal({ puzzle, isOpen, onClose }: Props) {
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader fontSize="md">
-          {emoji} {puzzle.puzzleType}
-        </ModalHeader>
+        <ModalHeader fontSize="md">{emoji} {puzzle.puzzleType}</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <VStack align="stretch" spacing={4}>
-            <HStack flexWrap="wrap" gap={2}>
-              <Badge colorScheme="purple">{puzzle.category}</Badge>
-              <Badge colorScheme={DIFFICULTY_COLOR[puzzle.difficulty]}>{puzzle.difficulty}</Badge>
-              <Badge>{puzzle.points} pts</Badge>
-              {!revealed && <Badge colorScheme={timeLeft <= 10 ? 'red' : 'gray'}>{timeLeft}s</Badge>}
-            </HStack>
+            <Badge colorScheme="purple" alignSelf="flex-start">{puzzle.category}</Badge>
             <Text whiteSpace="pre-wrap" fontWeight="medium">{puzzle.question}</Text>
+
             {puzzle.options?.length ? (
               <VStack align="stretch" spacing={2}>
                 {puzzle.options.map((opt) => {
+                  const optStr = String(opt);
                   const isSelected = selected === opt;
-                  const isCorrect = revealed && String(opt) === String(puzzle.answer);
-                  const isWrong = revealed && isSelected && !isCorrect;
+                  const answerMatch = String(puzzle.answer) === optStr;
+                  const showCorrect = revealed && answerMatch;
+                  const showWrong = revealed && isSelected && !answerMatch;
+
                   return (
                     <Button
-                      key={String(opt)}
+                      key={optStr}
                       variant={isSelected ? 'solid' : 'outline'}
-                      colorScheme={isCorrect ? 'green' : isWrong ? 'red' : 'blue'}
-                      justifyContent="flex-start"
+                      colorScheme={showCorrect ? 'green' : showWrong ? 'red' : 'blue'}
+                      justifyContent="space-between"
                       onClick={() => !revealed && setSelected(opt)}
                       isDisabled={revealed}
+                      rightIcon={
+                        showCorrect ? <Icon as={FiCheckCircle} boxSize={5} /> :
+                        showWrong ? <Icon as={FiXCircle} boxSize={5} /> : undefined
+                      }
                     >
-                      {String(opt)}
+                      {optStr}
                     </Button>
                   );
                 })}
               </VStack>
             ) : (
-              <Box>
-                <Text fontSize="sm" color="gray.600">Type your answer mentally, then reveal.</Text>
-              </Box>
+              <Text fontSize="sm" color="gray.600">Think of your answer, then tap below to reveal.</Text>
             )}
+
             {!revealed ? (
-              <Button colorScheme="purple" onClick={checkAnswer} isDisabled={puzzle.options?.length ? selected == null : false}>
-                Check Answer
+              <Button colorScheme="purple" onClick={checkAnswer} isDisabled={!!puzzle.options?.length && selected == null}>
+                {puzzle.options?.length ? 'Check Answer' : 'Reveal Answer'}
               </Button>
             ) : (
-              <Box bg="blue.50" p={3} borderRadius="md">
-                <Text fontSize="sm" fontWeight="bold" color="blue.700">Answer: {String(puzzle.answer)}</Text>
-                <Text fontSize="sm" mt={2}>{puzzle.explanation}</Text>
-              </Box>
+              <VStack spacing={3} align="stretch">
+                {isCorrect && (
+                  <Flex align="center" justify="center" gap={2} py={3} bg="green.50" borderRadius="lg">
+                    <Icon as={FiCheckCircle} boxSize={10} color="green.500" />
+                    <Text fontWeight="bold" color="green.700" fontSize="lg">Correct!</Text>
+                  </Flex>
+                )}
+                {revealed && puzzle.options?.length && !isCorrect && (
+                  <Flex align="center" justify="center" gap={2} py={2} bg="orange.50" borderRadius="lg">
+                    <Icon as={FiXCircle} boxSize={8} color="orange.500" />
+                    <Text fontWeight="semibold" color="orange.700">Keep learning!</Text>
+                  </Flex>
+                )}
+                <Box bg="blue.50" p={3} borderRadius="md">
+                  <HStack mb={1}>
+                    <Icon as={FiCheckCircle} color="blue.600" />
+                    <Text fontSize="sm" fontWeight="bold" color="blue.700">Answer: {String(puzzle.answer)}</Text>
+                  </HStack>
+                  <Text fontSize="sm" mt={2}>{puzzle.explanation}</Text>
+                </Box>
+              </VStack>
             )}
           </VStack>
         </ModalBody>

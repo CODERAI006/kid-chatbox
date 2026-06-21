@@ -26,7 +26,7 @@ async function updateGlobalConfig(patch, userId) {
 async function getAllSettings() {
   const r = await pool.query(`SELECT grade, enabled, daily_count FROM puzzle_settings ORDER BY grade`);
   if (r.rows.length) return r.rows;
-  return DEFAULT_GRADES.map((grade) => ({ grade, enabled: true, daily_count: 5 }));
+  return DEFAULT_GRADES.map((grade) => ({ grade, enabled: true, daily_count: 20 }));
 }
 
 async function updateSettings(updates, userId) {
@@ -40,7 +40,7 @@ async function updateSettings(updates, userId) {
          daily_count = EXCLUDED.daily_count,
          updated_by = EXCLUDED.updated_by,
          updated_at = CURRENT_TIMESTAMP`,
-      [row.grade, row.enabled !== false, Math.min(20, Math.max(1, Number(row.dailyCount) || 5)), userId || null],
+      [row.grade, row.enabled !== false, Math.min(30, Math.max(20, Number(row.dailyCount) || 20)), userId || null],
     );
   }
   return getAllSettings();
@@ -55,7 +55,7 @@ async function isGradeEnabled(grade) {
 
 async function getDailyCount(grade) {
   const r = await pool.query(`SELECT daily_count FROM puzzle_settings WHERE grade = $1`, [grade]);
-  return r.rows.length ? r.rows[0].daily_count : 5;
+  return r.rows.length ? r.rows[0].daily_count : 20;
 }
 
 module.exports = {

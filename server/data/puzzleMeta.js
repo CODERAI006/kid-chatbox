@@ -19,9 +19,9 @@ const DEFAULT_GRADES = [
 ];
 
 const DIFFICULTY_META = {
-  Easy: { timeLimit: 25, points: 5 },
-  Medium: { timeLimit: 60, points: 10 },
-  Hard: { timeLimit: 120, points: 15 },
+  Easy: { timeLimit: 35, points: 8 },
+  Medium: { timeLimit: 75, points: 12 },
+  Hard: { timeLimit: 150, points: 18 },
 };
 
 /** All supported puzzle types with class and difficulty ranges. */
@@ -56,6 +56,26 @@ const PUZZLE_TYPES = [
   { category: 'GK', puzzleType: 'Monument Puzzle', classFrom: 3, classTo: 12, difficulties: ['Easy'] },
   { category: 'GK', puzzleType: 'Capital Cities', classFrom: 4, classTo: 12, difficulties: ['Easy'] },
   { category: 'GK', puzzleType: 'Historical Event Puzzle', classFrom: 6, classTo: 12, difficulties: ['Medium'] },
+  { category: 'GK', puzzleType: 'World Geography', classFrom: 5, classTo: 12, difficulties: ['Medium'] },
+  { category: 'GK', puzzleType: 'Indian Heritage', classFrom: 4, classTo: 12, difficulties: ['Medium'] },
+  { category: 'History', puzzleType: 'Indian History', classFrom: 6, classTo: 12, difficulties: ['Medium', 'Hard'] },
+  { category: 'History', puzzleType: 'World History', classFrom: 7, classTo: 12, difficulties: ['Medium', 'Hard'] },
+  { category: 'History', puzzleType: 'Ancient History', classFrom: 6, classTo: 12, difficulties: ['Medium'] },
+  { category: 'History', puzzleType: 'Modern History', classFrom: 8, classTo: 12, difficulties: ['Hard'] },
+  { category: 'Civic Sense', puzzleType: 'Constitution Basics', classFrom: 6, classTo: 12, difficulties: ['Medium'] },
+  { category: 'Civic Sense', puzzleType: 'Traffic Rules', classFrom: 4, classTo: 10, difficulties: ['Medium'] },
+  { category: 'Civic Sense', puzzleType: 'Democracy', classFrom: 7, classTo: 12, difficulties: ['Medium'] },
+  { category: 'Civic Sense', puzzleType: 'Environment Duty', classFrom: 5, classTo: 12, difficulties: ['Medium'] },
+  { category: 'Civic Sense', puzzleType: 'Public Safety', classFrom: 6, classTo: 12, difficulties: ['Medium'] },
+  { category: 'Financial Education', puzzleType: 'Saving Habits', classFrom: 5, classTo: 12, difficulties: ['Medium'] },
+  { category: 'Financial Education', puzzleType: 'Budgeting', classFrom: 6, classTo: 12, difficulties: ['Medium'] },
+  { category: 'Financial Education', puzzleType: 'Interest Basics', classFrom: 8, classTo: 12, difficulties: ['Hard'] },
+  { category: 'Financial Education', puzzleType: 'Digital Money', classFrom: 7, classTo: 12, difficulties: ['Medium'] },
+  { category: 'Financial Education', puzzleType: 'Entrepreneurship', classFrom: 9, classTo: 12, difficulties: ['Hard'] },
+  { category: 'Brain Teaser', puzzleType: 'Logic Grid', classFrom: 8, classTo: 12, difficulties: ['Hard'] },
+  { category: 'Brain Teaser', puzzleType: 'Number Riddle', classFrom: 7, classTo: 12, difficulties: ['Hard'] },
+  { category: 'Brain Teaser', puzzleType: 'Paradox Puzzle', classFrom: 9, classTo: 12, difficulties: ['Hard'] },
+  { category: 'Brain Teaser', puzzleType: 'Sequence Logic', classFrom: 7, classTo: 12, difficulties: ['Hard'] },
   { category: 'Visual', puzzleType: 'Spot the Difference', classFrom: 1, classTo: 8, difficulties: ['Easy'] },
   { category: 'Visual', puzzleType: 'Mirror Image', classFrom: 3, classTo: 10, difficulties: ['Medium'] },
   { category: 'Visual', puzzleType: 'Shape Rotation', classFrom: 4, classTo: 12, difficulties: ['Medium'] },
@@ -73,13 +93,16 @@ const PUZZLE_TYPES = [
   { category: 'Brain Teaser', puzzleType: 'Trick Question', classFrom: 3, classTo: 12, difficulties: ['Easy'] },
 ];
 
-/** Preferred puzzle types per class band for daily selection. */
+/** Categories boosted in daily selection (GK, civics, finance, history). */
+const BOOST_CATEGORIES = new Set(['GK', 'History', 'Civic Sense', 'Financial Education', 'Brain Teaser']);
+
+/** Preferred puzzle types per class band — GK, history, civics, finance heavy. */
 const CLASS_BAND_PRIORITIES = {
-  '1-2': ['Missing Number', 'Pattern Recognition', 'Odd One Out', 'Jumbled Words', 'Fill in the Blank', 'Sequence Recall', 'Hidden Object', 'Spot the Difference'],
-  '3-5': ['Number Pattern', 'Odd One Out', 'Jumbled Words', 'Animal Puzzle', 'Food Chain Puzzle', 'Capital Cities', 'Riddles', 'Trick Question', 'Flag Identification'],
-  '6-8': ['Analogy', 'Direction Sense', 'Chemistry Puzzle', 'Geometry Puzzle', 'Human Body Puzzle', 'Algorithm Puzzle', 'Flowchart Logic', 'Number Pyramid', 'Magic Square'],
-  '9-10': ['Algebra Puzzle', 'Probability Puzzle', 'Coding-Decoding', 'Real-Life Math Scenario', 'Decision Making Puzzle', 'Output Prediction', 'Debugging Puzzle'],
-  '11-12': ['Syllogism', 'Seating Arrangement', 'Lateral Thinking Puzzle', 'Cube Counting', 'Probability Puzzle', 'Coding-Decoding', 'Historical Event Puzzle'],
+  '1-2': ['Capital Cities', 'Monument Puzzle', 'Pattern Recognition', 'Riddles', 'Traffic Rules', 'Environment Duty', 'Trick Question'],
+  '3-5': ['Capital Cities', 'Flag Identification', 'Indian Heritage', 'Saving Habits', 'Budgeting', 'Historical Event Puzzle', 'Riddles', 'Brain Teaser'],
+  '6-8': ['Indian History', 'Constitution Basics', 'Democracy', 'Financial Education', 'Civic Sense', 'Lateral Thinking Puzzle', 'World Geography'],
+  '9-10': ['World History', 'Modern History', 'Interest Basics', 'Entrepreneurship', 'Logic Grid', 'Probability Puzzle', 'Public Safety'],
+  '11-12': ['Syllogism', 'Seating Arrangement', 'Lateral Thinking Puzzle', 'Paradox Puzzle', 'World History', 'Digital Money', 'Cube Counting'],
 };
 
 function classBandForGrade(classNum) {
@@ -104,6 +127,7 @@ module.exports = {
   DEFAULT_GRADES,
   DIFFICULTY_META,
   PUZZLE_TYPES,
+  BOOST_CATEGORIES,
   CLASS_BAND_PRIORITIES,
   classBandForGrade,
   parseClassNum,

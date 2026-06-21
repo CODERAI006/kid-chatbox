@@ -58,6 +58,9 @@ async function runStartupMigrations() {
   const { migrateAppAnalyticsSettings } = require('../scripts/migrate-app-analytics-settings');
   const { migrateDailyContentBatch } = require('../scripts/migrate-daily-content-batch');
   const { migratePuzzles } = require('../scripts/migrate-puzzles');
+  const { migratePuzzlesV2 } = require('../scripts/migrate-puzzles-v2');
+  const { migratePuzzlesV3 } = require('../scripts/migrate-puzzles-v3');
+  const { migratePuzzlesV4 } = require('../scripts/migrate-puzzles-v4');
 
   await runMigrationsQuietly(async () => {
     await migrateSchema();
@@ -81,6 +84,9 @@ async function runStartupMigrations() {
     await migrateAppAnalyticsSettings();
     await migrateDailyContentBatch();
     await migratePuzzles();
+    await migratePuzzlesV2();
+    await migratePuzzlesV3();
+    await migratePuzzlesV4();
   });
 }
 

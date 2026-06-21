@@ -1293,6 +1293,23 @@ export const puzzleAdminApi = {
     const response = await apiClient.post('/admin/puzzles/regenerate');
     return response.data;
   },
+
+  scrapeFromWeb: async (count = 20): Promise<{
+    success: boolean;
+    message?: string;
+    fetched?: number;
+    inserted?: number;
+    skipped?: number;
+    sources?: string[];
+  }> => {
+    const response = await apiClient.post('/admin/puzzles/scrape', { count });
+    return response.data;
+  },
+
+  previewDaily: async (grade: string, date?: string): Promise<import('@/types/puzzle').DailyPuzzlesResponse> => {
+    const response = await apiClient.get('/admin/puzzles/preview', { params: { grade, date } });
+    return response.data;
+  },
 };
 
 export const dailyContentBatchApi = {

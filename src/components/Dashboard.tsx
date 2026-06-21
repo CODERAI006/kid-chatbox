@@ -199,7 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
 
                 <WordOfTheDay grade={user.grade} variant="dashboard" />
-                <DailyPuzzlesPanel grade={user.grade} maxCount={5} />
+                <DailyPuzzlesPanel grade={user.grade} maxCount={20} />
               </VStack>
             </Box>
 

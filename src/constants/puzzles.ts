@@ -10,6 +10,9 @@ export const PUZZLE_CATEGORY_EMOJI: Record<string, string> = {
   Language: '📝',
   Science: '🔬',
   GK: '🌍',
+  History: '📜',
+  'Civic Sense': '🏛️',
+  'Financial Education': '💰',
   Visual: '👁️',
   Coding: '💻',
   Memory: '🧠',
@@ -24,6 +27,8 @@ export const DIFFICULTY_COLOR: Record<PuzzleDifficulty, string> = {
 };
 
 export const DEFAULT_PUBLIC_GRADE = 'Class 5 / Grade 5';
+export const DAILY_PUZZLE_COUNT = 20;
+export const PUZZLE_HOME_PREVIEW_COUNT = 6;
 
 export const PUZZLE_HUB_TABS = [
   { id: 'daily', label: 'Today\'s Puzzles', emoji: '⭐' },

@@ -61,3 +61,31 @@ export interface PuzzleTypeMeta {
   classTo: number;
   difficulties: PuzzleDifficulty[];
 }
+
+export interface ArchivedPuzzleItem extends Puzzle {
+  archiveDate: string;
+  grade: string;
+}
+
+export interface PuzzleArchiveResponse {
+  success: boolean;
+  grade: string;
+  untilDate: string;
+  dayCount?: number;
+  totalPuzzles?: number;
+  byDate?: Array<{ date: string; grade: string; puzzles: Puzzle[]; count: number }>;
+  puzzles?: ArchivedPuzzleItem[];
+  items?: ArchivedPuzzleItem[];
+  page?: number;
+  hasMore?: boolean;
+  message?: string;
+}
+
+export interface PuzzleGradesResponse {
+  success: boolean;
+  grades: Array<{ grade: string; hasCache: boolean }>;
+  allGrades: string[];
+}
+
+export const PUZZLE_DAILY_COUNT = 20;
+export const PUZZLE_HOME_PREVIEW_COUNT = 5;

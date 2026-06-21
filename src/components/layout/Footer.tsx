@@ -5,6 +5,7 @@ import { Box, Text, HStack, Button } from '@/shared/design-system';
 import { Link as RouterLink } from 'react-router-dom';
 import { APP_CONSTANTS } from '@/constants/app';
 import { useStudyPlanPendingToday } from '@/hooks/useStudyPlanPendingToday';
+import { FooterMoreMenu } from './FooterMoreMenu';
 
 type FooterVariant = 'full' | 'compact';
 
@@ -64,6 +65,7 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'full' }) => {
             <RouterLink to="/education-news" style={{ ...linkStyle, fontSize: '0.7rem' }}>
               News
             </RouterLink>
+            <FooterMoreMenu size="compact" />
           </HStack>
         </HStack>
       </Box>
@@ -120,6 +122,7 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'full' }) => {
           <RouterLink to="/education-news" style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', ...linkStyle }}>
             News
           </RouterLink>
+          <FooterMoreMenu />
           <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.400">
             Made with ❤️ for kids
           </Text>

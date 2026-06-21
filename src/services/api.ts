@@ -1399,15 +1399,26 @@ export const publicApi = {
     }
   },
 
-  getPuzzleTypes: async (): Promise<{
-    success: boolean;
-    types: import('@/types/puzzle').PuzzleTypeMeta[];
-  }> => {
+  getPuzzleGrades: async (): Promise<import('@/types/puzzle').PuzzleGradesResponse> => {
     try {
-      const response = await apiClient.get('/public/puzzles/types');
+      const response = await apiClient.get('/public/puzzles/grades');
       return response.data;
     } catch {
-      return { success: false, types: [] };
+      return { success: false, grades: [], allGrades: [] };
+    }
+  },
+
+  getPuzzleArchive: async (
+    grade?: string,
+    opts?: { untilDate?: string; page?: number; limit?: number; all?: boolean },
+  ): Promise<import('@/types/puzzle').PuzzleArchiveResponse> => {
+    try {
+      const response = await apiClient.get('/public/puzzles/archive', {
+        params: { grade, untilDate: opts?.untilDate, page: opts?.page, limit: opts?.limit, all: opts?.all ? 'true' : undefined },
+      });
+      return response.data;
+    } catch {
+      return { success: false, grade: grade || '', untilDate: '', puzzles: [], items: [] };
     }
   },
 

@@ -18,6 +18,7 @@ import { useStudyPlanPendingToday } from '@/hooks/useStudyPlanPendingToday';
 import { useVisualViewportBottom } from '@/hooks/useVisualViewportBottom';
 import { getUserId, isAppAdmin } from '@/utils/userAccess';
 import { MOBILE_BOTTOM_NAV_HEIGHT } from './layoutHeights';
+import { FooterMoreMenu } from './FooterMoreMenu';
 
 export { MOBILE_BOTTOM_NAV_HEIGHT };
 
@@ -209,6 +210,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ user }) => {
             </Box>
           );
         })}
+        <FooterMoreMenu theme="nav" placement="top" />
       </HStack>
     </Box>
   );

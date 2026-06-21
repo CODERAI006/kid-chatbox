@@ -6,9 +6,14 @@ const { pool } = require('../config/database');
 const { ALL_SEED_PUZZLES } = require('../data/puzzleSeeds');
 const {
   CLASS_BAND_PRIORITIES,
+  BOOST_CATEGORIES,
   classBandForGrade,
   parseClassNum,
 } = require('../data/puzzleMeta');
+const {
+  applyGradeDifficultyPolicy,
+  elevatePuzzleForGrade,
+} = require('../utils/puzzleDifficultyPolicy');
 const { resolveGradeLabel } = require('./wordOfDayService');
 const {
   getGlobalConfig,
@@ -83,31 +88,45 @@ function puzzleMatchesClass(puzzle, classNum) {
   return classNum >= puzzle.classFrom && classNum <= puzzle.classTo;
 }
 
-function prioritizePuzzles(puzzles, classNum) {
+function puzzleScore(p, classNum) {
   const band = classBandForGrade(classNum);
   const priorities = CLASS_BAND_PRIORITIES[band] || [];
-  const prioritySet = new Set(priorities);
-  const preferred = puzzles.filter((p) => prioritySet.has(p.puzzleType));
-  const rest = puzzles.filter((p) => !prioritySet.has(p.puzzleType));
-  return [...preferred, ...rest];
+  let score = 0;
+  if (BOOST_CATEGORIES.has(p.category)) score += 20;
+  if (priorities.includes(p.puzzleType)) score += 15;
+  if (p.category === 'Brain Teaser') score += 10;
+  return score;
+}
+
+function prioritizePuzzles(puzzles, classNum) {
+  return [...puzzles].sort((a, b) => puzzleScore(b, classNum) - puzzleScore(a, classNum));
 }
 
 async function ensureSeedPuzzles() {
+  const { bumpStoredDifficulty } = require('../utils/puzzleDifficultyPolicy');
+  const { difficultyMeta } = require('../data/puzzleMeta');
   for (const p of ALL_SEED_PUZZLES) {
+    const difficulty = bumpStoredDifficulty(p.difficulty, p.classFrom, p.classTo);
+    const meta = difficultyMeta(difficulty);
+    const timeLimit = Math.max(p.timeLimit, meta.timeLimit);
+    const points = Math.max(p.points, meta.points);
     await pool.query(
       `INSERT INTO puzzles (id, category, puzzle_type, class_from, class_to, difficulty,
         question, options, answer, explanation, time_limit, points)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11,$12)
        ON CONFLICT (id) DO UPDATE SET
+         difficulty = EXCLUDED.difficulty,
+         time_limit = EXCLUDED.time_limit,
+         points = EXCLUDED.points,
          question = EXCLUDED.question,
          options = EXCLUDED.options,
          answer = EXCLUDED.answer,
          explanation = EXCLUDED.explanation,
          updated_at = CURRENT_TIMESTAMP`,
       [
-        p.id, p.category, p.puzzleType, p.classFrom, p.classTo, p.difficulty,
+        p.id, p.category, p.puzzleType, p.classFrom, p.classTo, difficulty,
         p.question, JSON.stringify(p.options), JSON.stringify(p.answer),
-        p.explanation, p.timeLimit, p.points,
+        p.explanation, timeLimit, points,
       ],
     );
   }
@@ -140,6 +159,143 @@ async function writeCache(gradeKey, cacheDate, payload) {
   );
 }
 
+/** Pick diverse puzzles — spread across categories and types. */
+function diversePick(items, count, seedStr) {
+  const picked = [];
+  const usedTypes = new Set();
+  const usedIds = new Set();
+  let pool = seededPick(items, items.length, seedStr);
+
+  for (const p of pool) {
+    if (picked.length >= count) break;
+    if (usedIds.has(p.id)) continue;
+    if (usedTypes.has(p.puzzleType) && picked.length < count - 2) continue;
+    picked.push(p);
+    usedIds.add(p.id);
+    usedTypes.add(p.puzzleType);
+  }
+
+  if (picked.length < count) {
+    for (const p of pool) {
+      if (picked.length >= count) break;
+      if (!usedIds.has(p.id)) {
+        picked.push(p);
+        usedIds.add(p.id);
+      }
+    }
+  }
+  return picked;
+}
+
+async function listCachedDates(gradeLabel, untilDate, limit = 60) {
+  const key = gradeCacheKey(gradeLabel);
+  const until = untilDate || formatCacheDate(new Date());
+  const r = await pool.query(
+    `SELECT cache_date::text AS date FROM puzzle_daily_cache
+     WHERE grade_key = $1 AND cache_date <= $2::date
+     ORDER BY cache_date DESC LIMIT $3`,
+    [key, until, limit],
+  );
+  return r.rows.map((row) => row.date);
+}
+
+async function listGradesWithCache() {
+  const { getAllSettings } = require('../utils/puzzleSettings');
+  const settings = await getAllSettings();
+  const r = await pool.query(
+    `SELECT DISTINCT grade_key FROM puzzle_daily_cache ORDER BY grade_key`,
+  );
+  const cachedKeys = new Set(r.rows.map((row) => row.grade_key.replace(/^grade:/, '')));
+  return settings
+    .filter((s) => s.enabled)
+    .map((s) => ({ grade: s.grade, hasCache: cachedKeys.has(s.grade) }));
+}
+
+const ARCHIVE_PAGE_SIZE = 20;
+
+async function getPuzzleArchive(gradeInput, opts = {}) {
+  const gradeLabel = await resolveGradeLabel(gradeInput);
+  const key = gradeCacheKey(gradeLabel);
+  const untilDate = opts.untilDate || formatCacheDate(new Date());
+  const page = Math.max(1, Number(opts.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(opts.limit) || ARCHIVE_PAGE_SIZE));
+  const offset = (page - 1) * limit;
+
+  const countR = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM puzzle_daily_cache
+     WHERE grade_key = $1 AND cache_date <= $2::date`,
+    [key, untilDate],
+  );
+  const totalDays = countR.rows[0]?.total || 0;
+
+  const r = await pool.query(
+    `SELECT cache_date::text AS date, payload FROM puzzle_daily_cache
+     WHERE grade_key = $1 AND cache_date <= $2::date
+     ORDER BY cache_date DESC LIMIT $3 OFFSET $4`,
+    [key, untilDate, limit, offset],
+  );
+
+  const items = r.rows.flatMap((row) => {
+    const puzzles = row.payload?.puzzles || [];
+    return puzzles.map((p) => ({
+      ...p,
+      archiveDate: row.date,
+      grade: gradeLabel,
+    }));
+  });
+
+  return {
+    success: true,
+    grade: gradeLabel,
+    untilDate,
+    page,
+    limit,
+    totalDays,
+    totalPuzzles: items.length,
+    hasMore: offset + r.rows.length < totalDays,
+    items,
+  };
+}
+
+/** All puzzles from all cached days till today (flattened). */
+async function getAllPuzzlesTillToday(gradeInput, untilDate) {
+  const gradeLabel = await resolveGradeLabel(gradeInput);
+  const key = gradeCacheKey(gradeLabel);
+  const until = untilDate || formatCacheDate(new Date());
+
+  const r = await pool.query(
+    `SELECT cache_date::text AS date, payload FROM puzzle_daily_cache
+     WHERE grade_key = $1 AND cache_date <= $2::date
+     ORDER BY cache_date DESC`,
+    [key, until],
+  );
+
+  const byDate = r.rows.map((row) => ({
+    date: row.date,
+    grade: gradeLabel,
+    puzzles: row.payload?.puzzles || [],
+    count: (row.payload?.puzzles || []).length,
+  }));
+
+  const allPuzzles = byDate.flatMap((d) =>
+    d.puzzles.map((p) => ({ ...p, archiveDate: d.date, grade: gradeLabel })),
+  );
+
+  return {
+    success: true,
+    grade: gradeLabel,
+    untilDate: until,
+    dayCount: byDate.length,
+    totalPuzzles: allPuzzles.length,
+    byDate,
+    puzzles: allPuzzles,
+  };
+}
+
+async function ensureCacheForGrade(gradeLabel, dateInput) {
+  return getDailyPuzzles(dateInput, gradeLabel);
+}
+
 async function buildDailyPuzzles(dateInput, gradeInput) {
   const date = dateInput ? new Date(dateInput) : new Date();
   const cacheDate = formatCacheDate(date);
@@ -160,9 +316,10 @@ async function buildDailyPuzzles(dateInput, gradeInput) {
 
   const count = await getDailyCount(gradeLabel);
   const eligible = await loadEligiblePuzzles(classNum);
-  const ordered = prioritizePuzzles(eligible, classNum);
-  const seed = `${cacheDate}:${gradeLabel}:${classNum}`;
-  const selected = seededPick(ordered, count, seed);
+  const prioritized = prioritizePuzzles(eligible, classNum);
+  const ordered = applyGradeDifficultyPolicy(prioritized, classNum, count);
+  const seed = `${cacheDate}:${gradeLabel}:${classNum}:v4-gk`;
+  const selected = diversePick(ordered, count, seed).map((p) => elevatePuzzleForGrade(p, classNum));
 
   return {
     success: true,
@@ -278,4 +435,10 @@ module.exports = {
   regenerateToday,
   regenerateAllGradesToday,
   ensureSeedPuzzles,
+  listCachedDates,
+  listGradesWithCache,
+  getPuzzleArchive,
+  getAllPuzzlesTillToday,
+  ensureCacheForGrade,
+  ARCHIVE_PAGE_SIZE,
 };

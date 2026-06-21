@@ -16,7 +16,9 @@ const {
   upsertPuzzle,
   regenerateAllGradesToday,
   ensureSeedPuzzles,
+  getDailyPuzzles,
 } = require('../services/puzzleService');
+const { scrapeAndImport } = require('../services/puzzleScraperService');
 const { PUZZLE_TYPES } = require('../data/puzzleMeta');
 
 const router = express.Router();
@@ -117,6 +119,32 @@ router.post('/regenerate', checkPermission('manage_users'), async (_req, res, ne
       message: `Regenerated daily puzzles for ${result.built} grade(s).`,
       ...result,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /api/admin/puzzles/scrape — fetch puzzles from web sources */
+router.post('/scrape', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const count = Number(req.body?.count) || 20;
+    const result = await scrapeAndImport({ count });
+    res.json({
+      success: true,
+      message: `Scraped ${result.fetched} items — ${result.inserted} new puzzles added.`,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /api/admin/puzzles/preview?grade=&date= — preview daily set for any grade */
+router.get('/preview', checkPermission('manage_users'), async (req, res, next) => {
+  try {
+    const grade = req.query.grade || 'Class 5 / Grade 5';
+    const result = await getDailyPuzzles(req.query.date, grade);
+    res.json(result);
   } catch (err) {
     next(err);
   }

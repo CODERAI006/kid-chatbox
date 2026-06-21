@@ -35,6 +35,9 @@ const { migrateUserNotifications } = require('./migrate-user-notifications');
 const { migrateAppAnalyticsSettings } = require('./migrate-app-analytics-settings');
 const { migrateDailyContentBatch } = require('./migrate-daily-content-batch');
 const { migratePuzzles } = require('./migrate-puzzles');
+const { migratePuzzlesV2 } = require('./migrate-puzzles-v2');
+const { migratePuzzlesV3 } = require('./migrate-puzzles-v3');
+const { migratePuzzlesV4 } = require('./migrate-puzzles-v4');
 
 async function runAllDbMigrations() {
   await migrateSchema();
@@ -66,6 +69,9 @@ async function runAllDbMigrations() {
   await migrateAppAnalyticsSettings();
   await migrateDailyContentBatch();
   await migratePuzzles();
+  await migratePuzzlesV2();
+  await migratePuzzlesV3();
+  await migratePuzzlesV4();
 }
 
 if (require.main === module) {

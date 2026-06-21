@@ -1,20 +1,20 @@
 /**
- * Daily top puzzles panel — homepage & dashboard preview.
+ * Daily top puzzles panel — homepage & dashboard preview (no difficulty shown).
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Card, CardBody, Heading, Text, VStack, HStack, Button, Badge, Spinner, SimpleGrid,
+  Card, CardBody, Heading, Text, VStack, HStack, Button, Spinner, SimpleGrid,
 } from '@/shared/design-system';
 import { publicApi } from '@/services/api';
 import type { Puzzle } from '@/types/puzzle';
-import { PUZZLE_CATEGORY_EMOJI, DIFFICULTY_COLOR, DEFAULT_PUBLIC_GRADE } from '@/constants/puzzles';
+import { DEFAULT_PUBLIC_GRADE, DAILY_PUZZLE_COUNT, PUZZLE_HOME_PREVIEW_COUNT } from '@/constants/puzzles';
 import { PuzzleDetailModal } from './PuzzleDetailModal';
+import { PuzzleCard } from './PuzzleCard';
 
 interface Props {
   grade?: string;
-  /** Dark glass style for landing page */
   variant?: 'light' | 'dark';
   maxCount?: number;
   showViewAll?: boolean;
@@ -23,7 +23,7 @@ interface Props {
 export function DailyPuzzlesPanel({
   grade,
   variant = 'light',
-  maxCount = 5,
+  maxCount = PUZZLE_HOME_PREVIEW_COUNT,
   showViewAll = true,
 }: Props) {
   const navigate = useNavigate();
@@ -59,12 +59,14 @@ export function DailyPuzzlesPanel({
           <VStack align="stretch" spacing={4}>
             <HStack justify="space-between" flexWrap="wrap" gap={2}>
               <VStack align="start" spacing={0}>
-                <Heading size="sm" color={headingColor}>🧩 Top {maxCount} Puzzles Today</Heading>
-                <Text fontSize="xs" color={textColor}>Fresh brain teasers for {gradeLabel}</Text>
+                <Heading size="sm" color={headingColor}>
+                  🧩 {maxCount >= DAILY_PUZZLE_COUNT ? DAILY_PUZZLE_COUNT : `${maxCount} of ${DAILY_PUZZLE_COUNT}`} Puzzles Today
+                </Heading>
+                <Text fontSize="xs" color={textColor}>GK · History · Civics · Finance · Brain teasers</Text>
               </VStack>
               {showViewAll && (
                 <Button size="sm" variant={isDark ? 'outline' : 'ghost'} colorScheme="purple" onClick={() => navigate('/puzzles')}>
-                  View all →
+                  View all {DAILY_PUZZLE_COUNT} →
                 </Button>
               )}
             </HStack>
@@ -72,32 +74,11 @@ export function DailyPuzzlesPanel({
             {loading ? (
               <HStack justify="center" py={6}><Spinner size="md" /></HStack>
             ) : puzzles.length === 0 ? (
-              <Text fontSize="sm" color={textColor}>No puzzles available today. Check back soon!</Text>
+              <Text fontSize="sm" color={textColor}>No puzzles available today.</Text>
             ) : (
-              <SimpleGrid columns={{ base: 1, md: maxCount >= 5 ? 2 : 1 }} spacing={3}>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                 {puzzles.map((p, i) => (
-                  <Box
-                    key={p.id}
-                    p={3}
-                    borderRadius="lg"
-                    border="1px solid"
-                    borderColor={isDark ? 'whiteAlpha.200' : 'gray.200'}
-                    cursor="pointer"
-                    _hover={{ borderColor: isDark ? 'cyan.400' : 'purple.300', transform: 'translateY(-1px)' }}
-                    transition="all 0.2s"
-                    onClick={() => setActive(p)}
-                  >
-                    <HStack justify="space-between" mb={1}>
-                      <Text fontSize="xs" fontWeight="bold" color={isDark ? 'cyan.300' : 'purple.600'}>
-                        #{i + 1} {PUZZLE_CATEGORY_EMOJI[p.category] || '🧩'} {p.puzzleType}
-                      </Text>
-                      <Badge size="sm" colorScheme={DIFFICULTY_COLOR[p.difficulty]}>{p.difficulty}</Badge>
-                    </HStack>
-                    <Text fontSize="sm" noOfLines={2} color={isDark ? 'whiteAlpha.900' : 'gray.700'}>
-                      {p.question}
-                    </Text>
-                    <Text fontSize="xs" color={textColor} mt={1}>{p.points} pts · {p.timeLimit}s</Text>
-                  </Box>
+                  <PuzzleCard key={p.id} puzzle={p} index={i} variant={variant} onClick={() => setActive(p)} />
                 ))}
               </SimpleGrid>
             )}

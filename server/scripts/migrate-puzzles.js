@@ -70,7 +70,7 @@ async function migratePuzzles() {
   for (const grade of DEFAULT_GRADES) {
     await pool.query(
       `INSERT INTO puzzle_settings (grade, enabled, daily_count)
-       VALUES ($1, true, 5) ON CONFLICT (grade) DO NOTHING`,
+       VALUES ($1, true, 20) ON CONFLICT (grade) DO NOTHING`,
       [grade],
     );
   }
