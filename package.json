@@ -38,6 +38,7 @@
     "db:migrate-all": "node server/scripts/run-all-db-migrations.js",
     "batch:daily-content": "node server/scripts/run-daily-content-batch.js",
     "db:test": "node test-db-connection.js",
+    "test:chatbot": "node --test server/modules/__tests__/chatbot.test.js",
     "tts:setup": "node server/scripts/setup-piper-tts.js"
   },
   "dependencies": {

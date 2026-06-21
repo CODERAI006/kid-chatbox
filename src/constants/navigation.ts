@@ -23,6 +23,7 @@ import {
   FiTrendingUp,
   FiUser,
   FiUsers,
+  FiGrid,
 } from 'react-icons/fi';
 
 export type NavAction = 'feedback' | 'install';
@@ -55,6 +56,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/admin/ollama-cloud', label: 'AI Settings', icon: FiCpu },
   { adminPath: '/admin/word-of-day', label: 'Word of the Day', icon: FiSun },
   { adminPath: '/admin/facts-and-fun', label: 'Facts & Fun', icon: FiZap },
+  { adminPath: '/admin/puzzles', label: 'Puzzles', icon: FiGrid },
   { adminPath: '/admin/education-news', label: 'Education News', icon: FiGlobe },
   { adminPath: '/admin/feedback', label: 'Feedback', icon: FiMessageSquare },
 ];
@@ -64,6 +66,7 @@ const STUDENT_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/dashboard', label: 'Home', icon: FiHome, consumerPath: '/dashboard' },
   { adminPath: '/study', label: 'Study Hub', icon: FiBook, consumerPath: '/study', module: 'study' },
   { adminPath: '/quiz', label: 'Quiz Hub', icon: FiTarget, consumerPath: '/quiz', module: 'quiz' },
+  { adminPath: '/puzzles', label: 'Puzzle Hub', icon: FiGrid, consumerPath: '/puzzles' },
   { adminPath: '/past-chats', label: 'Past Chats', icon: FiMessageCircle, consumerPath: '/past-chats' },
   { adminPath: '/my-schedules', label: 'My Schedules', icon: FiCalendar, consumerPath: '/my-schedules' },
   { adminPath: '/study-buddies', label: 'Study Buddies', icon: FiUsers, consumerPath: '/study-buddies', module: 'quiz' },

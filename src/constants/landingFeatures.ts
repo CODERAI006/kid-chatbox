@@ -109,6 +109,11 @@ export const LANDING_FEATURE_GROUPS: LandingFeatureGroup[] = [
         description: 'Kid-friendly news and curiosity bites to stay informed and engaged.',
       },
       {
+        emoji: '🧩',
+        title: 'Daily Puzzles',
+        description: 'Top 5 brain teasers every day — math, logic, science, and more by grade.',
+      },
+      {
         emoji: '🔔',
         title: 'Smart Reminders',
         description: 'Notifications for schedules, tests, and study plans so nothing slips.',

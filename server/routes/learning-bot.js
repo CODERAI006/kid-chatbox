@@ -5,17 +5,78 @@
 const express = require('express');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { checkRole } = require('../middleware/rbac');
+const { chatRateLimit } = require('../middleware/chatRateLimit');
 const { ollamaChat, isLlmConfigured } = require('../utils/ollamaClient');
 const { resolveSystemPrompt } = require('../utils/learningBotPrompt');
 const { parseLearningWorkspace } = require('../utils/learningWorkspaceParse');
+const { shouldUseDataAgent } = require('../modules/chatbot/agents/intentClassifier');
+const { runChatAgent } = require('../modules/chatbot/services/chatAgentService');
+const { getRegistry } = require('../modules/database-schema/schemaRegistry');
 
 const router = express.Router();
 router.use(authenticateToken);
+router.use(chatRateLimit);
 
 const MAX_USER_TEXT = 16000;
 /** User+assistant pairs sent to Ollama (system added separately). */
 const MAX_CONTEXT_MESSAGES = 22;
 const MAX_MESSAGES_RETURN = 500;
+
+function requireApprovedUser(req, res, next) {
+  const status = req.user?.status;
+  if (status && status !== 'approved' && status !== 'enabled') {
+    return res.status(403).json({
+      success: false,
+      message: 'Account pending approval. Chat is available after admin approval.',
+    });
+  }
+  next();
+}
+
+/**
+ * GET /api/learning-bot/schema — admin schema registry snapshot (debug)
+ */
+router.get('/schema', checkRole(['admin']), async (req, res, next) => {
+  try {
+    const reg = getRegistry();
+    res.json({
+      success: true,
+      loadedAt: reg.loadedAt,
+      tableCount: reg.tables.length,
+      tables: reg.tables.map((t) => ({
+        name: t.name,
+        purposes: t.purposes,
+        columnCount: t.columns.length,
+        foreignKeys: t.foreignKeys.length,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/learning-bot/analytics
+ * Explicit database-backed performance analysis (always uses data agent).
+ */
+router.post('/analytics', requireApprovedUser, async (req, res, next) => {
+  try {
+    const { text } = req.body || {};
+    if (typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'text is required' });
+    }
+    const question = text.trim().slice(0, MAX_USER_TEXT);
+    const result = await runChatAgent({
+      user: req.user,
+      question,
+      logContext: `api.learning-bot.analytics userId=${req.user.id}`,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * GET /api/learning-bot/conversation
@@ -275,17 +336,10 @@ router.post('/conversation/export', async (req, res, next) => {
  * POST /api/learning-bot/message
  * Body: { conversationId?: string | null, text: string }
  */
-router.post('/message', async (req, res, next) => {
+router.post('/message', requireApprovedUser, async (req, res, next) => {
   try {
-    if (!isLlmConfigured()) {
-      return res.status(503).json({
-        success: false,
-        message: 'AI is disabled (OLLAMA_DISABLED).',
-      });
-    }
-
     let { conversationId, text, mode, format } = req.body || {};
-    const chatMode = mode === 'chat' ? 'chat' : 'workspace';
+    const chatMode = mode === 'chat' ? 'chat' : mode === 'analytics' ? 'analytics' : 'workspace';
     const studyFormat = typeof format === 'string' ? format.trim() : '';
     if (typeof text !== 'string') {
       return res.status(400).json({ success: false, message: 'text is required' });
@@ -299,6 +353,14 @@ router.post('/message', async (req, res, next) => {
     }
 
     const userId = req.user.id;
+    const useDataAgent = shouldUseDataAgent(text, chatMode);
+
+    if (!useDataAgent && !isLlmConfigured()) {
+      return res.status(503).json({
+        success: false,
+        message: 'AI is disabled (OLLAMA_DISABLED).',
+      });
+    }
     const client = await pool.connect();
 
     try {
@@ -328,30 +390,49 @@ router.post('/message', async (req, res, next) => {
         [conversationId, text]
       );
 
-      const hist = await client.query(
-        `SELECT role, content FROM learning_bot_messages
-         WHERE conversation_id = $1 AND role IN ('user', 'assistant')
-         ORDER BY created_at ASC`,
-        [conversationId]
-      );
+      let content;
+      let model;
+      let structured = null;
+      let dataBacked = false;
+      let intent = null;
 
-      const tail = hist.rows.slice(-MAX_CONTEXT_MESSAGES).map((r) => ({
-        role: r.role,
-        content: r.content,
-      }));
+      if (useDataAgent) {
+        const agentResult = await runChatAgent({
+          user: req.user,
+          question: text,
+          logContext: `api.learning-bot.data userId=${userId}`,
+        });
+        content = agentResult.content;
+        model = agentResult.model;
+        dataBacked = agentResult.dataBacked;
+        intent = agentResult.intent;
+      } else {
+        const hist = await client.query(
+          `SELECT role, content FROM learning_bot_messages
+           WHERE conversation_id = $1 AND role IN ('user', 'assistant')
+           ORDER BY created_at ASC`,
+          [conversationId]
+        );
 
-      const systemPrompt = resolveSystemPrompt(chatMode, studyFormat);
-      const messages = [{ role: 'system', content: systemPrompt }, ...tail];
+        const tail = hist.rows.slice(-MAX_CONTEXT_MESSAGES).map((r) => ({
+          role: r.role,
+          content: r.content,
+        }));
 
-      const isChat = chatMode === 'chat';
-      const { content, model } = await ollamaChat({
-        messages,
-        temperature: isChat ? 0.65 : 0.55,
-        num_predict: isChat ? 2048 : 8192,
-        logContext: `api.learning-bot userId=${userId} mode=${chatMode}`,
-      });
+        const systemPrompt = resolveSystemPrompt(chatMode === 'chat' ? 'chat' : 'workspace', studyFormat);
+        const messages = [{ role: 'system', content: systemPrompt }, ...tail];
 
-      const structured = isChat ? null : parseLearningWorkspace(content);
+        const isChat = chatMode === 'chat';
+        const llmResult = await ollamaChat({
+          messages,
+          temperature: isChat ? 0.65 : 0.55,
+          num_predict: isChat ? 2048 : 8192,
+          logContext: `api.learning-bot userId=${userId} mode=${chatMode}`,
+        });
+        content = llmResult.content;
+        model = llmResult.model;
+        structured = isChat ? null : parseLearningWorkspace(content);
+      }
 
       await client.query(
         `INSERT INTO learning_bot_messages (conversation_id, role, content)
@@ -371,6 +452,8 @@ router.post('/message', async (req, res, next) => {
         content,
         structured,
         model,
+        dataBacked,
+        intent,
       });
     } catch (err) {
       await client.query('ROLLBACK');

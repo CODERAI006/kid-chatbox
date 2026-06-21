@@ -4,6 +4,7 @@
 
 const { Pool } = require('pg');
 const { resolveDatabaseConfig } = require('../utils/resolveDatabaseConfig');
+const { initializeSchemaRegistry } = require('../modules/database-schema/schemaDiscovery');
 
 const pool = new Pool({
   ...resolveDatabaseConfig(),
@@ -56,6 +57,7 @@ async function runStartupMigrations() {
   const { migrateUserNotifications } = require('../scripts/migrate-user-notifications');
   const { migrateAppAnalyticsSettings } = require('../scripts/migrate-app-analytics-settings');
   const { migrateDailyContentBatch } = require('../scripts/migrate-daily-content-batch');
+  const { migratePuzzles } = require('../scripts/migrate-puzzles');
 
   await runMigrationsQuietly(async () => {
     await migrateSchema();
@@ -78,6 +80,7 @@ async function runStartupMigrations() {
     await migrateUserNotifications();
     await migrateAppAnalyticsSettings();
     await migrateDailyContentBatch();
+    await migratePuzzles();
   });
 }
 
@@ -92,6 +95,8 @@ const initializeDatabase = async () => {
     } else {
       console.log('✅ Database connected (startup migrations skipped — use npm run db:migrate-all on deploy)');
     }
+
+    await initializeSchemaRegistry(pool);
   } catch (error) {
     console.error('❌ Error initializing database (server will start without DB):', error.message || error);
     return false;

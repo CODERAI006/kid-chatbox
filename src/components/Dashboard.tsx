@@ -21,6 +21,7 @@ import { UpcomingTestsSidebar } from './UpcomingTestsSidebar';
 import { StudentUpcomingTestsMarquee } from '@/components/layout/StudentUpcomingTestsMarquee';
 import { PullToRefresh } from './PullToRefresh';
 import { WordOfTheDay } from './WordOfTheDay';
+import { DailyPuzzlesPanel } from '@/components/puzzles/DailyPuzzlesPanel';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { isAppAdmin } from '@/utils/userAccess';
 import { type RecentStudyItem } from '@/components/dashboard/MyStudyCard';
@@ -198,6 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
 
                 <WordOfTheDay grade={user.grade} variant="dashboard" />
+                <DailyPuzzlesPanel grade={user.grade} maxCount={5} />
               </VStack>
             </Box>
 

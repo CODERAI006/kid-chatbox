@@ -32,6 +32,8 @@ import { FactsAndFunSettingsPage } from '@/components/admin/FactsAndFunSettings'
 import { EducationNewsAdminPage } from '@/components/admin/EducationNewsAdmin';
 import { DailyContentBatchAdminPage } from '@/components/admin/DailyContentBatchAdmin';
 import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
+import { PuzzleSettingsPage } from '@/components/admin/PuzzleSettings';
+import { PuzzleHub } from '@/components/puzzles/PuzzleHub';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import ExpressionsPage from '@/components/ExpressionsPage';
 import NewsFeed from '@/components/NewsFeed';
@@ -403,6 +405,16 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/puzzles"
+            element={
+              <StudentRoute>
+                <StudentLayout user={user}>
+                  <PuzzleHub grade={user?.grade} />
+                </StudentLayout>
+              </StudentRoute>
+            }
+          />
+          <Route
             path="/news"
             element={
               <StudentRoute>
@@ -580,6 +592,16 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <EducationNewsAdminPage />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/puzzles"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <PuzzleSettingsPage />
                 </AdminLayout>
               </AdminGuard>
             }

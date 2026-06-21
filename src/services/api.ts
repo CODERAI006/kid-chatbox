@@ -1385,6 +1385,41 @@ export const publicApi = {
     }
   },
 
+  /** Daily top puzzles for a grade (cached per day). */
+  getDailyPuzzles: async (
+    date?: string,
+    grade?: string,
+  ): Promise<import('@/types/puzzle').DailyPuzzlesResponse> => {
+    try {
+      const response = await apiClient.get('/public/puzzles/daily', { params: { date, grade } });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get daily puzzles:', error);
+      return { success: false, date: date || '', grade: grade || '', puzzles: [] };
+    }
+  },
+
+  getPuzzleTypes: async (): Promise<{
+    success: boolean;
+    types: import('@/types/puzzle').PuzzleTypeMeta[];
+  }> => {
+    try {
+      const response = await apiClient.get('/public/puzzles/types');
+      return response.data;
+    } catch {
+      return { success: false, types: [] };
+    }
+  },
+
+  getPuzzleById: async (id: string): Promise<{ success: boolean; puzzle?: import('@/types/puzzle').Puzzle }> => {
+    try {
+      const response = await apiClient.get(`/public/puzzles/${id}`);
+      return response.data;
+    } catch {
+      return { success: false };
+    }
+  },
+
   /**
    * Aggregated education news (RSS/web scraping — no NewsAPI)
    */

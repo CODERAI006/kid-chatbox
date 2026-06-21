@@ -29,6 +29,7 @@ import { ThreeJSBackground } from '@/components/home/ThreeJSBackground';
 import { FloatingElement } from '@/components/home/FloatingElement';
 import { HeroSection, HeroButtons } from '@/components/home/HeroSection';
 import { LandingShowcase } from '@/components/home/LandingShowcase';
+import { DailyPuzzlesPanel } from '@/components/puzzles/DailyPuzzlesPanel';
 import { AppInstallButton } from '@/components/layout/AppInstallButton';
 import { useAutoAppInstallPrompt } from '@/hooks/useAutoAppInstallPrompt';
 import { LoginForm } from '@/components/auth/LoginForm';
@@ -189,6 +190,10 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
 
           <Box mt={{ base: 4, md: 8 }} position="relative" zIndex={2}>
             <LandingShowcase onGetStarted={handleGetStarted} />
+          </Box>
+
+          <Box mt={{ base: 6, md: 8 }} position="relative" zIndex={2} maxW="900px" mx="auto" w="100%">
+            <DailyPuzzlesPanel variant="dark" maxCount={5} showViewAll={false} />
           </Box>
 
           <Box mt={{ base: 8, md: 12 }} position="relative" zIndex={2}>

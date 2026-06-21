@@ -1265,6 +1265,36 @@ export const factsAndFunApi = {
   },
 };
 
+export const puzzleAdminApi = {
+  getSettings: async (): Promise<import('@/types/puzzle').PuzzleSettingsResponse> => {
+    const response = await apiClient.get('/admin/puzzles/settings');
+    return response.data;
+  },
+
+  updateSettings: async (payload: {
+    global?: import('@/types/puzzle').PuzzleGlobalConfig;
+    settings?: import('@/types/puzzle').PuzzleGradeSetting[];
+  }): Promise<import('@/types/puzzle').PuzzleSettingsResponse & { message?: string }> => {
+    const response = await apiClient.put('/admin/puzzles/settings', payload);
+    return response.data;
+  },
+
+  getBank: async (): Promise<{ success: boolean; puzzles: import('@/types/puzzle').Puzzle[]; count: number }> => {
+    const response = await apiClient.get('/admin/puzzles/bank');
+    return response.data;
+  },
+
+  savePuzzle: async (id: string, puzzle: Partial<import('@/types/puzzle').Puzzle>): Promise<{ success: boolean; puzzle: import('@/types/puzzle').Puzzle }> => {
+    const response = await apiClient.put(`/admin/puzzles/bank/${id}`, puzzle);
+    return response.data;
+  },
+
+  regenerateToday: async (): Promise<{ success: boolean; message?: string; built?: number }> => {
+    const response = await apiClient.post('/admin/puzzles/regenerate');
+    return response.data;
+  },
+};
+
 export const dailyContentBatchApi = {
   getOverview: async (limit = 20): Promise<import('@/types/dailyContentBatch').DailyContentBatchOverview> => {
     const response = await apiClient.get('/admin/daily-content/overview', { params: { limit } });
