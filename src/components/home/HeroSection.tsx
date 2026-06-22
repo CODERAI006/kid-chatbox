@@ -15,7 +15,7 @@ export const HeroButtons: React.FC<HeroButtonsProps> = ({ onGetStarted, onLogin 
   <HStack
     spacing={{ base: 2, md: 4 }}
     flexWrap="wrap"
-    justifyContent={{ base: 'center', lg: 'flex-start' }}
+    justifyContent="center"
   >
     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
       <SparkButton sparkColor="#a855f7" sparkCount={15}>

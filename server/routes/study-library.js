@@ -11,6 +11,28 @@ const { isAdminUser, buildStudentVisibilityClause } = require('../utils/studyCon
 
 const router = express.Router();
 
+function parseJsonField(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return raw;
+}
+
+function mapStudySessionRow(row) {
+  return {
+    ...row,
+    lesson_explanation: parseJsonField(row.lesson_explanation) || [],
+    lesson_key_points: parseJsonField(row.lesson_key_points) || [],
+    lesson_examples: parseJsonField(row.lesson_examples) || [],
+    lesson_content: parseJsonField(row.lesson_content),
+  };
+}
+
 // All routes require authentication and study module access
 router.use(authenticateToken);
 router.use(checkModuleAccess('study'));
@@ -487,21 +509,7 @@ router.get('/:id', async (req, res, next) => {
     }
 
     // Parse JSON fields
-    const parsedSession = {
-      ...session,
-      lesson_explanation:
-        typeof session.lesson_explanation === 'string'
-          ? JSON.parse(session.lesson_explanation)
-          : session.lesson_explanation,
-      lesson_key_points:
-        typeof session.lesson_key_points === 'string'
-          ? JSON.parse(session.lesson_key_points)
-          : session.lesson_key_points,
-      lesson_examples:
-        typeof session.lesson_examples === 'string'
-          ? JSON.parse(session.lesson_examples)
-          : session.lesson_examples,
-    };
+    const parsedSession = mapStudySessionRow(session);
 
     res.json({
       success: true,

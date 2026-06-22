@@ -10,6 +10,7 @@ import {
 import { StudyModeForm, StudyTopicConfig } from './StudyModeForm';
 import { StudyLessonView } from './study/StudyLessonView';
 import { generateLesson, getIntroductionText } from '@/services/study';
+import { lessonToPersist } from '@/utils/lessonPersist';
 import { QuizConfig } from '@/types/quiz';
 import { Lesson } from '@/services/study';
 import { authApi, studyApi, profileApi } from '@/services/api';
@@ -100,6 +101,7 @@ export const StudyMode: React.FC = () => {
             lesson_key_points: generatedLesson.keyPoints,
             lesson_examples: generatedLesson.examples,
             lesson_summary: generatedLesson.summary,
+            lesson_content: lessonToPersist(generatedLesson),
           });
           setSessionSaved(true);
         }
@@ -173,11 +175,6 @@ export const StudyMode: React.FC = () => {
             <Text fontSize={baseFontSize} color="gray.600">
               Building your {studyMeta?.lessonStyle?.toLowerCase() || 'personalized'} lesson…
             </Text>
-            {(studyMeta?.contentFocus?.includes('Diagrams & Images') ?? true) && (
-              <Text fontSize={baseFontSize} color="gray.500">
-                {STUDY_MODE_MESSAGES.LOADING_IMAGES_HINT}
-              </Text>
-            )}
           </VStack>
         </VStack>
       </Box>

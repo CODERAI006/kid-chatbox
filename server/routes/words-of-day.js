@@ -1,5 +1,5 @@
 /**
- * Words of the Day — 3 class-based words + 5 idiomatic phrases per day
+ * Words of the Day — 4 class-based words + 5 idiomatic phrases per day
  * GET /api/public/words-of-day?date=YYYY-MM-DD&grade=Class+5
  * GET /api/public/words-of-day/detail?word=happy&date=...&grade=...
  *
@@ -12,10 +12,34 @@ const {
   getWordDetail,
   listPhraseArchiveDates,
   listPhrasesArchive,
+  listWordsArchive,
   PHRASES_ARCHIVE_PAGE_SIZE,
+  WORDS_ARCHIVE_PAGE_SIZE,
 } = require('../services/wordOfDayService');
 
 const router = express.Router();
+
+router.get('/words/archive', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || WORDS_ARCHIVE_PAGE_SIZE));
+    const body = await listWordsArchive(req.query.grade, {
+      page,
+      limit,
+      untilDate: req.query.untilDate,
+      editionDate: req.query.editionDate,
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('[words-of-day/words/archive]', error.message);
+    res.status(500).json({
+      success: false,
+      items: [],
+      total: 0,
+      message: 'Failed to load words archive',
+    });
+  }
+});
 
 router.get('/phrases/dates', async (req, res) => {
   try {

@@ -32,6 +32,8 @@ import { StudyHistoryItem } from '@/types';
 import { MESSAGES } from '@/constants/app';
 import { useNavigate } from 'react-router-dom';
 import { PullToRefresh } from './PullToRefresh';
+import { StudySavedLessonView } from './study/StudySavedLessonView';
+import { lessonFromStored, historySessionToConfig, hasFullLessonContent } from '@/utils/lessonPersist';
 
 /**
  * Formats timestamp to readable date string
@@ -187,6 +189,13 @@ export const StudyHistory = () => {
                 <AccordionIcon />
               </AccordionButton>
               <AccordionPanel padding={4}>
+                {hasFullLessonContent(session) ? (
+                  <StudySavedLessonView
+                    lesson={lessonFromStored(session)!}
+                    config={historySessionToConfig(session)}
+                    gradeLabel={`Class ${Math.floor(session.age / 2) + 1}`}
+                  />
+                ) : (
                 <VStack spacing={4} align="stretch">
                   <Divider />
                   
@@ -305,6 +314,7 @@ export const StudyHistory = () => {
                     </CardBody>
                   </Card>
                 </VStack>
+                )}
               </AccordionPanel>
             </AccordionItem>
           ))}

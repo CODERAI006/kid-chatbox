@@ -426,7 +426,7 @@ router.post('/message', requireApprovedUser, async (req, res, next) => {
         const llmResult = await ollamaChat({
           messages,
           temperature: isChat ? 0.65 : 0.55,
-          num_predict: isChat ? 2048 : 8192,
+          num_predict: isChat ? 2048 : 12288,
           logContext: `api.learning-bot userId=${userId} mode=${chatMode}`,
         });
         content = llmResult.content;

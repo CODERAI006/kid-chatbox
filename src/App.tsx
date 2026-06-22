@@ -38,6 +38,7 @@ import { SitePageView } from '@/components/legal/SitePageView';
 import { PuzzleHub } from '@/components/puzzles/PuzzleHub';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
 import ExpressionsPage from '@/components/ExpressionsPage';
+import DailyWordsPage from '@/components/DailyWordsPage';
 import NewsFeed from '@/components/NewsFeed';
 import EducationNewsFeed from '@/components/EducationNewsFeed';
 import EducationNewsReader from '@/components/news/EducationNewsReader';
@@ -395,6 +396,16 @@ export const App: React.FC = () => {
                     <StudyLibraryViewer />
                   </StudentLayout>
                 </ModuleAccessGuard>
+              </StudentRoute>
+            }
+          />
+          <Route
+            path="/daily-words"
+            element={
+              <StudentRoute>
+                <StudentLayout user={user}>
+                  <DailyWordsPage />
+                </StudentLayout>
               </StudentRoute>
             }
           />

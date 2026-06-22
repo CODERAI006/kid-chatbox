@@ -8,7 +8,7 @@ export const STUDY_PROMPT_LIMITS = {
   minFlashcards: 20,
   minKeyPoints: 20,
   minExplanationSteps: 4,
-  maxNumPredict: 8192,
+  maxNumPredict: 16384,
 } as const;
 
 const CONTROL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;

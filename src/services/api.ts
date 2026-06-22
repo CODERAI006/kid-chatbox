@@ -1265,6 +1265,46 @@ export const publicApi = {
     }
   },
 
+  getWordsArchive: async (
+    grade?: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      untilDate?: string;
+      editionDate?: string;
+    },
+  ): Promise<import('@/types/wordOfDay').DailyWordsArchiveResponse> => {
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 20;
+    try {
+      const response = await apiClient.get('/public/words-of-day/words/archive', {
+        params: {
+          grade,
+          page,
+          limit,
+          untilDate: options?.untilDate,
+          editionDate: options?.editionDate,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get words archive:', error);
+      return {
+        success: false,
+        grade: grade || '',
+        untilDate: options?.untilDate || '',
+        editionDate: options?.editionDate || null,
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
+        items: [],
+        message: 'Failed to load words archive',
+      };
+    }
+  },
+
   /** Facts & Fun — per-class facts/day, cached server + client */
   getDailyFacts: async (
     date?: string,

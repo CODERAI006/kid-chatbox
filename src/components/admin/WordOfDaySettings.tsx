@@ -9,6 +9,7 @@ import {
   SimpleGrid, Divider, useToast,
 } from '@/shared/design-system';
 import { wordOfDayApi } from '@/services/admin';
+import { WORDS_PER_DAY } from '@/constants/wordOfDay';
 import type {
   WordOfDayGradeSetting, WordComplexity, WordOfDayConfig,
   WeeklyThemeInfo, GradeCategoryInfo,
@@ -109,7 +110,7 @@ export const WordOfDaySettingsPage: React.FC = () => {
       <Box>
         <Heading size="md" mb={2}>Word of the Day Settings</Heading>
         <Text color="gray.600" fontSize="sm">
-          Each grade gets 3 themed words per day with simple meanings, examples,
+          Each grade gets {WORDS_PER_DAY} themed words per day with simple meanings, examples,
           synonyms, antonyms, a fun challenge, and a quiz. Expressions match the same level.
         </Text>
       </Box>

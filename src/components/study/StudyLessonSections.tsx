@@ -1,5 +1,5 @@
 /**
- * Renders sections 2–17 of the study lesson (below format).
+ * Renders sections 2–32 of the study lesson (below format).
  */
 import { SimpleGrid, VStack, HStack, Text, Badge, Box } from '@/shared/design-system';
 import { QuizConfig } from '@/types/quiz';
@@ -9,6 +9,7 @@ import { PracticeQASection } from './PracticeQASection';
 import { StudyFlashcards } from './StudyFlashcards';
 import { StudySectionCard } from './StudySectionCard';
 import { StudyAskTeacher } from './StudyAskTeacher';
+import { StudyLessonExtendedSections } from './StudyLessonExtendedSections';
 import type { StudySectionVisibility } from '@/utils/studyAgeProfile';
 
 interface StudyLessonSectionsProps {
@@ -94,6 +95,9 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
               <Box key={i} p={4} bg="white" borderRadius="lg" boxShadow="sm">
                 <Text fontWeight="bold" color="blue.700" mb={1}>{kt.term}</Text>
                 <Text fontSize="sm" color="gray.600" lineHeight="tall">{kt.definition}</Text>
+                {kt.easyExample && (
+                  <Text fontSize="xs" color="blue.600" mt={1}>e.g. {kt.easyExample}</Text>
+                )}
               </Box>
             ))}
           </SimpleGrid>
@@ -173,6 +177,12 @@ export const StudyLessonSections: React.FC<StudyLessonSectionsProps> = ({
           </SimpleGrid>
         </StudySectionCard>
       )}
+
+      <StudyLessonExtendedSections
+        lesson={lesson}
+        fontSize={fontSize}
+        sectionVisibility={sectionVisibility}
+      />
 
       <StudySectionCard id="ask-ai-teacher" title="🤖 Ask AI Teacher" delay={0.44} titleColor="purple.700" borderColor="purple.400" bg="purple.50">
         <StudyAskTeacher topic={topic} subject={config.subject} suggestedPrompts={lesson.askAiTeacherPrompts} />

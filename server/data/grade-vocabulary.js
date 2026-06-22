@@ -14,9 +14,9 @@ const WORD_POOLS = {
   advanced: ADVANCED_VOCABULARY_WORDS,
 };
 
-const WORDS_PER_DAY = 3;
+const { WORDS_PER_DAY } = require('../utils/wordOfDayConstants');
 
-/** Pick three words for a date + grade using deterministic rotation */
+/** Pick daily words for a date + grade using deterministic rotation */
 function getWordsForDate(date, grade, complexity) {
   const pool = WORD_POOLS[complexity] || WORD_POOLS.basic;
   const epochDay = Math.floor(date.getTime() / (1000 * 60 * 60 * 24));

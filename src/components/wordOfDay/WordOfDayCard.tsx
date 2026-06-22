@@ -1,5 +1,5 @@
 /**
- * Summary card for one of today's three words, with link to detail page.
+ * Summary card for one of today's words, with link to detail page.
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +12,7 @@ const CARD_COLORS = [
   { bg: 'purple.50', border: 'purple.300', badge: 'purple', num: 'purple.700' },
   { bg: 'blue.50', border: 'blue.300', badge: 'blue', num: 'blue.700' },
   { bg: 'teal.50', border: 'teal.300', badge: 'teal', num: 'teal.700' },
+  { bg: 'orange.50', border: 'orange.300', badge: 'orange', num: 'orange.700' },
 ];
 
 interface WordOfDayCardProps {

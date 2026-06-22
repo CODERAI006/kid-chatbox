@@ -28,9 +28,11 @@ function scoreColorScheme(score?: number): string {
 
 interface SuggestedTopicRowProps {
   item: SuggestedTopicItem;
+  onSelect?: () => void;
+  isExpanded?: boolean;
 }
 
-export function SuggestedTopicRow({ item }: SuggestedTopicRowProps) {
+export function SuggestedTopicRow({ item, onSelect, isExpanded }: SuggestedTopicRowProps) {
   const navigate = useNavigate();
   const subtitleColor = useColorModeValue('gray.600', 'gray.400');
   const rowBorder = useColorModeValue('gray.200', 'gray.600');
@@ -50,10 +52,13 @@ export function SuggestedTopicRow({ item }: SuggestedTopicRowProps) {
       cursor="pointer"
       transition="background 0.15s"
       _hover={{ bg: rowHoverBg }}
-      onClick={() => navigate('/study#ai-study')}
+      onClick={onSelect ?? (() => navigate('/study#ai-study'))}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && navigate('/study#ai-study')}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (onSelect ?? (() => navigate('/study#ai-study')))();
+      }}
+      aria-expanded={isExpanded}
       aria-label={`Study ${item.name}`}
     >
       <VStack align="start" spacing={0} flex={1} minW="120px">
@@ -78,6 +83,11 @@ export function SuggestedTopicRow({ item }: SuggestedTopicRowProps) {
             {item.score}%
           </Text>
         </Box>
+      )}
+      {onSelect && (
+        <Text fontSize="xs" color="blue.400" aria-hidden>
+          {isExpanded ? '▲' : '▼'}
+        </Text>
       )}
     </HStack>
   );

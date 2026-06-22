@@ -1,18 +1,13 @@
 /**
- * Study lesson content page — 17-section layout with sticky nav.
+ * Study lesson content page — 32-section premium module layout with sticky nav.
  */
 import { motion } from 'framer-motion';
 import {
   Box, VStack, HStack, Text, Button, Heading, Alert, AlertIcon,
-  Badge, Container, SimpleGrid, Image,
+  Badge, Container,
 } from '@/shared/design-system';
 import { QuizConfig } from '@/types/quiz';
-import {
-  Lesson,
-  getIntroductionText,
-  getIntroductionCaption,
-} from '@/services/study';
-import { resolveOllamaImageUrl } from '@/utils/ollamaImageUrl';
+import { Lesson, getIntroductionText } from '@/services/study';
 import {
   getStudyAgeBand,
   getStudySectionVisibility,
@@ -21,7 +16,6 @@ import {
 } from '@/utils/studyAgeProfile';
 import { countIntroLines } from '@/utils/studyPromptLimits';
 import { AnimatedCard } from './AnimatedCard';
-import { StudyImageGallery } from './StudyImageGallery';
 import { StudyLessonSectionNav } from './StudyLessonSectionNav';
 import { StudyLessonSections } from './StudyLessonSections';
 import type { StudyTopicConfig } from '../StudyModeForm';
@@ -50,10 +44,7 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
   onBack,
 }) => {
   const topic = config.subtopics[0] || config.subtopics.join(', ');
-  const showGallery = studyMeta?.contentFocus?.includes('Diagrams & Images') ?? true;
   const introText = getIntroductionText(lesson.introduction);
-  const introSrc = resolveOllamaImageUrl(lesson.introImageUrl);
-  const introCaption = getIntroductionCaption(lesson.introduction) || topic;
   const studentAge = resolveStudentAge(config.age, gradeLabel);
   const ageBand = getStudyAgeBand(studentAge);
   const sectionVisibility = getStudySectionVisibility(ageBand);
@@ -101,46 +92,22 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
                       {storyLines} lines · written for you
                     </Text>
                   </HStack>
-                  <SimpleGrid columns={{ base: 1, md: introSrc ? 2 : 1 }} spacing={5} alignItems="start">
-                    {introSrc && (
-                      <Box borderRadius="xl" overflow="hidden" boxShadow="lg" borderWidth={2} borderColor="blue.100">
-                        <Image
-                          src={introSrc}
-                          alt={introCaption}
-                          w="100%"
-                          h={{ base: '220px', md: '300px' }}
-                          objectFit="cover"
-                        />
-                        <Box px={3} py={2} bg="blue.600">
-                          <Text color="white" fontSize="sm" fontWeight="semibold">{introCaption}</Text>
-                        </Box>
-                      </Box>
-                    )}
-                    <Box>
-                      {introText.split('\n\n').map((p, i) => (
-                        <Text
-                          key={i}
-                          lineHeight="1.9"
-                          color="gray.800"
-                          mb={4}
-                          fontSize={{ base: 'md', md: 'lg' }}
-                          fontFamily="Georgia, 'Times New Roman', serif"
-                        >
-                          {p.trim()}
-                        </Text>
-                      ))}
-                    </Box>
-                  </SimpleGrid>
+                  {introText.split('\n\n').map((p, i) => (
+                    <Text
+                      key={i}
+                      lineHeight="1.9"
+                      color="gray.800"
+                      mb={4}
+                      fontSize={{ base: 'md', md: 'lg' }}
+                      fontFamily="Georgia, 'Times New Roman', serif"
+                    >
+                      {p.trim()}
+                    </Text>
+                  ))}
                 </Box>
               </VStack>
             </AnimatedCard>
           </Box>
-
-          {showGallery && lesson.galleryImages && lesson.galleryImages.length > 0 && (
-            <AnimatedCard delay={0.12}>
-              <StudyImageGallery images={lesson.galleryImages} />
-            </AnimatedCard>
-          )}
 
           <StudyLessonSections
             lesson={lesson}

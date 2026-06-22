@@ -27,6 +27,13 @@ import { resolveUploadUrl } from '@/utils/uploadUrl';
 import { AnimatedSection } from './study/AnimatedSection';
 import { AnimatedListItem } from './study/AnimatedListItem';
 import { KeyPointCard } from './study/KeyPointCard';
+import { StudySavedLessonView } from './study/StudySavedLessonView';
+import {
+  lessonFromStored,
+  historySessionToConfig,
+  hasFullLessonContent,
+} from '@/utils/lessonPersist';
+import type { StudyHistoryItem } from '@/types/api';
 
 /**
  * Study Library Viewer component
@@ -303,6 +310,13 @@ export const StudyLibraryViewer: React.FC = () => {
 
         {/* Regular Study Session Content */}
         {session.content_source !== 'admin_content' && (
+          hasFullLessonContent(session as StudyHistoryItem) ? (
+            <StudySavedLessonView
+              lesson={lessonFromStored(session as StudyHistoryItem)!}
+              config={historySessionToConfig(session as StudyHistoryItem)}
+              gradeLabel={session.age ? `${session.age} yrs` : undefined}
+            />
+          ) : (
           <>
             {/* Introduction */}
             <AnimatedSection title="Introduction">
@@ -382,6 +396,7 @@ export const StudyLibraryViewer: React.FC = () => {
           </AnimatedSection>
         )}
           </>
+          )
         )}
 
         {/* Actions */}

@@ -135,6 +135,60 @@ async function listArchivedPhrases(cacheKey, maxDate, { page = 1, limit = 20, co
   }
 }
 
+function archiveWordsWhere(cacheKey, maxDate, editionDate) {
+  const params = [cacheKey, maxDate];
+  let dateClause = '';
+  if (editionDate) {
+    dateClause = 'AND d.cache_date = $3::date';
+    params.push(editionDate);
+  }
+  const base = `
+    FROM word_of_the_day_cache d
+    CROSS JOIN LATERAL jsonb_array_elements(d.payload->'words') WITH ORDINALITY AS t(elem, ord)
+    WHERE d.word_key = $1
+      AND d.cache_date <= $2::date
+      AND jsonb_typeof(d.payload->'words') = 'array'
+      ${dateClause}`;
+  return { base, params };
+}
+
+async function countArchivedWords(cacheKey, maxDate, editionDate) {
+  try {
+    const { base, params } = archiveWordsWhere(cacheKey, maxDate, editionDate);
+    const r = await pool.query(`SELECT COUNT(*)::int AS total ${base}`, params);
+    return r.rows[0]?.total ?? 0;
+  } catch (err) {
+    console.error('[wordOfDayCache] count words archive failed:', err.message);
+    return 0;
+  }
+}
+
+async function listArchivedWords(cacheKey, maxDate, { page = 1, limit = 20, editionDate } = {}) {
+  try {
+    const safeLimit = Math.min(50, Math.max(1, limit));
+    const safePage = Math.max(1, page);
+    const offset = (safePage - 1) * safeLimit;
+    const { base, params } = archiveWordsWhere(cacheKey, maxDate, editionDate);
+    const limitIdx = params.length + 1;
+    const offsetIdx = params.length + 2;
+    const r = await pool.query(
+      `SELECT d.cache_date::text AS edition_date, t.elem AS word_json, t.ord AS word_ord
+       ${base}
+       ORDER BY d.cache_date DESC, t.ord ASC
+       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      [...params, safeLimit, offset],
+    );
+    return r.rows.map((row) => ({
+      editionDate: row.edition_date,
+      wordOrd: row.word_ord,
+      word: row.word_json,
+    }));
+  } catch (err) {
+    console.error('[wordOfDayCache] list words archive failed:', err.message);
+    return [];
+  }
+}
+
 module.exports = {
   formatCacheDate,
   gradeCacheKey,
@@ -145,4 +199,6 @@ module.exports = {
   listCachedDates,
   countArchivedPhrases,
   listArchivedPhrases,
+  countArchivedWords,
+  listArchivedWords,
 };

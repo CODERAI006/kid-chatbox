@@ -4,9 +4,10 @@
  */
 
 import type { WordOfDayResponse } from '@/types/wordOfDay';
+import { WORDS_PER_DAY } from '@/constants/wordOfDay';
 import { toYMD } from '@/utils/calendarDay';
 
-const STORAGE_PREFIX = 'wotd_daily_v11';
+const STORAGE_PREFIX = 'wotd_daily_v12';
 
 const memory = new Map<string, WordOfDayResponse>();
 const inflight = new Map<string, Promise<WordOfDayResponse>>();
@@ -33,7 +34,7 @@ function storageKey(grade?: string, date?: string): string {
 }
 
 function isValidPayload(data: WordOfDayResponse | null | undefined): data is WordOfDayResponse {
-  return Boolean(data?.success && data.words?.length);
+  return Boolean(data?.success && (data.words?.length ?? 0) >= WORDS_PER_DAY);
 }
 
 function readLocal(key: string): WordOfDayResponse | null {

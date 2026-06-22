@@ -6,7 +6,7 @@ const { ollamaChat, isLlmConfigured } = require('./ollamaClient');
 const { getWordsForDate } = require('../data/grade-vocabulary');
 const { getCbseVocabularyGuidance } = require('./cbseGradeHints');
 
-const WORD_COUNT = 3;
+const { WORDS_PER_DAY: WORD_COUNT } = require('./wordOfDayConstants');
 
 function parseWordsJson(raw) {
   const text = String(raw || '').trim();

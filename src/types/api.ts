@@ -100,6 +100,8 @@ export interface StudySessionRequest {
   lesson_key_points: string[];
   lesson_examples: string[];
   lesson_summary: string;
+  /** Full 32-section lesson JSON (text only, no generated images). */
+  lesson_content?: Record<string, unknown>;
 }
 
 /**
@@ -128,6 +130,7 @@ export interface StudyHistoryItem {
   lesson_key_points: string[];
   lesson_examples: string[];
   lesson_summary: string;
+  lesson_content?: Record<string, unknown> | string | null;
 }
 
 /**

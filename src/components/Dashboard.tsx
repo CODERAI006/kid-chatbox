@@ -1,9 +1,10 @@
 /**
- * Dashboard component - Main landing page after login
+ * Dashboard — student home after login with animated sections and quick stats.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Box,
   VStack,
@@ -34,6 +35,8 @@ import {
 import { ActionTile } from '@/components/dashboard/ActionTile';
 import { type PlanInfo } from '@/components/dashboard/PlanSummaryCard';
 import { YourPlanPanel } from '@/components/dashboard/YourPlanPanel';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { DashboardAnimatedSection } from '@/components/dashboard/DashboardAnimatedSection';
 import { AppInstallButton } from '@/components/layout/AppInstallButton';
 import { useAutoAppInstallPrompt } from '@/hooks/useAutoAppInstallPrompt';
 
@@ -156,86 +159,161 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   const heartGreeting = useMemo(() => getDashboardHeartGreeting(user.name), [user.name]);
+  const showInsights =
+    analytics &&
+    (analytics.total_quizzes > 0 || analytics.recent_activities.length > 0);
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <Box padding={{ base: 2, sm: 3, md: 4, lg: 6 }} maxWidth="1400px" margin="0 auto" width="100%" overflowX="hidden" boxSizing="border-box">
+      <Box
+        padding={{ base: 2, sm: 3, md: 4, lg: 6 }}
+        maxWidth="1400px"
+        margin="0 auto"
+        width="100%"
+        overflowX="hidden"
+        boxSizing="border-box"
+      >
         <VStack spacing={{ base: 4, md: 5 }} align="stretch">
-          <VStack align={{ base: 'center', md: 'start' }} spacing={{ base: 1, md: 2 }}>
-            <Heading size={{ base: 'md', sm: 'lg', md: 'xl', lg: '2xl' }} color="blue.600" lineHeight="shorter" textAlign={{ base: 'center', md: 'left' }}>
-              {heartGreeting}
-            </Heading>
-          </VStack>
+          <DashboardHeader greeting={heartGreeting} grade={user.grade} />
 
           <AppInstallButton />
-
           <StudentUpcomingTestsMarquee />
 
-          <Box display={{ base: 'block', lg: 'flex' }} gap={{ base: 4, md: 5, lg: 6 }} width="100%" flexDirection={{ base: 'column', lg: 'row' }}>
-            <Box flex={{ base: 'none', lg: 1 }} width={{ base: '100%', lg: 'auto' }} minW={{ base: '100%', lg: 0 }}>
+          <Box
+            display={{ base: 'block', lg: 'flex' }}
+            gap={{ base: 4, md: 5, lg: 6 }}
+            width="100%"
+            flexDirection={{ base: 'column', lg: 'row' }}
+            alignItems="flex-start"
+          >
+            <Box flex={{ base: 'none', lg: 1 }} width="100%" minW={0}>
               <VStack spacing={{ base: 4, md: 5 }} align="stretch">
                 {showActionCards && (
-                  <SimpleGrid columns={{ base: actionCardCount > 1 ? 2 : 1, sm: actionCardCount > 1 ? 2 : 1 }} spacing={{ base: 2, sm: 3, md: 4, lg: 5 }}>
-                    {canShowAiStudy && (
-                      <ActionTile
-                        emoji="📚"
-                        title={MESSAGES.STUDY_MODE_TITLE}
-                        disabled={!!planInfo && planInfo.limits.remainingTopics === 0}
-                        limitLabel="Limit"
-                        hint={planInfo && planInfo.limits.remainingTopics === 0 ? 'Daily topic limit reached. Try again tomorrow!' : 'Learn new topics with fun lessons!'}
-                        onClick={goStudy}
-                      />
-                    )}
-                    {canShowAiQuiz && (
-                      <ActionTile
-                        emoji="🎯"
-                        title={MESSAGES.QUIZ_MODE_TITLE}
-                        disabled={!!planInfo && planInfo.limits.remainingQuizzes === 0}
-                        limitLabel="Limit"
-                        hint={planInfo && planInfo.limits.remainingQuizzes === 0 ? 'Daily quiz limit reached. Try again tomorrow!' : 'Test your knowledge with quizzes!'}
-                        onClick={goQuiz}
-                      />
-                    )}
-                  </SimpleGrid>
+                  <DashboardAnimatedSection>
+                    <VStack align="stretch" spacing={2}>
+                      <Heading size="sm" color="gray.700">
+                        Quick actions
+                      </Heading>
+                      <SimpleGrid
+                        columns={{ base: actionCardCount > 1 ? 2 : 1, sm: actionCardCount > 1 ? 2 : 1 }}
+                        spacing={{ base: 2, sm: 3, md: 4 }}
+                      >
+                        {canShowAiStudy && (
+                          <ActionTile
+                            emoji="📚"
+                            title={MESSAGES.STUDY_MODE_TITLE}
+                            disabled={!!planInfo && planInfo.limits.remainingTopics === 0}
+                            limitLabel="Limit"
+                            hint={
+                              planInfo && planInfo.limits.remainingTopics === 0
+                                ? 'Daily topic limit reached. Try again tomorrow!'
+                                : 'Learn new topics with fun lessons!'
+                            }
+                            onClick={goStudy}
+                            delay={0.1}
+                          />
+                        )}
+                        {canShowAiQuiz && (
+                          <ActionTile
+                            emoji="🎯"
+                            title={MESSAGES.QUIZ_MODE_TITLE}
+                            disabled={!!planInfo && planInfo.limits.remainingQuizzes === 0}
+                            limitLabel="Limit"
+                            hint={
+                              planInfo && planInfo.limits.remainingQuizzes === 0
+                                ? 'Daily quiz limit reached. Try again tomorrow!'
+                                : 'Test your knowledge with quizzes!'
+                            }
+                            onClick={goQuiz}
+                            delay={0.18}
+                          />
+                        )}
+                      </SimpleGrid>
+                    </VStack>
+                  </DashboardAnimatedSection>
                 )}
 
-                <WordOfTheDay grade={user.grade} variant="dashboard" />
-                <DailyPuzzlesPanel grade={user.grade} maxCount={PUZZLE_HOME_PREVIEW_COUNT} showViewAll />
+                <DashboardAnimatedSection delay={0.05}>
+                  <VStack align="stretch" spacing={2}>
+                    <Heading size="sm" color="gray.700">
+                      Today&apos;s picks
+                    </Heading>
+                    <WordOfTheDay grade={user.grade} />
+                    <DailyPuzzlesPanel
+                      grade={user.grade}
+                      maxCount={PUZZLE_HOME_PREVIEW_COUNT}
+                      showViewAll
+                    />
+                  </VStack>
+                </DashboardAnimatedSection>
               </VStack>
             </Box>
 
-            <VStack spacing={{ base: 3, md: 4, lg: 5 }} align="stretch" w={{ base: '100%', lg: '350px' }} minW={{ base: '100%', lg: '350px' }} maxW={{ base: '100%', lg: '350px' }} order={{ base: -1, lg: 0 }} flexShrink={0}>
-              {planInfo && !planLoading && (
-                <YourPlanPanel
-                  planInfo={planInfo}
-                  recentStudy={recentStudy}
-                  canShowAiStudy={canShowAiStudy}
-                  canStudy={!planInfo || planInfo.limits.remainingTopics > 0}
-                  onStudyClick={goStudy}
-                />
-              )}
-              <UpcomingTestsSidebar planInfo={planInfo} />
+            <VStack
+              spacing={{ base: 3, md: 4 }}
+              align="stretch"
+              w={{ base: '100%', lg: '340px' }}
+              minW={{ base: '100%', lg: '340px' }}
+              maxW={{ base: '100%', lg: '340px' }}
+              flexShrink={0}
+            >
+              <DashboardAnimatedSection delay={0.08}>
+                <VStack spacing={{ base: 3, md: 4 }} align="stretch">
+                  {planInfo && !planLoading && (
+                    <YourPlanPanel
+                      planInfo={planInfo}
+                      recentStudy={recentStudy}
+                      canShowAiStudy={canShowAiStudy}
+                      canStudy={planInfo.limits.remainingTopics > 0}
+                      onStudyClick={goStudy}
+                    />
+                  )}
+                  <UpcomingTestsSidebar planInfo={planInfo} />
+                </VStack>
+              </DashboardAnimatedSection>
             </VStack>
           </Box>
 
-          {analytics && (
-            <SuggestedTopicsCard
-              items={suggestedTopicItems}
-              hasQuizHistory={analytics.total_quizzes > 0}
-            />
+          {showInsights && (
+            <DashboardAnimatedSection delay={0.1}>
+              <VStack align="stretch" spacing={3}>
+                <Heading size="sm" color="gray.700">
+                  Your progress
+                </Heading>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={{ base: 3, md: 4 }}>
+                  {analytics && (
+                    <SuggestedTopicsCard
+                      items={suggestedTopicItems}
+                      hasQuizHistory={analytics.total_quizzes > 0}
+                    />
+                  )}
+                  {analytics && analytics.recent_activities.length > 0 && (
+                    <RecentActivityCard items={analytics.recent_activities} />
+                  )}
+                </SimpleGrid>
+              </VStack>
+            </DashboardAnimatedSection>
           )}
 
-          {analytics && analytics.recent_activities.length > 0 && (
-            <RecentActivityCard items={analytics.recent_activities} />
-          )}
-
-          <Card bg="green.50" borderColor="green.200" w="100%">
-            <CardBody p={{ base: 3, md: 4 }}>
-              <Text fontSize={{ base: 'xs', sm: 'sm', md: 'md' }} color="green.700" textAlign="center" fontWeight="semibold" px={{ base: 2, md: 0 }}>
-                {MESSAGES.MOTIVATIONAL}
-              </Text>
-            </CardBody>
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card bg="green.50" borderColor="green.200" w="100%">
+              <CardBody p={{ base: 3, md: 4 }}>
+                <Text
+                  fontSize={{ base: 'xs', sm: 'sm', md: 'md' }}
+                  color="green.700"
+                  textAlign="center"
+                  fontWeight="semibold"
+                >
+                  {MESSAGES.MOTIVATIONAL}
+                </Text>
+              </CardBody>
+            </Card>
+          </motion.div>
         </VStack>
       </Box>
     </PullToRefresh>

@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import {
   Card,
   CardBody,
@@ -14,6 +15,7 @@ interface ActionTileProps {
   disabled: boolean;
   limitLabel: string;
   onClick: () => void;
+  delay?: number;
 }
 
 export const ActionTile: React.FC<ActionTileProps> = ({
@@ -23,17 +25,29 @@ export const ActionTile: React.FC<ActionTileProps> = ({
   disabled,
   limitLabel,
   onClick,
+  delay = 0,
 }) => (
-  <Card
-    cursor={disabled ? 'not-allowed' : 'pointer'}
-    _hover={disabled ? {} : { transform: { base: 'none', md: 'scale(1.02)' }, shadow: 'lg' }}
-    onClick={onClick}
-    height={{ base: 'auto', sm: '160px', md: '180px', lg: '200px' }}
-    minH={{ base: '100px', sm: '160px', md: '180px', lg: '200px' }}
-    opacity={disabled ? 0.6 : 1}
-    position="relative"
-    width="100%"
+  <motion.div
+    initial={{ opacity: 0, y: 16 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.4 }}
+    whileHover={disabled ? {} : { y: -4, transition: { duration: 0.15 } }}
+    whileTap={disabled ? {} : { scale: 0.98 }}
+    style={{ height: '100%' }}
   >
+    <Card
+      cursor={disabled ? 'not-allowed' : 'pointer'}
+      onClick={disabled ? undefined : onClick}
+      height={{ base: 'auto', sm: '150px', md: '160px' }}
+      minH={{ base: '100px', sm: '150px' }}
+      opacity={disabled ? 0.6 : 1}
+      position="relative"
+      width="100%"
+      borderWidth="2px"
+      borderColor={disabled ? 'gray.200' : 'blue.100'}
+      _hover={disabled ? {} : { shadow: 'lg', borderColor: 'blue.300' }}
+      transition="box-shadow 0.2s, border-color 0.2s"
+    >
     {disabled && (
       <Badge
         position="absolute"
@@ -58,4 +72,5 @@ export const ActionTile: React.FC<ActionTileProps> = ({
       </VStack>
     </CardBody>
   </Card>
+  </motion.div>
 );

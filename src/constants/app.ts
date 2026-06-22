@@ -59,7 +59,7 @@ export const MESSAGES = {
   NO_QUIZZES_YET: 'You haven\'t completed any quizzes yet.',
   // Word of the Day
   WORD_OF_THE_DAY_TITLE: '📖 Word of the Day',
-  WORD_OF_THE_DAY_SUBTITLE: 'Build vocabulary and communication — 3 words + 5 expressions daily',
+  WORD_OF_THE_DAY_SUBTITLE: 'Build vocabulary and communication — 4 words + 5 expressions daily',
   WORD_OF_THE_DAY_COMMUNICATION_TIP: '💬 How to use it when you talk or write',
   WORD_OF_THE_DAY_LOADING: 'Loading word...',
   WORD_OF_THE_DAY_ERROR: 'Unable to load word',

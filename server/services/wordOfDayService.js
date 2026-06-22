@@ -10,6 +10,7 @@ const { gradesMatch } = require('../utils/normalizeGrade');
 const { getComplexityForGrade, getAllSettings } = require('../utils/wordOfDaySettings');
 const { getConfig } = require('../utils/wordOfDayConfig');
 const { getThemeForDate } = require('../utils/wordOfDayThemes');
+const { WORDS_PER_DAY } = require('../utils/wordOfDayConstants');
 const {
   formatCacheDate,
   gradeCacheKey,
@@ -19,9 +20,12 @@ const {
   listCachedDates,
   countArchivedPhrases,
   listArchivedPhrases,
+  countArchivedWords,
+  listArchivedWords,
 } = require('../utils/wordOfDayDbCache');
 
 const PHRASES_ARCHIVE_PAGE_SIZE = 20;
+const WORDS_ARCHIVE_PAGE_SIZE = 24;
 
 function phraseSlug(text) {
   return String(text || '')
@@ -74,6 +78,10 @@ async function resolveGradeLabel(grade) {
     console.warn('[wordOfDayService] grade resolve failed:', err.message);
   }
   return input;
+}
+
+function isCompleteEdition(payload) {
+  return (payload?.words?.length ?? 0) >= WORDS_PER_DAY;
 }
 
 async function buildDailyPayload(date, gradeLabel, complexity) {
@@ -166,13 +174,19 @@ async function getDailyPayload(dateInput, grade) {
 
   const key = gradeCacheKey(gradeLabel);
   const cached = await readCache(key, cacheDate);
-  if (cached?.words?.length) {
+  if (isCompleteEdition(cached)) {
     const phrases = (cached.phrases || []).map((p, i) =>
       p.id ? p : normalizePhrase(p, cacheDate, i + 1),
     );
     const payload = { ...cached, grade: gradeLabel, complexity, phrases, cached: true };
     void pregenerateWordDetails(payload, cacheDate, gradeLabel, complexity);
     return payload;
+  }
+
+  if (cached?.words?.length) {
+    console.log(
+      `[wordOfDayService] stale cache (${cached.words.length}/${WORDS_PER_DAY} words) — rebuilding ${gradeLabel} @ ${cacheDate}`,
+    );
   }
 
   const body = await buildDailyPayload(date, gradeLabel, complexity);
@@ -252,7 +266,7 @@ async function pregenerateForDate(dateInput, options = {}) {
     const key = gradeCacheKey(row.grade);
     const existing = await readCache(key, cacheDate);
     try {
-      const daily = existing?.words?.length
+      const daily = isCompleteEdition(existing)
         ? {
             ...existing,
             grade: row.grade,
@@ -260,7 +274,7 @@ async function pregenerateForDate(dateInput, options = {}) {
           }
         : await getDailyPayload(cacheDate, row.grade);
 
-      if (!existing?.words?.length) {
+      if (!isCompleteEdition(existing)) {
         built += 1;
         console.log(`[wordOfDayService] pregenerated ${row.grade} @ ${cacheDate}`);
       }
@@ -327,6 +341,43 @@ async function listPhrasesArchive(grade, options = {}) {
   };
 }
 
+async function listWordsArchive(grade, options = {}) {
+  const gradeLabel = await resolveGradeLabel(grade);
+  const key = gradeCacheKey(gradeLabel);
+  const maxDate = formatCacheDate(parseDateParam(options.untilDate));
+  const editionDate = options.editionDate
+    ? formatCacheDate(parseDateParam(options.editionDate))
+    : null;
+  const page = Math.max(1, parseInt(options.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(options.limit, 10) || WORDS_ARCHIVE_PAGE_SIZE));
+
+  const [total, rows] = await Promise.all([
+    countArchivedWords(key, maxDate, editionDate),
+    listArchivedWords(key, maxDate, { page, limit, editionDate }),
+  ]);
+
+  const items = rows.map(({ editionDate: ed, wordOrd, word }) => ({
+    editionDate: ed,
+    wordOrd,
+    word,
+  }));
+
+  const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+
+  return {
+    success: true,
+    grade: gradeLabel,
+    untilDate: maxDate,
+    editionDate,
+    page,
+    limit,
+    total,
+    totalPages,
+    hasMore: page < totalPages,
+    items,
+  };
+}
+
 module.exports = {
   parseDateParam,
   resolveGradeLabel,
@@ -336,6 +387,8 @@ module.exports = {
   pregenerateForDate,
   listPhraseArchiveDates,
   listPhrasesArchive,
+  listWordsArchive,
   normalizePhrase,
   PHRASES_ARCHIVE_PAGE_SIZE,
+  WORDS_ARCHIVE_PAGE_SIZE,
 };

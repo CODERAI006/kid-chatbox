@@ -73,13 +73,15 @@ const GRADE_CATEGORIES = {
 
 function getThemeForDate(date) {
   const d = date instanceof Date ? date : new Date(date);
-  const day = d.getDay();
-  return WEEKLY_THEMES.find((t) => t.day === day) || WEEKLY_THEMES[0];
+  const yearStart = new Date(d.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((d - yearStart) / (1000 * 60 * 60 * 24));
+  return WEEKLY_THEMES[dayOfYear % WEEKLY_THEMES.length] || WEEKLY_THEMES[0];
 }
 
 function themePromptBlock(theme) {
+  const { WORDS_PER_DAY } = require('./wordOfDayConstants');
   return `Today's theme: "${theme.label}" — ${theme.description}
-All ${3} words MUST relate to this theme and connect to each other (not random unrelated dictionary words).
+All ${WORDS_PER_DAY} words MUST relate to this theme and connect to each other (not random unrelated dictionary words).
 Example words for inspiration (do NOT copy all): ${theme.examples.join(', ')}`;
 }
 

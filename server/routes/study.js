@@ -11,9 +11,30 @@ const {
   incrementTopicUsage,
 } = require('../middleware/plan-limits');
 const { checkPlanAiStudy } = require('../middleware/plan-ai-features');
-const { trackStudySessionStart, trackStudySessionComplete } = require('../utils/eventTracker');
 
 const router = express.Router();
+
+function parseJsonField(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return raw;
+}
+
+function mapStudySessionRow(row) {
+  return {
+    ...row,
+    lesson_explanation: parseJsonField(row.lesson_explanation) || [],
+    lesson_key_points: parseJsonField(row.lesson_key_points) || [],
+    lesson_examples: parseJsonField(row.lesson_examples) || [],
+    lesson_content: parseJsonField(row.lesson_content),
+  };
+}
 
 /**
  * Save study session
@@ -26,81 +47,87 @@ router.post(
   checkTopicLimit,
   incrementTopicUsage,
   async (req, res, next) => {
-  try {
-    const {
-      subject,
-      topic,
-      age,
-      language,
-      difficulty,
-      lesson_title,
-      lesson_introduction,
-      lesson_explanation,
-      lesson_key_points,
-      lesson_examples,
-      lesson_summary,
-    } = req.body;
+    try {
+      const {
+        subject,
+        topic,
+        age,
+        language,
+        difficulty,
+        lesson_title,
+        lesson_introduction,
+        lesson_explanation,
+        lesson_key_points,
+        lesson_examples,
+        lesson_summary,
+        lesson_content,
+      } = req.body;
 
-    const userId = req.user.id;
+      const userId = req.user.id;
 
-    // Validate input
-    if (
-      !subject ||
-      !topic ||
-      !age ||
-      !language ||
-      !difficulty ||
-      !lesson_title ||
-      !lesson_introduction ||
-      !lesson_explanation ||
-      !Array.isArray(lesson_explanation) ||
-      !lesson_key_points ||
-      !Array.isArray(lesson_key_points) ||
-      !lesson_examples ||
-      !Array.isArray(lesson_examples) ||
-      !lesson_summary
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields',
-      });
-    }
+      if (
+        !subject ||
+        !topic ||
+        !age ||
+        !language ||
+        !difficulty ||
+        !lesson_title ||
+        !lesson_introduction ||
+        !lesson_explanation ||
+        !Array.isArray(lesson_explanation) ||
+        !lesson_key_points ||
+        !Array.isArray(lesson_key_points) ||
+        !lesson_examples ||
+        !Array.isArray(lesson_examples) ||
+        !lesson_summary
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields',
+        });
+      }
 
-    // Insert study session
-    const query = `
+      const contentJson =
+        lesson_content && typeof lesson_content === 'object'
+          ? JSON.stringify(lesson_content)
+          : null;
+
+      const query = `
       INSERT INTO study_sessions (
         user_id, subject, topic, age, language, difficulty,
         lesson_title, lesson_introduction, lesson_explanation,
-        lesson_key_points, lesson_examples, lesson_summary
+        lesson_key_points, lesson_examples, lesson_summary, lesson_content
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
     `;
 
-    const result = await pool.query(query, [
-      userId,
-      subject,
-      topic,
-      age,
-      language,
-      difficulty,
-      lesson_title,
-      lesson_introduction,
-      JSON.stringify(lesson_explanation),
-      JSON.stringify(lesson_key_points),
-      JSON.stringify(lesson_examples),
-      lesson_summary,
-    ]);
+      const result = await pool.query(query, [
+        userId,
+        subject,
+        topic,
+        age,
+        language,
+        difficulty,
+        lesson_title,
+        lesson_introduction,
+        JSON.stringify(lesson_explanation),
+        JSON.stringify(lesson_key_points),
+        JSON.stringify(lesson_examples),
+        lesson_summary,
+        contentJson,
+      ]);
 
-    res.status(201).json({
-      success: true,
-      id: result.rows[0].id,
-      message: 'Study session saved successfully',
-    });
-  } catch (error) {
-    next(error);
+      res.status(201).json({
+        success: true,
+        id: result.rows[0].id,
+        message: 'Study session saved successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 /**
  * Get user's study history
@@ -109,7 +136,6 @@ router.get('/history/:userId', authenticateToken, checkModuleAccess('study'), as
   try {
     const { userId } = req.params;
 
-    // Verify user can only access their own history
     if (req.user.id !== userId) {
       return res.status(403).json({
         success: false,
@@ -131,7 +157,8 @@ router.get('/history/:userId', authenticateToken, checkModuleAccess('study'), as
         lesson_explanation,
         lesson_key_points,
         lesson_examples,
-        lesson_summary
+        lesson_summary,
+        lesson_content
       FROM study_sessions
       WHERE user_id = $1
       ORDER BY timestamp DESC
@@ -139,75 +166,13 @@ router.get('/history/:userId', authenticateToken, checkModuleAccess('study'), as
       [userId]
     );
 
-    // Parse JSON fields
-    const sessions = result.rows.map((row) => ({
-      ...row,
-      lesson_explanation:
-        typeof row.lesson_explanation === 'string'
-          ? JSON.parse(row.lesson_explanation)
-          : row.lesson_explanation,
-      lesson_key_points:
-        typeof row.lesson_key_points === 'string'
-          ? JSON.parse(row.lesson_key_points)
-          : row.lesson_key_points,
-      lesson_examples:
-        typeof row.lesson_examples === 'string'
-          ? JSON.parse(row.lesson_examples)
-          : row.lesson_examples,
-    }));
-
     res.json({
       success: true,
-      sessions,
+      sessions: result.rows.map(mapStudySessionRow),
     });
   } catch (error) {
     next(error);
   }
 });
 
-/**
- * Generate Ollama Cloud illustrations for a study lesson (hero + gallery).
- * POST /api/study/lesson-images
- */
-router.post(
-  '/lesson-images',
-  authenticateToken,
-  checkModuleAccess('study'),
-  checkPlanAiStudy,
-  async (req, res, next) => {
-    try {
-      const {
-        subject,
-        topic,
-        gradeLevel,
-        introductionImageKeyword,
-        introductionImagePrompt,
-        imageKeywords,
-        imageGallery,
-      } = req.body || {};
-      if (!subject || !topic) {
-        return res.status(400).json({ success: false, message: 'subject and topic are required' });
-      }
-      const { enrichLessonWithImages } = require('../utils/studyLessonImages');
-      const images = await enrichLessonWithImages(
-        {
-          introductionImageKeyword,
-          introductionImagePrompt,
-          imageKeywords: Array.isArray(imageKeywords) ? imageKeywords : [],
-          imageGallery: Array.isArray(imageGallery) ? imageGallery : [],
-        },
-        {
-          subject: String(subject),
-          topic: String(topic),
-          gradeLevel: gradeLevel ? String(gradeLevel) : undefined,
-        }
-      );
-      res.json({ success: true, ...images });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
 module.exports = router;
-

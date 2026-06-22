@@ -126,12 +126,14 @@ export function buildStudyTopicPrompt(
   const prompts: Record<LearningStudyFormat, string> = {
     learn: `Explain "${t}" using ONLY a hook card and a short explanation card. No flashcards or quiz.`,
     detail:
-      `Teach "${t}" as a complete in-chat lesson. Return ONLY: ` +
-      '(1) hook card with 3-5 overview bullets, ' +
-      '(2) explanation card with intro body plus readMore as the FULL detailed lesson (facts, examples, steps — at least 6 paragraphs), ' +
-      '(3) text card titled "Key facts" with 8-12 bullet facts, ' +
-      '(4) text card titled "Points to remember" with 5-8 bullet points. ' +
-      'Put all content in the cards — no placeholders.',
+      `Teach "${t}" as a complete premium learning module (32-section curriculum). Return cards: ` +
+      '(1) hook with learning objectives, difficulty, time estimate, ' +
+      '(2) explanation with story hook in body and full lesson in readMore, ' +
+      '(3) text "Why learn this?", (4) text "Quick summary" bullets, ' +
+      '(5) text "Memory tricks", (6) comparison card if relevant, ' +
+      '(7) text "Key facts", (8) text "Common misconceptions", ' +
+      '(9) text "Points to remember", (10) text "Real-world connections". ' +
+      'Engaging, child-friendly, curriculum-aligned. No placeholders.',
     flashcards:
       `Create ONLY flashcards about "${t}" — one flashcard card with at least 20 question/answer pairs. Each front must end with ?.`,
     quiz:

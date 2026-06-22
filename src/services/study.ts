@@ -4,10 +4,48 @@
 
 import { QuizConfig } from '@/types/quiz';
 import { User } from '@/types';
-import { aiApi, studyApi } from '@/services/api';
+import { aiApi } from '@/services/api';
 import { buildStudyLessonPrompt } from '@/services/studyPrompt';
 import { normalizeFlashcardList } from '@/utils/flashcardNormalize';
 import { validateStudyInputs, validateLessonIntro, STUDY_PROMPT_LIMITS } from '@/utils/studyPromptLimits';
+import type { StudyModuleExtensions } from './studyLessonTypes';
+import {
+  normalizeActivities,
+  normalizeAiTutorQa,
+  normalizeCaseStudies,
+  normalizeComparisons,
+  normalizeConcepts,
+  normalizeExamPrep,
+  normalizeFillBlanks,
+  normalizeGamified,
+  normalizeHotQuestions,
+  normalizeLearningLevels,
+  normalizeLessonHeader,
+  normalizeMatchPairs,
+  normalizeMcqs,
+  normalizeMisconceptions,
+  normalizeProjectWork,
+  normalizeQuickSummary,
+  normalizeRealWorldConnections,
+  normalizeTrueFalse,
+  normalizePracticeList,
+} from './studyLessonNormalize';
+
+export type {
+  LessonHeader,
+  ConceptBlock,
+  RealWorldConnections,
+  ComparisonTable,
+  Misconception,
+  ExamQuestionSet,
+  McqQuestion,
+  StudyActivity,
+  ProjectWork,
+  GamifiedChallenges,
+  HotQuestions,
+  AiTutorQa,
+  LearningLevels,
+} from './studyLessonTypes';
 
 export interface PracticeQuestion {
   question: string;
@@ -23,6 +61,7 @@ export interface Flashcard {
 export interface KeyTerm {
   term: string;
   definition: string;
+  easyExample?: string;
 }
 
 export interface VideoRecommendation {
@@ -51,10 +90,13 @@ export interface StudyGalleryImage {
   keyword: string;
 }
 
-export interface Lesson {
+export interface Lesson extends StudyModuleExtensions {
   title: string;
   whyLearnThis?: string;
   quickSummary?: string;
+  memoryTricks?: string[];
+  shortAnswer?: PracticeQuestion[];
+  longAnswer?: PracticeQuestion[];
   /** Plain intro text (legacy) or structured intro with image keyword */
   introduction: string | LessonIntroduction;
   explanation: string[];
@@ -151,11 +193,15 @@ function normalizeKeyTerms(raw: unknown): KeyTerm[] {
     .map((item) => {
       if (item && typeof item === 'object' && 'term' in item) {
         const o = item as KeyTerm;
-        return { term: String(o.term || '').trim(), definition: String(o.definition || '').trim() };
+        return {
+          term: String(o.term || '').trim(),
+          definition: String(o.definition || '').trim(),
+          easyExample: o.easyExample ? String(o.easyExample).trim() : undefined,
+        };
       }
       return null;
     })
-    .filter((t): t is KeyTerm => Boolean(t?.term));
+    .filter((t) => Boolean(t?.term)) as KeyTerm[];
 }
 
 function normalizeLesson(raw: Record<string, unknown>, topic: string): Lesson {
@@ -174,10 +220,35 @@ function normalizeLesson(raw: Record<string, unknown>, topic: string): Lesson {
   const oneMin = normalizeStringList(raw.oneMinuteRevision);
   const revisionNotes = normalizeStringList(raw.revisionNotes);
 
+  const misconceptions = normalizeMisconceptions(raw.misconceptions);
+  const legacyMistakes = normalizeStringList(raw.commonMistakes);
+
   const lesson: Lesson = {
+    lessonHeader: normalizeLessonHeader(raw.lessonHeader),
     title: String(raw.title || topic),
     whyLearnThis: raw.whyLearnThis ? String(raw.whyLearnThis).trim() : undefined,
-    quickSummary: raw.quickSummary ? String(raw.quickSummary).trim() : undefined,
+    quickSummary: normalizeQuickSummary(raw.quickSummary),
+    concepts: normalizeConcepts(raw.concepts),
+    realWorldConnections: normalizeRealWorldConnections(raw.realWorldConnections),
+    memoryTricks: normalizeStringList(raw.memoryTricks),
+    comparisons: normalizeComparisons(raw.comparisons),
+    misconceptions: misconceptions.length ? misconceptions : undefined,
+    examPrep: normalizeExamPrep(raw.examPrep),
+    mcqs: normalizeMcqs(raw.mcqs),
+    trueFalse: normalizeTrueFalse(raw.trueFalse),
+    fillBlanks: normalizeFillBlanks(raw.fillBlanks),
+    matchFollowing: normalizeMatchPairs(raw.matchFollowing),
+    shortAnswer: normalizePracticeList(raw.shortAnswer),
+    longAnswer: normalizePracticeList(raw.longAnswer),
+    caseStudies: normalizeCaseStudies(raw.caseStudies),
+    activities: normalizeActivities(raw.activities),
+    projectWork: normalizeProjectWork(raw.projectWork),
+    gamifiedChallenges: normalizeGamified(raw.gamifiedChallenges),
+    hotQuestions: normalizeHotQuestions(raw.hotQuestions),
+    aiTutorQa: normalizeAiTutorQa(raw.aiTutorQa),
+    discussionPrompts: normalizeStringList(raw.discussionPrompts),
+    learningLevels: normalizeLearningLevels(raw.learningLevels),
+    learningOutcomes: normalizeStringList(raw.learningOutcomes),
     introduction: intro,
     explanation,
     keyPoints,
@@ -186,11 +257,17 @@ function normalizeLesson(raw: Record<string, unknown>, topic: string): Lesson {
     realLifeAnalogy: raw.realLifeAnalogy ? String(raw.realLifeAnalogy).trim() : undefined,
     keyTerms: normalizeKeyTerms(raw.keyTerms),
     didYouKnow: normalizeStringList(raw.didYouKnow),
-    commonMistakes: normalizeStringList(raw.commonMistakes),
+    commonMistakes: legacyMistakes.length
+      ? legacyMistakes
+      : misconceptions.map((m) => `❌ ${m.wrong} ✅ ${m.correct}`),
     examNotes: normalizeStringList(raw.examNotes),
     thinkingQuestions: normalizeStringList(raw.thinkingQuestions),
     oneMinuteRevision: oneMin.length ? oneMin : revisionNotes,
-    askAiTeacherPrompts: normalizeStringList(raw.askAiTeacherPrompts),
+    askAiTeacherPrompts: (() => {
+      const prompts = normalizeStringList(raw.askAiTeacherPrompts);
+      if (prompts.length) return prompts;
+      return normalizeAiTutorQa(raw.aiTutorQa).map((q) => q.question);
+    })(),
     practiceQuestions: quizQuestions,
     imageKeywords: normalizeStringList(raw.imageKeywords),
     imageGallery: normalizeImageGallery(raw.imageGallery),
@@ -277,7 +354,8 @@ export async function generateLesson(
         {
           role: 'system',
           content:
-            'You are an expert CBSE teacher and instructional designer. Return ONLY valid JSON. No markdown fences.',
+            'You are an expert curriculum designer, child psychologist, and instructional designer. ' +
+            'Return ONLY valid JSON for the 32-section study module. No markdown fences.',
         },
         { role: 'user', content: prompt },
       ],
@@ -305,32 +383,8 @@ export async function generateLesson(
       );
     }
 
-    const wantsVisuals =
-      studyOptions?.lessonStyle === 'Visual' ||
-      (studyOptions?.contentFocus?.includes('Diagrams & Images') ?? true);
-
-    if (wantsVisuals) {
-      try {
-        const images = await studyApi.enrichLessonImages({
-          subject: config.subject,
-          topic,
-          gradeLevel: classLevel,
-          introductionImageKeyword: getIntroductionImageKeyword(lesson.introduction),
-          introductionImagePrompt: getIntroductionImagePrompt(lesson.introduction),
-          imageKeywords: lesson.imageKeywords,
-          imageGallery: lesson.imageGallery,
-        });
-        lesson.introImageUrl = images.introImageUrl;
-        lesson.galleryImages = images.galleryImages || [];
-      } catch (imgErr) {
-        console.warn('[Study] Ollama images skipped:', imgErr);
-        lesson.introImageUrl = null;
-        lesson.galleryImages = [];
-      }
-    } else {
-      lesson.introImageUrl = null;
-      lesson.galleryImages = [];
-    }
+    lesson.introImageUrl = null;
+    lesson.galleryImages = [];
 
     return lesson;
   } catch (error) {
