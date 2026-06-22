@@ -28,7 +28,10 @@ export const DIFFICULTY_COLOR: Record<PuzzleDifficulty, string> = {
 
 export const DEFAULT_PUBLIC_GRADE = 'Class 5 / Grade 5';
 export const DAILY_PUZZLE_COUNT = 20;
-export const PUZZLE_HOME_PREVIEW_COUNT = 6;
+export const PUZZLE_HOME_PREVIEW_COUNT = 5;
+
+/** Homepage preview — only brain teasers & critical thinking. */
+export const HOME_PREVIEW_CATEGORIES = ['Brain Teaser', 'Critical Thinking'] as const;
 
 export const PUZZLE_HUB_TABS = [
   { id: 'daily', label: 'Today\'s Puzzles', emoji: '⭐' },

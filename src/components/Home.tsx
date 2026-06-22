@@ -1,43 +1,33 @@
 /**
- * Unified Home page component - Combines landing page with integrated auth modal
+ * Unified Home page — landing layout with sticky nav, hero, daily preview, and auth modal.
  */
 
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
   VStack,
   Container,
   Text,
   HStack,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalBody,
-  ModalCloseButton,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  SimpleGrid,
+  Heading,
   useDisclosure,
-  Alert,
-  AlertIcon,
 } from '@/shared/design-system';
 import { ThreeJSBackground } from '@/components/home/ThreeJSBackground';
 import { FloatingElement } from '@/components/home/FloatingElement';
-import { HeroSection, HeroButtons } from '@/components/home/HeroSection';
+import { HomeNav } from '@/components/home/HomeNav';
+import { HomeHero } from '@/components/home/HomeHero';
+import { HomeAnimatedSection } from '@/components/home/HomeAnimatedSection';
+import { HomeAuthModal } from '@/components/home/HomeAuthModal';
 import { LandingShowcase } from '@/components/home/LandingShowcase';
 import { DailyPuzzlesPanel } from '@/components/puzzles/DailyPuzzlesPanel';
-import { AppInstallButton } from '@/components/layout/AppInstallButton';
+import { HomeWordOfDayPanel } from '@/components/home/HomeWordOfDayPanel';
+import { PUZZLE_HOME_PREVIEW_COUNT } from '@/constants/puzzles';
 import { useAutoAppInstallPrompt } from '@/hooks/useAutoAppInstallPrompt';
-import { LoginForm } from '@/components/auth/LoginForm';
-import { RegisterForm } from '@/components/auth/RegisterForm';
 import { PricingPlansSection } from '@/components/pricing/PricingPlansSection';
 import { APP_CONSTANTS } from '@/constants/app';
-import { publicApi } from '@/services/api';
-import { authApi } from '@/services/api';
+import { publicApi, authApi } from '@/services/api';
 import { User } from '@/types';
 import { getPostAuthPath } from '@/utils/profileComplete';
 
@@ -45,9 +35,13 @@ interface HomeProps {
   onAuthSuccess?: () => void;
 }
 
-/**
- * Unified Home page component with integrated auth modal
- */
+const DESKTOP_FLOATERS = [
+  { delay: 0, emoji: '✨', top: '12%', left: '4%' },
+  { delay: 0.5, emoji: '🚀', top: '22%', left: '92%' },
+  { delay: 1, emoji: '💡', top: '58%', left: '6%' },
+  { delay: 1.5, emoji: '🎯', top: '72%', left: '90%' },
+] as const;
+
 export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
   useAutoAppInstallPrompt();
   const navigate = useNavigate();
@@ -57,83 +51,43 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Check URL params for auth mode
   useEffect(() => {
     const authParam = searchParams.get('auth');
     if (authParam === 'login' || authParam === 'register') {
       setActiveTab(authParam === 'login' ? 0 : 1);
       onOpen();
-      // Clean up URL
       setSearchParams({});
     }
   }, [searchParams, onOpen, setSearchParams]);
 
   useEffect(() => {
-    // Track home page view in backend
-    publicApi.trackHomeView().catch((error) => {
-      console.error('Failed to track home view:', error);
-    });
-
-    // Fetch total views count
+    publicApi.trackHomeView().catch((err) => console.error('Failed to track home view:', err));
     publicApi
       .getTotalHomeViews()
-      .then((response) => {
-        if (response.success) {
-          setTotalViews(response.totalViews);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to fetch total views:', error);
-      });
+      .then((res) => { if (res.success) setTotalViews(res.totalViews); })
+      .catch((err) => console.error('Failed to fetch total views:', err));
   }, []);
 
   const handleGetStarted = useCallback(() => {
-    setActiveTab(1); // Register tab
+    setActiveTab(1);
     setAuthError(null);
     onOpen();
   }, [onOpen]);
 
   const handleLogin = useCallback(() => {
-    setActiveTab(0); // Login tab
+    setActiveTab(0);
     setAuthError(null);
     onOpen();
   }, [onOpen]);
 
-  const handleLoginSuccess = useCallback(() => {
-    const { user: currentUser } = authApi.getCurrentUser();
-    if (currentUser) {
-      onClose();
-      setAuthError(null);
-      if (onAuthSuccess) {
-        onAuthSuccess();
-      } else {
-        navigate(getPostAuthPath(currentUser as User));
-      }
-    }
-  }, [onClose, navigate, onAuthSuccess]);
-
-  const handleRegisterSuccess = useCallback(() => {
-    const { user: currentUser } = authApi.getCurrentUser();
-    if (currentUser) {
-      onClose();
-      setAuthError(null);
-      if (onAuthSuccess) {
-        onAuthSuccess();
-      } else {
-        navigate(getPostAuthPath(currentUser as User));
-      }
-    }
-  }, [onClose, navigate, onAuthSuccess]);
-
-  const handleSwitchToRegister = useCallback(() => {
-    setActiveTab(1);
+  const handleAuthSuccess = useCallback(() => {
+    const { user } = authApi.getCurrentUser();
+    if (!user) return;
+    onClose();
     setAuthError(null);
-  }, []);
-
-  const handleSwitchToLogin = useCallback(() => {
-    setActiveTab(0);
-    setAuthError(null);
-  }, []);
+    if (onAuthSuccess) onAuthSuccess();
+    else navigate(getPostAuthPath(user as User));
+  }, [onClose, navigate, onAuthSuccess]);
 
   const handleClose = useCallback(() => {
     setAuthError(null);
@@ -143,62 +97,69 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
   return (
     <Box position="relative" minHeight="100vh" overflow="hidden">
       <ThreeJSBackground />
+      <HomeNav onLogin={handleLogin} onGetStarted={handleGetStarted} />
 
-      {/* Floating decorative elements */}
-      <FloatingElement delay={0} emoji="✨" top="10%" left="5%" />
-      <FloatingElement delay={0.5} emoji="🚀" top="20%" left="90%" />
-      <FloatingElement delay={1} emoji="💡" top="60%" left="8%" />
-      <FloatingElement delay={1.5} emoji="🎯" top="70%" left="92%" />
-      <FloatingElement delay={2} emoji="⭐" top="40%" left="3%" />
-      <FloatingElement delay={2.5} emoji="🔥" top="50%" left="95%" />
+      {DESKTOP_FLOATERS.map((f) => (
+        <Box key={f.emoji} display={{ base: 'none', lg: 'block' }}>
+          <FloatingElement {...f} />
+        </Box>
+      ))}
 
-      <Container maxW="7xl" py={{ base: 8, sm: 10, md: 20 }} position="relative" zIndex={1} px={{ base: 3, sm: 4, md: 6 }}>
-        {/* Total Views Badge */}
+      <Container maxW="7xl" position="relative" zIndex={1} px={{ base: 3, sm: 4, md: 6 }}>
         {totalViews !== null && (
           <Box
-            position="absolute"
-            top={4}
+            position="fixed"
+            top={{ base: 14, md: 16 }}
             right={4}
-            bg="rgba(255, 255, 255, 0.2)"
+            bg="rgba(255, 255, 255, 0.12)"
             backdropFilter="blur(10px)"
             borderRadius="full"
-            px={4}
-            py={2}
-            zIndex={2}
+            px={3}
+            py={1.5}
+            zIndex={90}
+            border="1px solid"
+            borderColor="whiteAlpha.200"
           >
-            <HStack spacing={2}>
-              <Text fontSize={{ base: 'xs', md: 'sm' }} color="white" fontWeight="bold">
-                👁️
-              </Text>
-              <Text fontSize={{ base: 'xs', md: 'sm' }} color="white" fontWeight="bold">
+            <HStack spacing={1.5}>
+              <Text fontSize="xs" color="white" aria-hidden>👁️</Text>
+              <Text fontSize="xs" color="whiteAlpha.900" fontWeight="semibold">
                 {totalViews.toLocaleString()} views
               </Text>
             </HStack>
           </Box>
         )}
 
-        <VStack spacing={12} align="stretch">
-          <HeroSection />
+        <VStack spacing={{ base: 12, md: 16 }} align="stretch" pb={{ base: 8, md: 12 }}>
+          <HomeHero onGetStarted={handleGetStarted} onLogin={handleLogin} />
 
-          {/* Buttons positioned below the circle */}
-          <Box mt={{ base: 6, md: '460px' }} position="relative" zIndex={2}>
-            <VStack spacing={4}>
-              <HeroButtons onGetStarted={handleGetStarted} onLogin={handleLogin} />
-              <AppInstallButton variant="outline" />
+          <HomeAnimatedSection id="daily">
+            <VStack spacing={4} align="stretch">
+              <VStack spacing={1} textAlign="center">
+                <Heading
+                  size={{ base: 'md', md: 'lg' }}
+                  color="cyan.300"
+                  fontWeight="extrabold"
+                >
+                  Today&apos;s learning picks 🌟
+                </Heading>
+                <Text fontSize={{ base: 'sm', md: 'md' }} color="whiteAlpha.800" maxW="560px" mx="auto">
+                  Fresh words and brain-teasing puzzles — updated every day. Sign up to save your streak.
+                </Text>
+              </VStack>
+              <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={{ base: 4, md: 6 }} alignItems="stretch">
+                <HomeWordOfDayPanel onGetStarted={handleGetStarted} />
+                <DailyPuzzlesPanel variant="dark" maxCount={PUZZLE_HOME_PREVIEW_COUNT} showViewAll={false} />
+              </SimpleGrid>
             </VStack>
-          </Box>
+          </HomeAnimatedSection>
 
-          <Box mt={{ base: 4, md: 8 }} position="relative" zIndex={2}>
+          <HomeAnimatedSection id="features" delay={0.05}>
             <LandingShowcase onGetStarted={handleGetStarted} />
-          </Box>
+          </HomeAnimatedSection>
 
-          <Box mt={{ base: 6, md: 8 }} position="relative" zIndex={2} maxW="900px" mx="auto" w="100%">
-            <DailyPuzzlesPanel variant="dark" maxCount={5} showViewAll={false} />
-          </Box>
-
-          <Box mt={{ base: 8, md: 12 }} position="relative" zIndex={2}>
+          <HomeAnimatedSection id="pricing" delay={0.08}>
             <PricingPlansSection variant="landing" />
-          </Box>
+          </HomeAnimatedSection>
         </VStack>
       </Container>
 
@@ -216,175 +177,46 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
           <Text fontSize="sm" color="whiteAlpha.700">
             © {new Date().getFullYear()} {APP_CONSTANTS.BRAND_NAME}. All rights reserved.
           </Text>
-          <HStack spacing={4}>
-            <Text
-              as="a"
-              href="#features"
-              fontSize="sm"
-              color="cyan.300"
-              _hover={{ textDecoration: 'underline' }}
-            >
-              Features
-            </Text>
-            <Text
-              as="a"
-              href="#pricing"
-              fontSize="sm"
-              color="cyan.300"
-              _hover={{ textDecoration: 'underline' }}
-            >
-              Pricing Plans
-            </Text>
-            <Text
-              as={RouterLink}
-              to="/privacy"
-              fontSize="sm"
-              color="cyan.300"
-              _hover={{ textDecoration: 'underline' }}
-            >
+          <HStack spacing={4} flexWrap="wrap">
+            {[
+              { label: 'Features', href: '#features' },
+              { label: 'Daily', href: '#daily' },
+              { label: 'Pricing', href: '#pricing' },
+            ].map((link) => (
+              <Text
+                key={link.href}
+                as="a"
+                href={link.href}
+                fontSize="sm"
+                color="cyan.300"
+                _hover={{ textDecoration: 'underline' }}
+              >
+                {link.label}
+              </Text>
+            ))}
+            <Text as={RouterLink} to="/privacy" fontSize="sm" color="cyan.300" _hover={{ textDecoration: 'underline' }}>
               Privacy Policy
             </Text>
-            <Text
-              as={RouterLink}
-              to="/disclaimer"
-              fontSize="sm"
-              color="cyan.300"
-              _hover={{ textDecoration: 'underline' }}
-            >
+            <Text as={RouterLink} to="/disclaimer" fontSize="sm" color="cyan.300" _hover={{ textDecoration: 'underline' }}>
               PII Disclaimer
             </Text>
-            <Text fontSize="sm" color="whiteAlpha.600">
-              Made with ❤️ for kids
-            </Text>
+            <Text fontSize="sm" color="whiteAlpha.600">Made with ❤️ for kids</Text>
           </HStack>
         </HStack>
       </Box>
 
-      {/* Auth Modal */}
-      <Modal isOpen={isOpen} onClose={handleClose} size={{ base: 'full', md: 'lg' }} isCentered>
-        <ModalOverlay bg="blackAlpha.800" backdropFilter="blur(10px)" />
-        <ModalContent
-          bg="rgba(5, 5, 16, 0.95)"
-          backdropFilter="blur(20px)"
-          border="1px solid"
-          borderColor="rgba(255, 255, 255, 0.1)"
-          borderRadius="2xl"
-          overflow="hidden"
-          boxShadow="0 20px 60px rgba(0, 242, 255, 0.2)"
-        >
-          <ModalCloseButton
-            color="white"
-            onClick={handleClose}
-            zIndex={10}
-            _hover={{ color: '#00f2ff', bg: 'rgba(0, 242, 255, 0.1)' }}
-          />
-          <ModalBody p={0}>
-            <Tabs index={activeTab} onChange={setActiveTab}>
-              <Box
-                bg="rgba(255, 255, 255, 0.05)"
-                borderBottom="1px solid"
-                borderColor="rgba(255, 255, 255, 0.1)"
-                px={6}
-                py={4}
-              >
-                <TabList borderBottom="none">
-                <Tab
-                  color="rgba(255, 255, 255, 0.7)"
-                  _selected={{
-                    color: '#00f2ff',
-                    borderBottom: '2px solid #00f2ff',
-                    fontWeight: 'bold',
-                  }}
-                  _hover={{ color: '#00f2ff', opacity: 0.8 }}
-                  fontSize={{ base: 'sm', md: 'lg' }}
-                  px={{ base: 4, md: 6 }}
-                  transition="all 0.3s"
-                >
-                  Login 👋
-                </Tab>
-                <Tab
-                  color="rgba(255, 255, 255, 0.7)"
-                  _selected={{
-                    color: '#00f2ff',
-                    borderBottom: '2px solid #00f2ff',
-                    fontWeight: 'bold',
-                  }}
-                  _hover={{ color: '#00f2ff', opacity: 0.8 }}
-                  fontSize={{ base: 'sm', md: 'lg' }}
-                  px={{ base: 4, md: 6 }}
-                  transition="all 0.3s"
-                >
-                  Sign Up 🎉
-                </Tab>
-                </TabList>
-              </Box>
-
-              <TabPanels>
-                <TabPanel px={{ base: 4, md: 6 }} py={{ base: 6, md: 8 }} bg="transparent">
-                  <AnimatePresence mode="wait">
-                    {authError && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        <Alert
-                          status="error"
-                          borderRadius="md"
-                          mb={4}
-                          fontSize={{ base: 'xs', md: 'sm' }}
-                          bg="rgba(255, 0, 0, 0.1)"
-                          border="1px solid"
-                          borderColor="rgba(255, 0, 0, 0.3)"
-                          color="white"
-                        >
-                          <AlertIcon />
-                          {authError}
-                        </Alert>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <LoginForm
-                    onLoginSuccess={handleLoginSuccess}
-                    onSwitchToRegister={handleSwitchToRegister}
-                    onError={setAuthError}
-                  />
-                </TabPanel>
-                <TabPanel px={{ base: 4, md: 6 }} py={{ base: 6, md: 8 }} bg="transparent">
-                  <AnimatePresence mode="wait">
-                    {authError && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        <Alert
-                          status="error"
-                          borderRadius="md"
-                          mb={4}
-                          fontSize={{ base: 'xs', md: 'sm' }}
-                          bg="rgba(255, 0, 0, 0.1)"
-                          border="1px solid"
-                          borderColor="rgba(255, 0, 0, 0.3)"
-                          color="white"
-                        >
-                          <AlertIcon />
-                          {authError}
-                        </Alert>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <RegisterForm
-                    onRegisterSuccess={handleRegisterSuccess}
-                    onSwitchToLogin={handleSwitchToLogin}
-                    onError={setAuthError}
-                  />
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      <HomeAuthModal
+        isOpen={isOpen}
+        activeTab={activeTab}
+        authError={authError}
+        onClose={handleClose}
+        onTabChange={setActiveTab}
+        onLoginSuccess={handleAuthSuccess}
+        onRegisterSuccess={handleAuthSuccess}
+        onSwitchToRegister={() => { setActiveTab(1); setAuthError(null); }}
+        onSwitchToLogin={() => { setActiveTab(0); setAuthError(null); }}
+        onError={setAuthError}
+      />
     </Box>
   );
 };

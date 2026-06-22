@@ -23,7 +23,8 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.5, delay }}
       whileHover={{ scale: 1.03, y: -5 }}
       whileTap={{ scale: 0.98 }}

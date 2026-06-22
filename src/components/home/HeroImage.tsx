@@ -249,7 +249,7 @@ export const HeroImage: React.FC = () => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.8, delay: 0.3 }}
     >
-      <Box display="flex" justifyContent="center" alignItems="center" py={8}>
+      <Box display="flex" justifyContent="center" alignItems="center" py={{ base: 2, md: 4 }}>
         <motion.div
           animate={{
             y: [0, -20, 0],
@@ -261,8 +261,8 @@ export const HeroImage: React.FC = () => {
           }}
         >
           <Box
-            width={{ base: '300px', md: '400px' }}
-            height={{ base: '300px', md: '400px' }}
+            width={{ base: '240px', sm: '280px', md: '360px', lg: '400px' }}
+            height={{ base: '240px', sm: '280px', md: '360px', lg: '400px' }}
             borderRadius="full"
             bg="rgba(255, 255, 255, 0.1)"
             backdropFilter="blur(10px)"

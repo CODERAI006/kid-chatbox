@@ -167,23 +167,28 @@ async function writeCache(gradeKey, cacheDate, payload) {
   );
 }
 
-/** Pick 2 puzzles per skill category for balanced daily set. */
-function pickByCategoryQuota(items, count, categoryPlan, seedStr) {
-  const byCat = {};
-  for (const p of items) {
-    if (!byCat[p.category]) byCat[p.category] = [];
-    byCat[p.category].push(p);
-  }
+/** Pick puzzles per category quota (10 creative + 10 core). */
+function filterForSlot(items, slot) {
+  return items.filter((p) => {
+    if (p.category !== slot.category) return false;
+    if (slot.puzzleType && p.puzzleType !== slot.puzzleType) return false;
+    if (slot.excludePuzzleTypes?.includes(p.puzzleType)) return false;
+    return true;
+  });
+}
 
+function pickByCategoryQuota(items, count, categoryPlan, seedStr) {
   const picked = [];
   const usedIds = new Set();
-  const perCat = Math.max(1, Math.floor(count / categoryPlan.length));
 
   for (const slot of categoryPlan) {
-    const pool = seededPick(byCat[slot.category] || [], (byCat[slot.category] || []).length, `${seedStr}:${slot.category}`);
+    const quota = slot.quota || 1;
+    const pool = filterForSlot(items, slot);
+    const label = slot.label || slot.category;
+    const shuffled = seededPick(pool, pool.length, `${seedStr}:${label}:${slot.puzzleType || 'any'}`);
     let added = 0;
-    for (const p of pool) {
-      if (added >= perCat || picked.length >= count) break;
+    for (const p of shuffled) {
+      if (added >= quota || picked.length >= count) break;
       if (usedIds.has(p.id)) continue;
       picked.push({ ...p, skillArea: p.skillArea || slot.skillArea });
       usedIds.add(p.id);
@@ -202,9 +207,11 @@ function pickByCategoryQuota(items, count, categoryPlan, seedStr) {
 }
 
 function categoryBreakdown(puzzles) {
+  const { puzzleBreakdownKey } = require('../data/puzzleCategoryConfig');
   const breakdown = {};
   for (const p of puzzles) {
-    breakdown[p.category] = (breakdown[p.category] || 0) + 1;
+    const key = puzzleBreakdownKey(p);
+    breakdown[key] = (breakdown[key] || 0) + 1;
   }
   return breakdown;
 }
@@ -343,7 +350,7 @@ async function buildDailyPuzzles(dateInput, gradeInput) {
   const categoryPlan = getDailyCategoryPlan(classNum);
   const prioritized = prioritizePuzzles(eligible, classNum);
   const ordered = applyGradeDifficultyPolicy(prioritized, classNum, count);
-  const seed = `${cacheDate}:${gradeLabel}:${classNum}:v5-ai`;
+  const seed = `${cacheDate}:${gradeLabel}:${classNum}:v6-quota`;
   const selected = pickByCategoryQuota(ordered, count, categoryPlan, seed)
     .map((p) => elevatePuzzleForGrade(p, classNum));
 

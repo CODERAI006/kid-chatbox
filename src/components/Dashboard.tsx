@@ -22,6 +22,7 @@ import { StudentUpcomingTestsMarquee } from '@/components/layout/StudentUpcoming
 import { PullToRefresh } from './PullToRefresh';
 import { WordOfTheDay } from './WordOfTheDay';
 import { DailyPuzzlesPanel } from '@/components/puzzles/DailyPuzzlesPanel';
+import { PUZZLE_HOME_PREVIEW_COUNT } from '@/constants/puzzles';
 import { usePlanAiFlags } from '@/hooks/usePlanAiFlags';
 import { isAppAdmin } from '@/utils/userAccess';
 import { type RecentStudyItem } from '@/components/dashboard/MyStudyCard';
@@ -199,7 +200,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
 
                 <WordOfTheDay grade={user.grade} variant="dashboard" />
-                <DailyPuzzlesPanel grade={user.grade} maxCount={20} />
+                <DailyPuzzlesPanel grade={user.grade} maxCount={PUZZLE_HOME_PREVIEW_COUNT} showViewAll />
               </VStack>
             </Box>
 

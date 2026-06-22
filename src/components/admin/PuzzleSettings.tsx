@@ -121,7 +121,7 @@ export function PuzzleSettingsPage() {
       <Box>
         <Heading size="md" mb={2}>Puzzle Module</Heading>
         <Text color="gray.600" fontSize="sm">
-          {DAILY_PUZZLE_COUNT} smart questions per class per day — AI + web scrape, balanced across all skill areas.
+          {DAILY_PUZZLE_COUNT} smart questions per class — 10 brain teasers/riddles/critical thinking + 10 subject puzzles.
         </Text>
       </Box>
 

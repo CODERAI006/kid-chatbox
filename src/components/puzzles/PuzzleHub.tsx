@@ -66,7 +66,7 @@ export function PuzzleHub({ grade }: Props) {
           <Box>
             <Heading size="lg" color="purple.700">🧩 Puzzle Hub</Heading>
             <Text color="gray.600" fontSize="sm">
-              {DAILY_PUZZLE_COUNT} smart questions for <strong>{gradeLabel}</strong> — GK, history, civics, finance &amp; more
+              {DAILY_PUZZLE_COUNT} smart questions for <strong>{gradeLabel}</strong> — 10 brain teasers, riddles &amp; critical thinking + 10 subject puzzles
             </Text>
           </Box>
 

@@ -3,7 +3,7 @@
  */
 
 const { pool } = require('../config/database');
-const { getDailyCategoryPlan, PUZZLES_PER_CATEGORY, DAILY_SKILL_CATEGORIES } = require('../data/puzzleCategoryConfig');
+const { getDailyCategoryPlan, DAILY_CATEGORY_SLOTS } = require('../data/puzzleCategoryConfig');
 const { generatePuzzlesBatch, generateSingleCategory } = require('../utils/puzzleAi');
 const { scrapeAndImport } = require('./puzzleScraperService');
 const { isLlmConfigured } = require('../utils/ollamaClient');
@@ -59,13 +59,16 @@ async function ensureDailyContent(dateStr, gradeLabel, classNum) {
   if (aiCount < 10 && flags.ai_generation_enabled && isLlmConfigured()) {
     for (const slot of plan) {
       if (aiCount >= 20) break;
-      try {
-        const p = await generateSingleCategory(dateStr, gradeLabel, classNum, slot);
-        if (p) {
-          await saveGeneratedPuzzle(p);
-          aiCount += 1;
-        }
-      } catch { /* continue */ }
+      const need = slot.quota || 1;
+      for (let i = 0; i < need && aiCount < 20; i++) {
+        try {
+          const p = await generateSingleCategory(dateStr, gradeLabel, classNum, slot);
+          if (p) {
+            await saveGeneratedPuzzle(p);
+            aiCount += 1;
+          }
+        } catch { /* continue */ }
+      }
     }
   }
 
@@ -78,7 +81,7 @@ async function ensureDailyContent(dateStr, gradeLabel, classNum) {
     }
   }
 
-  return { aiCount, scrapeCount, aiPrompt, categories: DAILY_SKILL_CATEGORIES.length };
+  return { aiCount, scrapeCount, aiPrompt, categories: DAILY_CATEGORY_SLOTS.length };
 }
 
 module.exports = { ensureDailyContent, saveGeneratedPuzzle, getGlobalFlags };

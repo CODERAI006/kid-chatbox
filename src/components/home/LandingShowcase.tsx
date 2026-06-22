@@ -37,7 +37,7 @@ interface LandingShowcaseProps {
 
 export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onGetStarted }) => {
   return (
-    <VStack spacing={{ base: 10, md: 14 }} align="stretch" w="100%" id="features">
+    <VStack spacing={{ base: 10, md: 14 }} align="stretch" w="100%">
       {/* Value stats strip */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

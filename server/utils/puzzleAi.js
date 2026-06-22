@@ -6,7 +6,7 @@ const { ollamaChat, isLlmConfigured } = require('./ollamaClient');
 const { getCbseVocabularyGuidance } = require('./cbseGradeHints');
 const { targetDifficultyForClass } = require('./puzzleDifficultyPolicy');
 const { difficultyMeta } = require('../data/puzzleMeta');
-const { PUZZLES_PER_CATEGORY } = require('../data/puzzleCategoryConfig');
+const { expandPlanSlots } = require('../data/puzzleCategoryConfig');
 const crypto = require('crypto');
 
 class PuzzleGenerationError extends Error {
@@ -48,12 +48,7 @@ Return ONLY raw JSON (no markdown):
 
 function buildBatchPrompt(dateStr, gradeLabel, classNum, plan) {
   const cbse = getCbseVocabularyGuidance(gradeLabel, classNum <= 5 ? 'basic' : classNum <= 8 ? 'intermediate' : 'advanced');
-  const slots = [];
-  plan.forEach((slot) => {
-    for (let i = 0; i < PUZZLES_PER_CATEGORY; i++) {
-      slots.push({ ...slot, slotIndex: slots.length + 1 });
-    }
-  });
+  const slots = expandPlanSlots(plan);
 
   const slotLines = slots.map((s, i) =>
     `${i + 1}. category="${s.category}" type="${s.puzzleType}" skill="${s.skillArea}"`,
@@ -120,12 +115,10 @@ function parsePuzzleJson(raw, slots, classNum) {
 async function generatePuzzlesBatch(dateStr, gradeLabel, classNum, plan) {
   if (!isLlmConfigured()) return { puzzles: [], prompt: null, source: 'ai-unavailable' };
 
-  const slots = [];
-  plan.forEach((slot) => {
-    for (let i = 0; i < PUZZLES_PER_CATEGORY; i++) {
-      slots.push({ ...slot, _prompt: buildCategoryPrompt(dateStr, gradeLabel, classNum, slot, slots.length) });
-    }
-  });
+  const slots = expandPlanSlots(plan).map((slot, i) => ({
+    ...slot,
+    _prompt: buildCategoryPrompt(dateStr, gradeLabel, classNum, slot, i),
+  }));
 
   const batchPrompt = buildBatchPrompt(dateStr, gradeLabel, classNum, plan);
 
