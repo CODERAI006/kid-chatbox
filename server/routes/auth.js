@@ -7,6 +7,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { authRateLimiter } = require('../middleware/authRateLimit');
+const { getJwtSecret, JWT_EXPIRES_IN } = require('../utils/jwtConfig');
+const { validatePassword } = require('../utils/passwordPolicy');
+const { verifyGoogleIdToken } = require('../utils/googleAuth');
+const { setAuthCookie, clearAuthCookie } = require('../utils/authCookies');
 const { trackEvent, EVENT_TYPES } = require('../utils/eventTracker');
 const { sendWelcomeEmail, sendGoogleWelcomeEmail } = require('../utils/email');
 const { generateUniqueBuddyId } = require('../utils/buddyId');
@@ -31,7 +36,42 @@ const { isProfileComplete } = require('../utils/profileComplete');
 const { notifyAdminsOfUserLogin } = require('../utils/adminLoginNotifications');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+function signAuthToken(user) {
+  return jwt.sign(
+    { userId: user.id, email: user.email },
+    getJwtSecret(),
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+}
+
+function sendAuthSuccess(res, user, extra = {}) {
+  const token = signAuthToken(user);
+  setAuthCookie(res, token);
+  return res.json({
+    success: true,
+    user: buildAuthUserPayload(user),
+    ...extra,
+  });
+}
+
+function rejectBlockedUserStatus(user, res) {
+  if (user.status === 'pending') {
+    res.status(403).json({
+      success: false,
+      message: 'Your account is pending approval. Please wait for admin approval.',
+    });
+    return true;
+  }
+  if (user.status === 'rejected' || user.status === 'suspended') {
+    res.status(403).json({
+      success: false,
+      message: 'Your account has been blocked. Please contact administrator.',
+    });
+    return true;
+  }
+  return false;
+}
 
 function buildAuthUserPayload(user) {
   const { age, ageGroup, birthDate } = deriveAgeFields(user);
@@ -77,7 +117,7 @@ function mapSessionUser(userRow, extras = {}) {
 /**
  * Register a new user
  */
-router.post('/register', async (req, res, next) => {
+router.post('/register', authRateLimiter, async (req, res, next) => {
   const client = await pool.connect();
 
   try {
@@ -87,6 +127,14 @@ router.post('/register', async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Email, password, and name are required',
+      });
+    }
+
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: passwordCheck.message,
       });
     }
 
@@ -181,12 +229,6 @@ router.post('/register', async (req, res, next) => {
     await setupNewUserAccount(client, user.id);
     await client.query('COMMIT');
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-
     await trackEvent({
       userId: user.id,
       eventType: EVENT_TYPES.USER_REGISTER,
@@ -217,12 +259,11 @@ router.post('/register', async (req, res, next) => {
       console.error(`Failed to send welcome email to ${user.email}:`, emailError.message);
     }
 
-    const { age, ageGroup, birthDate: derivedBirthDate } = deriveAgeFields(user);
+    setAuthCookie(res, signAuthToken(user));
 
     res.status(201).json({
       success: true,
       user: buildAuthUserPayload(user),
-      token,
       message: 'Registration successful. Your account is enabled with the Freemium plan.',
     });
   } catch (error) {
@@ -244,7 +285,7 @@ router.post('/register', async (req, res, next) => {
 /**
  * Login with email and password
  */
-router.post('/login', async (req, res, next) => {
+router.post('/login', authRateLimiter, async (req, res, next) => {
   try {
     const { email: rawEmail, password } = req.body;
 
@@ -330,21 +371,19 @@ router.post('/login', async (req, res, next) => {
       method: 'email',
     });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-
-    res.json({
-      success: true,
-      user: buildAuthUserPayload(user),
-      token,
-    });
+    sendAuthSuccess(res, user);
   } catch (error) {
     next(error);
   }
+});
+
+/**
+ * Logout — clears httpOnly auth cookie
+ * POST /api/auth/logout
+ */
+router.post('/logout', (req, res) => {
+  clearAuthCookie(res);
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 /**
@@ -363,6 +402,16 @@ router.post('/google', async (req, res, next) => {
       });
     }
 
+    let googleProfile;
+    try {
+      googleProfile = await verifyGoogleIdToken(googleToken);
+    } catch (verifyErr) {
+      return res.status(401).json({
+        success: false,
+        message: verifyErr.message || 'Invalid Google token',
+      });
+    }
+
     const emailResult = parseEmail(rawEmail);
     if (emailResult.error) {
       return res.status(400).json({
@@ -371,7 +420,16 @@ router.post('/google', async (req, res, next) => {
       });
     }
 
+    if (googleProfile.email !== emailResult.email) {
+      return res.status(401).json({
+        success: false,
+        message: 'Google token email does not match provided email',
+      });
+    }
+
     const email = emailResult.email;
+    const displayName = googleProfile.name || name.trim();
+    const avatarUrl = googleProfile.picture || picture || null;
 
     let result = await pool.query(
       'SELECT * FROM users WHERE LOWER(email) = $1',
@@ -381,7 +439,7 @@ router.post('/google', async (req, res, next) => {
     let user;
 
     if (result.rows.length === 0) {
-      const buddyId = await generateUniqueBuddyId(pool, name);
+      const buddyId = await generateUniqueBuddyId(pool, displayName);
 
       await client.query('BEGIN');
 
@@ -389,7 +447,7 @@ router.post('/google', async (req, res, next) => {
         `INSERT INTO users (email, name, password_hash, status, approved_at, avatar_url, buddy_id)
          VALUES ($1, $2, $3, 'enabled', CURRENT_TIMESTAMP, $4, $5)
          RETURNING id, email, name, age, age_group, birth_date, grade, preferred_language, status, buddy_id, created_at`,
-        [email, name.trim(), null, picture || null, buddyId]
+        [email, displayName, null, avatarUrl, buddyId]
       );
       user = result.rows[0];
 
@@ -429,6 +487,10 @@ router.post('/google', async (req, res, next) => {
     } else {
       user = result.rows[0];
 
+      if (rejectBlockedUserStatus(user, res)) {
+        return;
+      }
+
       await pool.query(
         'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
         [user.id]
@@ -450,17 +512,7 @@ router.post('/google', async (req, res, next) => {
       });
     }
 
-    const jwtToken = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-
-    res.json({
-      success: true,
-      user: buildAuthUserPayload(user),
-      token: jwtToken,
-    });
+    sendAuthSuccess(res, user);
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
 
@@ -495,101 +547,10 @@ router.post('/social', async (req, res, next) => {
       return router.handle({ ...req, url: '/google', method: 'POST' }, res, next);
     }
 
-    const client = await pool.connect();
-
-    try {
-      const emailResult = parseEmail(rawEmail);
-      if (emailResult.error) {
-        return res.status(400).json({
-          success: false,
-          message: emailResult.error,
-        });
-      }
-
-      const email = emailResult.email;
-
-      let result = await pool.query(
-        'SELECT * FROM users WHERE LOWER(email) = $1',
-        [email]
-      );
-
-      let user;
-      let isNewUser = false;
-
-      if (result.rows.length === 0) {
-        isNewUser = true;
-        const buddyId = await generateUniqueBuddyId(pool, name);
-
-        await client.query('BEGIN');
-
-        result = await client.query(
-          `INSERT INTO users (email, name, password_hash, status, approved_at, buddy_id)
-           VALUES ($1, $2, $3, 'enabled', CURRENT_TIMESTAMP, $4)
-           RETURNING id, email, name, age, grade, preferred_language, status, buddy_id, created_at`,
-          [email, name.trim(), null, buddyId]
-        );
-        user = result.rows[0];
-
-        await setupNewUserAccount(client, user.id);
-        await client.query('COMMIT');
-      } else {
-        user = result.rows[0];
-        await pool.query(
-          'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
-          [user.id]
-        );
-      }
-
-      const eventType = isNewUser ? EVENT_TYPES.USER_REGISTER : EVENT_TYPES.USER_LOGIN;
-      await trackEvent({
-        userId: user.id,
-        eventType,
-        metadata: { method: provider },
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      });
-
-      await notifyAdminsOfUserLogin(pool, {
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        method: provider,
-      });
-
-      const jwtToken = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: '30d' }
-      );
-
-      res.json({
-        success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          age: user.age,
-          grade: user.grade,
-          preferredLanguage: user.preferred_language,
-          buddyId: user.buddy_id,
-          createdAt: user.created_at,
-        },
-        token: jwtToken,
-      });
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
-
-      if (isDuplicateEmailError(error)) {
-        return res.status(409).json({
-          success: false,
-          message: DUPLICATE_EMAIL_MESSAGE,
-        });
-      }
-
-      next(error);
-    } finally {
-      client.release();
-    }
+    return res.status(501).json({
+      success: false,
+      message: `${provider} login is not supported. Token verification is required before enabling this provider.`,
+    });
   } catch (error) {
     next(error);
   }

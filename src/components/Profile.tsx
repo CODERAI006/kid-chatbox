@@ -22,7 +22,7 @@ import {
 } from '@/shared/design-system';
 import { User } from '@/types';
 import { Language } from '@/types/quiz';
-import { profileApi, authApi } from '@/services/api';
+import { profileApi, authApi, planApi } from '@/services/api';
 import { PullToRefresh } from './PullToRefresh';
 import { StudentPageLayout } from '@/components/layout/StudentPageHeader';
 import { APP_CONSTANTS } from '@/constants/app';
@@ -94,6 +94,11 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [planSummary, setPlanSummary] = useState<{
+    name: string;
+    planEndDate: string | null;
+    planActive: boolean;
+  } | null>(null);
 
   const profileComplete = useMemo(() => isProfileComplete(user), [user]);
   const missingBirthDate = isBirthDateMissing(user);
@@ -131,6 +136,14 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
       try {
         const { user: latestUser } = await profileApi.getProfile();
         applyUser(latestUser);
+        const planData = await planApi.getUserPlan(latestUser.id);
+        if (planData.success && planData.plan) {
+          setPlanSummary({
+            name: planData.plan.name,
+            planEndDate: planData.planEndDate ?? planData.plan.plan_end_date ?? null,
+            planActive: planData.planActive ?? planData.plan.is_plan_active ?? true,
+          });
+        }
       } catch (err) {
         console.error('Failed to load profile:', err);
         applyUser(initialUser);
@@ -309,6 +322,27 @@ export const Profile: React.FC<ProfileProps> = ({ user: initialUser }) => {
                     <FormLabel>Buddy ID</FormLabel>
                     <Input type="text" value={user.buddyId || 'Generating…'} isDisabled bg="gray.100" size="lg" />
                   </FormControl>
+
+                  {planSummary && (
+                    <>
+                      <FormControl>
+                        <FormLabel>Current Plan</FormLabel>
+                        <Input type="text" value={planSummary.name} isDisabled bg="gray.100" size="lg" />
+                      </FormControl>
+                      {planSummary.planEndDate && planSummary.planActive && (
+                        <FormControl>
+                          <FormLabel>Plan Active Until</FormLabel>
+                          <Input
+                            type="text"
+                            value={formatDisplayDate(planSummary.planEndDate)}
+                            isDisabled
+                            bg="gray.100"
+                            size="lg"
+                          />
+                        </FormControl>
+                      )}
+                    </>
+                  )}
 
                   {missingBirthDate ? (
                     <EditableBirthDateField

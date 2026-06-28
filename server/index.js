@@ -16,6 +16,8 @@ process.on('warning', (warning) => {
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
@@ -53,14 +55,18 @@ const adminSitePagesRoutes = require('./routes/admin-site-pages');
 const studyBuddiesRoutes = require('./routes/study-buddies');
 const notificationsRoutes = require('./routes/notifications');
 const imagesRoutes = require('./routes/images');
+const protectedUploads = require('./middleware/protectedUploads');
 const { startScheduler } = require('./services/schedulerEngine');
 const { initializeDatabase } = require('./config/database');
 
 dotenv.config();
 
+const { resolveNodeEnv } = require('./utils/resolveNodeEnv');
+const NODE_ENV = resolveNodeEnv();
+process.env.NODE_ENV = NODE_ENV;
+
 const app = express();
 const PORT = process.env.PORT || 3001;
-const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // CORS — API routes only (global CORS breaks crossorigin modulepreload /assets/*.js with 500)
 const allowedOrigins = [
@@ -107,7 +113,7 @@ if (process.env.CORS_ORIGINS) {
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || NODE_ENV === 'development' || isLoopbackOrigin(origin)) {
+    if (!origin || NODE_ENV === 'development') {
       return callback(null, true);
     }
     if (allowedOrigins.includes(origin)) return callback(null, true);
@@ -129,12 +135,35 @@ const corsOptions = {
 };
 
 // Middleware
-app.use('/api', cors(corsOptions));
-app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+app.use(cookieParser());
+if (NODE_ENV === 'production') {
+  app.use(helmet({ contentSecurityPolicy: false }));
+}
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api', cors(corsOptions));
+
+const defaultJsonParser = express.json({ limit: '2mb' });
+const largeJsonParser = express.json({ limit: '15mb' });
+const defaultUrlParser = express.urlencoded({ extended: true, limit: '2mb' });
+
+app.use((req, res, next) => {
+  const needsLargeBody =
+    req.path.startsWith('/api/ai') || req.path.startsWith('/api/learning-bot');
+  if (needsLargeBody) {
+    return largeJsonParser(req, res, (err) => {
+      if (err) return next(err);
+      express.urlencoded({ extended: true, limit: '15mb' })(req, res, next);
+    });
+  }
+  return defaultJsonParser(req, res, (err) => {
+    if (err) return next(err);
+    defaultUrlParser(req, res, next);
+  });
+});
+
+// All user uploads require authentication (study library + quiz images)
+app.use('/uploads/study-library', protectedUploads.studyLibrary);
+app.use('/uploads/quiz-images', protectedUploads.quizImages);
 
 // Health check endpoints
 app.get('/health', (req, res) => {
@@ -242,9 +271,14 @@ app.use((err, req, res, next) => {
   }
 
   const status = err.status || 500;
+  const message =
+    status >= 500 && NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message || 'Internal server error';
+
   res.status(status).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message,
   });
 });
 

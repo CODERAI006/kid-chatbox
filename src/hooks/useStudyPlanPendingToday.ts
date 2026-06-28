@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { studyPlanApi } from '@/services/studyPlan';
+import { authApi } from '@/services/api';
 
 /** True when the student has an active plan with a lesson scheduled for today. */
 export function useStudyPlanPendingToday(enabled = true) {
   const [pendingToday, setPendingToday] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!enabled || !localStorage.getItem('auth_token')) {
+    if (!enabled) {
+      setPendingToday(false);
+      return;
+    }
+    const { user } = authApi.getCurrentUser();
+    if (!user) {
       setPendingToday(false);
       return;
     }

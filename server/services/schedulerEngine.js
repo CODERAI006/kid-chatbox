@@ -143,8 +143,10 @@ function startScheduler() {
   // 00:20 IST — catch-up for today if nightly job missed anything
   cron.schedule('20 0 * * *', runMorningCatchup, { timezone: 'Asia/Kolkata' });
   updateQuizStatuses();
-  // Warm today's cache on boot for active user grades (skip news — nightly cron handles it)
-  setTimeout(() => warmTodayOnBoot(), 20_000);
+  // Heavy Ollama/DB batch — production only (avoids starving the API pool in local dev)
+  if (process.env.NODE_ENV === 'production' && process.env.DISABLE_BOOT_BATCH !== '1') {
+    setTimeout(() => warmTodayOnBoot(), 20_000);
+  }
 
   console.log('✅ Quiz Scheduler Engine started (IST nightly content batch @ 23:45, catch-up @ 00:20)');
 }

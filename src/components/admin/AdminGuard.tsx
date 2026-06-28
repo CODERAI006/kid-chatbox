@@ -36,19 +36,19 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
 
   const checkAdminAccess = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
+      const user = await authApi.validateSession();
+      if (!user) {
         setError('Not authenticated. Please login first.');
         setIsAdmin(false);
         setLoading(false);
+        navigate('/login', { replace: true });
         return;
       }
 
-      // Fetch current user with roles using API service
-      const { user } = await authApi.fetchCurrentUser();
+      const { user: freshUser } = await authApi.fetchCurrentUser();
 
-      if (!user) {
-        authApi.logout();
+      if (!freshUser) {
+        await authApi.logout();
         setError('User not found. Please login again.');
         setIsAdmin(false);
         setLoading(false);
@@ -56,8 +56,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
         return;
       }
 
-      // Check if user has admin role
-      const userWithRoles = user as { roles?: string[] };
+      const userWithRoles = freshUser as { roles?: string[] };
       const hasAdminRole = userWithRoles?.roles?.includes('admin') || false;
 
       console.log('User roles:', userWithRoles?.roles);
@@ -72,7 +71,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
       setIsAdmin(hasAdminRole);
     } catch (err: unknown) {
       console.error('Error checking admin access:', err);
-      authApi.logout();
+      await authApi.logout();
       setError('Failed to verify admin access. Please login again.');
       setIsAdmin(false);
       navigate('/login', { replace: true });

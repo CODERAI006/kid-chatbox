@@ -11,9 +11,14 @@ const {
 
 const router = express.Router();
 
-/** GET /api/images/status — service health (no auth). */
-router.get('/status', (req, res) => {
-  res.json({ success: true, ...getStatus() });
+/** GET /api/images/status — authenticated health (minimal fields). */
+router.get('/status', authenticateToken, (req, res) => {
+  const status = getStatus();
+  res.json({
+    success: true,
+    configured: status.configured,
+    message: status.message,
+  });
 });
 
 router.use(authenticateToken);

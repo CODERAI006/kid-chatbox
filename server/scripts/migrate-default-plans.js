@@ -14,6 +14,7 @@ const DEFAULT_PLANS = [
     monthly_cost: 0,
     hide_ai_study: false,
     hide_ai_quiz: false,
+    default_duration_days: 30,
   },
   {
     name: 'Basic',
@@ -59,9 +60,10 @@ const migrateDefaultPlans = async () => {
           monthly_cost,
           status,
           hide_ai_study,
-          hide_ai_quiz
+          hide_ai_quiz,
+          default_duration_days
         )
-        VALUES ($1, $2, $3, $4, $5, 'active', $6, $7)
+        VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8)
         ON CONFLICT (name) DO NOTHING`,
         [
           plan.name,
@@ -71,6 +73,7 @@ const migrateDefaultPlans = async () => {
           plan.monthly_cost,
           plan.hide_ai_study,
           plan.hide_ai_quiz,
+          plan.default_duration_days ?? null,
         ]
       );
     }

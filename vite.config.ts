@@ -32,8 +32,13 @@ export default defineConfig({
     },
   },
   server: {
+    /** Loopback only in dev (SEC-17). localhost resolves here on Windows. */
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: false,
     fs: {
-      strict: false,
+      strict: true,
+      allow: [path.resolve(__dirname, '.')],
     },
     proxy: {
       '/api': {

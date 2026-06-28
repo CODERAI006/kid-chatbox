@@ -13,8 +13,9 @@ import {
   Tooltip, IconButton,
 } from '@/shared/design-system';
 import { SchedulerTopicFields } from './SchedulerTopicFields';
+import { apiClient } from '@/services/api';
 
-const API = '/api/quiz-scheduler';
+const API = '/quiz-scheduler';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard', 'Mixed'];
@@ -68,33 +69,18 @@ export const QuizSchedulerManagement: React.FC = () => {
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
-  const authHeader = () => ({
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-  });
-
-  /** Safely parse JSON from a fetch response; throws a clear error if HTML is returned. */
-  const safeJson = async (r: Response) => {
-    const text = await r.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new Error(`Server returned unexpected response (status ${r.status}). Check backend logs.`);
-    }
-  };
-
   const fetchJobs = useCallback(async () => {
     try {
-      const r = await fetch(`${API}/jobs`, { headers: authHeader() });
-      const d = await safeJson(r);
-      if (d.success) setJobs(d.data);
-      else toast({ title: d.message || 'Failed to load jobs', status: 'error' });
+      const r = await apiClient.get<{ success: boolean; data?: SchedulerJob[]; message?: string }>(`${API}/jobs`);
+      const d = r.data;
+      if (d.success && d.data) setJobs(d.data);
+      else toast({ title: String(d.message || 'Failed to load jobs'), status: 'error' });
     } catch (e: unknown) {
       toast({ title: (e as Error).message || 'Failed to load jobs', status: 'error' });
     } finally {
       setLoading(false);
     }
-  }, []); // eslint-disable-line
+  }, [toast]);
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
@@ -113,10 +99,10 @@ export const QuizSchedulerManagement: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const url = isEditing ? `${API}/jobs/${editJob.id}` : `${API}/jobs`;
-      const method = isEditing ? 'PUT' : 'POST';
-      const r = await fetch(url, { method, headers: authHeader(), body: JSON.stringify(editJob) });
-      const d = await safeJson(r);
+      const r = isEditing
+        ? await apiClient.put(`${API}/jobs/${editJob.id}`, editJob)
+        : await apiClient.post(`${API}/jobs`, editJob);
+      const d = r.data as { success?: boolean; message?: string };
       if (!d.success) throw new Error(d.message);
       toast({ title: isEditing ? 'Job updated' : 'Job created', status: 'success' });
       onClose();
@@ -130,10 +116,10 @@ export const QuizSchedulerManagement: React.FC = () => {
 
   const handleToggle = async (id: string) => {
     try {
-      const r = await fetch(`${API}/jobs/${id}/toggle`, { method: 'PATCH', headers: authHeader() });
-      const d = await safeJson(r);
+      const r = await apiClient.patch(`${API}/jobs/${id}/toggle`);
+      const d = r.data as { success?: boolean; message?: string; data?: SchedulerJob };
       if (!d.success) throw new Error(d.message);
-      setJobs((prev) => prev.map((j) => (j.id === id ? d.data : j)));
+      setJobs((prev) => prev.map((j) => (j.id === id && d.data ? d.data : j)));
     } catch (e: unknown) {
       toast({ title: (e as Error).message || 'Toggle failed', status: 'error' });
     }
@@ -142,8 +128,8 @@ export const QuizSchedulerManagement: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this scheduler job?')) return;
     try {
-      const r = await fetch(`${API}/jobs/${id}`, { method: 'DELETE', headers: authHeader() });
-      const d = await safeJson(r);
+      const r = await apiClient.delete(`${API}/jobs/${id}`);
+      const d = r.data as { success?: boolean; message?: string };
       if (!d.success) throw new Error(d.message);
       setJobs((prev) => prev.filter((j) => j.id !== id));
       toast({ title: 'Job deleted', status: 'info' });
@@ -155,8 +141,12 @@ export const QuizSchedulerManagement: React.FC = () => {
   const handleRunNow = async (id: string) => {
     setRunningId(id);
     try {
-      const r = await fetch(`${API}/jobs/${id}/run-now`, { method: 'POST', headers: authHeader() });
-      const d = await safeJson(r);
+      const r = await apiClient.post(`${API}/jobs/${id}/run-now`);
+      const d = r.data as {
+        success?: boolean;
+        message?: string;
+        data?: { setsCompleted?: number; sets_completed?: number };
+      };
       if (!d.success) throw new Error(d.message);
       const sets = d.data?.setsCompleted ?? d.data?.sets_completed;
       toast({

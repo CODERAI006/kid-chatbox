@@ -20,6 +20,9 @@ export interface PlanInfo {
     daily_topic_limit: number;
     monthly_cost: number;
     status: string;
+    plan_end_date?: string | null;
+    is_plan_active?: boolean;
+    days_remaining?: number | null;
   };
   usage: {
     quizCount: number;
@@ -32,6 +35,9 @@ export interface PlanInfo {
     remainingQuizzes: number;
     remainingTopics: number;
   };
+  planActive?: boolean;
+  planEndDate?: string | null;
+  daysRemaining?: number | null;
 }
 
 function LimitRow({
@@ -88,6 +94,23 @@ export const PlanSummaryCard: React.FC<{ planInfo: PlanInfo }> = ({ planInfo }) 
             <Text fontSize={{ base: 'xs', sm: 'sm', md: 'lg' }} fontWeight="bold" color="blue.800" noOfLines={2}>
               {planInfo.plan.name}
             </Text>
+            {planInfo.planEndDate && (
+              <HStack spacing={2} flexWrap="wrap">
+                <Badge
+                  colorScheme={planInfo.planActive === false ? 'red' : 'purple'}
+                  fontSize={{ base: '2xs', sm: 'xs' }}
+                >
+                  {planInfo.planActive === false
+                    ? `Expired ${new Date(planInfo.planEndDate).toLocaleDateString()}`
+                    : `Active until ${new Date(planInfo.planEndDate).toLocaleDateString()}`}
+                </Badge>
+                {planInfo.daysRemaining != null && planInfo.planActive !== false && (
+                  <Text fontSize={{ base: '2xs', sm: 'xs' }} color="gray.600">
+                    {planInfo.daysRemaining} day{planInfo.daysRemaining === 1 ? '' : 's'} left
+                  </Text>
+                )}
+              </HStack>
+            )}
           </VStack>
           <VStack spacing={{ base: 2, md: 3 }} align="stretch" width="100%">
             <LimitRow

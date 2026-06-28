@@ -35,7 +35,8 @@ export interface RegisterData {
 
 export interface AuthResponse {
   user: User;
-  token: string;
+  /** Deprecated — session is stored in httpOnly cookie. */
+  token?: string;
 }
 
 export interface SocialLoginData {

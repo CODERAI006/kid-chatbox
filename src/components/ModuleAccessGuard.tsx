@@ -38,19 +38,19 @@ export const ModuleAccessGuard: React.FC<ModuleAccessGuardProps> = ({ children, 
 
   const checkModuleAccess = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
+      const sessionUser = await authApi.validateSession();
+      if (!sessionUser) {
         setError('Not authenticated. Please login first.');
         setHasAccess(false);
         setLoading(false);
+        navigate('/login', { replace: true });
         return;
       }
 
-      // Fetch current user with roles and module access
       const { user } = await authApi.fetchCurrentUser();
 
       if (!user) {
-        authApi.logout();
+        await authApi.logout();
         setError('User not found. Please login again.');
         setHasAccess(false);
         setLoading(false);
@@ -96,7 +96,7 @@ export const ModuleAccessGuard: React.FC<ModuleAccessGuardProps> = ({ children, 
       setHasAccess(hasModuleAccess);
     } catch (err: unknown) {
       console.error('Error checking module access:', err);
-      authApi.logout();
+      await authApi.logout();
       setError('Failed to verify module access. Please login again.');
       setHasAccess(false);
       navigate('/login', { replace: true });

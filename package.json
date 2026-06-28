@@ -23,6 +23,7 @@
     "db:init": "node server/scripts/init-all-tables.js",
     "db:migrate": "node server/scripts/migrate-schema.js",
     "db:migrate-plans": "node server/scripts/migrate-plans-schema.js",
+    "db:migrate-plan-end-date": "node server/scripts/migrate-plan-end-date.js",
     "db:migrate-scheduled-tests": "node server/scripts/migrate-scheduled-tests.js",
     "db:migrate-quiz-scheduler": "node server/scripts/migrate-quiz-scheduler.js",
     "db:migrate-quiz-scheduler-v2": "node server/scripts/migrate-quiz-scheduler-v2.js",
@@ -39,6 +40,7 @@
     "batch:daily-content": "node server/scripts/run-daily-content-batch.js",
     "db:test": "node test-db-connection.js",
     "test:chatbot": "node --test server/modules/__tests__/chatbot.test.js",
+    "security:verify": "node server/scripts/security-verify.js",
     "tts:setup": "node server/scripts/setup-piper-tts.js"
   },
   "dependencies": {
@@ -55,20 +57,25 @@
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.2.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "decode-google-news-url": "^0.1.0",
     "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
     "express": "^4.22.1",
+    "express-rate-limit": "^7.5.1",
     "framer-motion": "^10.16.4",
     "fuse.js": "^7.1.0",
     "gl-matrix": "^3.4.4",
+    "google-auth-library": "^9.15.1",
     "gsap": "^3.14.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
-    "jspdf": "^2.5.2",
+    "jspdf": "^4.2.1",
     "matter-js": "^0.20.0",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.2.1",
-    "nodemailer": "^7.0.11",
+    "nodemailer": "^9.0.1",
     "ogl": "^1.0.11",
     "pg": "^8.16.3",
     "playwright": "^1.60.0",
@@ -79,8 +86,7 @@
     "react-router-dom": "^6.20.0",
     "recharts": "^3.5.1",
     "rss-parser": "^3.13.0",
-    "three": "^0.182.0",
-    "xlsx": "^0.18.5"
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -90,15 +96,21 @@
     "@types/pg": "^8.15.6",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
-    "@typescript-eslint/eslint-plugin": "^6.14.0",
-    "@typescript-eslint/parser": "^6.14.0",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^8.2.2",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "prettier": "^3.1.0",
     "typescript": "^5.2.2",
-    "vite": "^5.0.8"
+    "vite": "^6.4.1"
+  },
+  "overrides": {
+    "dompurify": "^3.2.6",
+    "esbuild": "^0.25.0",
+    "uuid": "^11.1.0",
+    "minimatch": "^10.0.1"
   }
 }

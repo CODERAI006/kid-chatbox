@@ -7,6 +7,7 @@ import {
   clearSession,
   redirectToLoginIfNeeded,
   isPublicAuthRequest,
+  hasLocalSessionHint,
 } from '@/services/session';
 import {
   LoginCredentials,
@@ -65,6 +66,7 @@ const API_BASE_URL = resolveApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -94,10 +96,6 @@ function applyDevApiBaseUrl(config: InternalAxiosRequestConfig): void {
 
 apiClient.interceptors.request.use((config) => {
   applyDevApiBaseUrl(config);
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
@@ -109,9 +107,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (isAxiosError(error) && error.response?.status === 401) {
       const requestUrl = String(error.config?.url || '');
-      const hadToken = Boolean(localStorage.getItem('auth_token'));
-      if (hadToken && !isPublicAuthRequest(requestUrl)) {
-        clearSession();
+      if (hasLocalSessionHint() && !isPublicAuthRequest(requestUrl)) {
+        void clearSession();
         redirectToLoginIfNeeded();
       }
     }
@@ -400,8 +397,7 @@ export const authApi = {
       grade: data.grade,
       preferredLanguage: data.preferredLanguage,
     });
-    if (response.data.token) {
-      localStorage.setItem('auth_token', response.data.token);
+    if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
@@ -412,8 +408,7 @@ export const authApi = {
    */
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('auth_token', response.data.token);
+    if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
@@ -423,57 +418,51 @@ export const authApi = {
    * Social login (Google/Apple)
    */
   socialLogin: async (data: SocialLoginData): Promise<AuthResponse> => {
-    // Use /google endpoint for Google, /social for others
     const endpoint = data.provider === 'google' ? '/auth/google' : '/auth/social';
     const response = await apiClient.post<AuthResponse>(endpoint, {
       token: data.token,
       email: data.email,
       name: data.name,
     });
-    if (response.data.token) {
-      localStorage.setItem('auth_token', response.data.token);
+    if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
   },
 
   /**
-   * Logout - clears authentication data and dispatches logout event
+   * Logout — clears httpOnly cookie and local session state
    */
-  logout: (): void => {
-    clearSession();
+  logout: async (): Promise<void> => {
+    await clearSession();
   },
 
   /**
-   * Verify the stored token with the server (e.g. after refresh or admin delete).
+   * Verify session with the server (httpOnly cookie).
    */
   validateSession: async (): Promise<User | null> => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) return null;
-
     try {
       const response = await apiClient.get<{ success: boolean; user: User }>('/auth/me');
       const user = response.data.user;
       if (!user) {
-        clearSession();
+        await clearSession();
         return null;
       }
       localStorage.setItem('user', JSON.stringify(user));
       return user;
     } catch {
+      await clearSession();
       return null;
     }
   },
 
   /**
-   * Get current user from localStorage
+   * Get cached user profile from localStorage (session verified via cookie on API calls).
    */
-  getCurrentUser: (): { user: unknown; token: string | null } => {
+  getCurrentUser: (): { user: unknown } => {
     const userStr = localStorage.getItem('user');
-    const token = localStorage.getItem('auth_token');
     return {
       user: userStr ? JSON.parse(userStr) : null,
-      token,
     };
   },
 
@@ -1023,6 +1012,9 @@ export const planApi = {
       status: string;
       hide_ai_study?: boolean;
       hide_ai_quiz?: boolean;
+      plan_end_date?: string | null;
+      is_plan_active?: boolean;
+      days_remaining?: number | null;
     };
     usage: {
       quizCount: number;
@@ -1035,8 +1027,22 @@ export const planApi = {
       remainingQuizzes: number;
       remainingTopics: number;
     };
+    planActive?: boolean;
+    planEndDate?: string | null;
+    daysRemaining?: number | null;
   }> => {
     const response = await apiClient.get(`/plans/user/${userId}`);
+    return response.data;
+  },
+
+  /**
+   * Update a user's plan end date (admin)
+   */
+  updateUserPlanEndDate: async (
+    userId: string,
+    planEndDate: string | null
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.put(`/plans/user/${userId}/end-date`, { planEndDate });
     return response.data;
   },
 };

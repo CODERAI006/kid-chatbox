@@ -1,5 +1,5 @@
 /**
- * Bulk exam upload — parsing utilities and Excel template generator.
+ * Bulk exam upload — parsing utilities and Excel template generator (exceljs).
  *
  * Excel sheet format (per tab = one exam):
  *   Row 1: metadata keys   → ExamName | Class | Subject | Difficulty | PassPercentage | TimeLimit
@@ -9,7 +9,7 @@
  *   Row 5+: question rows
  */
 
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export const MAX_EXAMS = 50;
 export const MAX_QUESTIONS_PER_EXAM = 50;
@@ -39,10 +39,22 @@ export interface ParsedExam {
   errors: string[];
 }
 
-/** Normalise a cell value to a trimmed string */
+/** Convert worksheet to row arrays (0-indexed columns). */
+function worksheetToRows(worksheet: ExcelJS.Worksheet): unknown[][] {
+  const rows: unknown[][] = [];
+  worksheet.eachRow((row) => {
+    const values = row.values;
+    if (!Array.isArray(values)) {
+      rows.push([]);
+      return;
+    }
+    rows.push(values.slice(1).map((v) => v ?? ''));
+  });
+  return rows;
+}
+
 const str = (v: unknown): string => String(v ?? '').trim();
 
-/** Case-insensitive key → value lookup for a flat header/value pair of rows */
 const metaGet = (keys: string[], values: string[], ...aliases: string[]): string => {
   for (const alias of aliases) {
     const idx = keys.findIndex((k) => k === alias.toLowerCase().replace(/\s+/g, ''));
@@ -51,12 +63,11 @@ const metaGet = (keys: string[], values: string[], ...aliases: string[]): string
   return '';
 };
 
-/** Parse a single worksheet, reading metadata from the first 2 rows */
 export const parseSheet = (
-  ws: XLSX.WorkSheet,
+  worksheet: ExcelJS.Worksheet,
   sheetName: string
 ): { exam: ParsedExam } => {
-  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][];
+  const rawRows = worksheetToRows(worksheet);
   const errors: string[] = [];
 
   if (!rawRows || rawRows.length < 2) {
@@ -69,7 +80,6 @@ export const parseSheet = (
     };
   }
 
-  // --- Read metadata from rows 1–2 ---
   const metaKeys = (rawRows[0] as string[]).map((h) =>
     str(h).toLowerCase().replace(/\s+/g, '')
   );
@@ -82,9 +92,8 @@ export const parseSheet = (
   const passRaw    = metaGet(metaKeys, metaVals, 'passpercentage', 'pass%', 'passingpercentage', 'pass');
   const timeLimit  = metaGet(metaKeys, metaVals, 'timelimit', 'time', 'timelimit(mins)', 'timelimitmin');
 
-  const passingPercentage = parseInt(passRaw) || 60;
+  const passingPercentage = parseInt(passRaw, 10) || 60;
 
-  // --- Find the question header row (first row containing "question") ---
   let headerRowIdx = -1;
   for (let i = 2; i < rawRows.length; i++) {
     const rowStr = (rawRows[i] as string[])
@@ -140,7 +149,7 @@ export const parseSheet = (
       correctAnswer: correctRaw,
       explanation: getCol(row, 'explanation', 'justification', 'reason'),
       hint: getCol(row, 'hint'),
-      points: parseInt(getCol(row, 'points', 'marks') || '1') || 1,
+      points: parseInt(getCol(row, 'points', 'marks') || '1', 10) || 1,
       rowIndex: i + 1,
     });
 
@@ -155,65 +164,71 @@ export const parseSheet = (
   };
 };
 
-/** Parse all sheets in a workbook */
-export const parseWorkbook = (workbook: XLSX.WorkBook): ParsedExam[] => {
+export const parseWorkbook = async (buffer: ArrayBuffer): Promise<ParsedExam[]> => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
   const exams: ParsedExam[] = [];
-  for (const sheetName of workbook.SheetNames.slice(0, MAX_EXAMS)) {
+  const sheetNames = workbook.worksheets.map((ws) => ws.name).slice(0, MAX_EXAMS);
+
+  for (const sheetName of sheetNames) {
     if (sheetName.toLowerCase().startsWith('_') || sheetName.toLowerCase() === 'template') continue;
-    const { exam } = parseSheet(workbook.Sheets[sheetName], sheetName);
+    const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) continue;
+    const { exam } = parseSheet(worksheet, sheetName);
     exams.push(exam);
   }
   return exams;
 };
 
-/** Metadata row helpers for template generation */
 const META_KEYS = ['ExamName', 'Class', 'Subject', 'Difficulty', 'PassPercentage', 'TimeLimit(mins)'];
 const Q_HEADERS = ['question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctAnswer', 'explanation', 'hint', 'points'];
 
-const makeSheet = (
+function addTemplateSheet(
+  workbook: ExcelJS.Workbook,
+  name: string,
   meta: string[],
   questions: string[][]
-): XLSX.WorkSheet => {
-  const rows = [
-    META_KEYS,
-    meta,
-    [],           // blank separator
-    Q_HEADERS,
-    ...questions,
-  ];
-  return XLSX.utils.aoa_to_sheet(rows);
-};
+): void {
+  const sheet = workbook.addWorksheet(name);
+  sheet.addRow(META_KEYS);
+  sheet.addRow(meta);
+  sheet.addRow([]);
+  sheet.addRow(Q_HEADERS);
+  questions.forEach((q) => sheet.addRow(q));
+}
 
-/** Download the populated Excel template */
-export const downloadBulkTemplate = (): void => {
-  const wb = XLSX.utils.book_new();
+export const downloadBulkTemplate = async (): Promise<void> => {
+  const workbook = new ExcelJS.Workbook();
 
-  // Sheet 1 — Maths example
-  XLSX.utils.book_append_sheet(
-    wb,
-    makeSheet(
-      ['Math Quiz - Grade 3', 'Class 3', 'Maths', 'Basic', '60', '30'],
-      [
-        ['What is 5 × 6?', '25', '30', '35', '40', 'B', '5 times 6 equals 30', 'Count by 5s six times', '1'],
-        ['What is 12 ÷ 4?', '2', '3', '4', '5', 'B', '12 divided by 4 is 3', '', '1'],
-        ['What is 7 + 8?', '13', '14', '15', '16', 'C', '7 + 8 = 15', '', '1'],
-      ]
-    ),
-    'Math Quiz - Grade 3'
+  addTemplateSheet(
+    workbook,
+    'Math Quiz - Grade 3',
+    ['Math Quiz - Grade 3', 'Class 3', 'Maths', 'Basic', '60', '30'],
+    [
+      ['What is 5 × 6?', '25', '30', '35', '40', 'B', '5 times 6 equals 30', 'Count by 5s six times', '1'],
+      ['What is 12 ÷ 4?', '2', '3', '4', '5', 'B', '12 divided by 4 is 3', '', '1'],
+      ['What is 7 + 8?', '13', '14', '15', '16', 'C', '7 + 8 = 15', '', '1'],
+    ]
   );
 
-  // Sheet 2 — Science example (Advanced)
-  XLSX.utils.book_append_sheet(
-    wb,
-    makeSheet(
-      ['Science Quiz - Grade 5', 'Class 5', 'EVS / Science', 'Advanced', '65', '45'],
-      [
-        ['Which gas do plants absorb during photosynthesis?', 'Oxygen', 'Nitrogen', 'Carbon Dioxide', 'Hydrogen', 'C', 'Plants absorb CO2 to produce glucose and oxygen', 'Think about the food-making process in plants', '1'],
-        ['Which planet is closest to the Sun?', 'Venus', 'Mercury', 'Earth', 'Mars', 'B', 'Mercury orbits closest to the Sun', 'First planet from Sun', '1'],
-      ]
-    ),
-    'Science Quiz - Grade 5'
+  addTemplateSheet(
+    workbook,
+    'Science Quiz - Grade 5',
+    ['Science Quiz - Grade 5', 'Class 5', 'EVS / Science', 'Advanced', '65', '45'],
+    [
+      ['Which gas do plants absorb during photosynthesis?', 'Oxygen', 'Nitrogen', 'Carbon Dioxide', 'Hydrogen', 'C', 'Plants absorb CO2 to produce glucose and oxygen', 'Think about the food-making process in plants', '1'],
+      ['Which planet is closest to the Sun?', 'Venus', 'Mercury', 'Earth', 'Mars', 'B', 'Mercury orbits closest to the Sun', 'First planet from Sun', '1'],
+    ]
   );
 
-  XLSX.writeFile(wb, 'bulk-exam-template.xlsx');
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'bulk-exam-template.xlsx';
+  link.click();
+  URL.revokeObjectURL(url);
 };

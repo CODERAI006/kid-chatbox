@@ -10,6 +10,7 @@ const { migrateSchema } = require('./migrate-schema');
 const { migrateAnalyticsSchema } = require('./migrate-analytics-schema');
 const { migratePlansSchema } = require('./migrate-plans-schema');
 const { migrateDefaultPlans } = require('./migrate-default-plans');
+const { migratePlanEndDate } = require('./migrate-plan-end-date');
 const { migrateScheduledTests } = require('./migrate-scheduled-tests');
 const { migrateStudyLibraryContent } = require('./migrate-study-library-content');
 const { migrateStudyLibraryContentV2 } = require('./migrate-study-library-content-v2');
@@ -47,6 +48,7 @@ async function runAllDbMigrations() {
   await migrateAnalyticsSchema();
   await migratePlansSchema();
   await migrateDefaultPlans();
+  await migratePlanEndDate();
   await migrateScheduledTests();
   await migrateStudyLibraryContent();
   await migrateStudyLibraryContentV2();

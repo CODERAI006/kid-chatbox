@@ -194,9 +194,12 @@ export const App: React.FC = () => {
     let cancelled = false;
 
     const initAuth = async () => {
-      const { token } = authApi.getCurrentUser();
-      if (!token) {
-        if (!cancelled) setLoading(false);
+      const { user: cachedUser } = authApi.getCurrentUser();
+      if (!cachedUser) {
+        const validatedUser = await authApi.validateSession();
+        if (cancelled) return;
+        setUser(validatedUser);
+        setLoading(false);
         return;
       }
 

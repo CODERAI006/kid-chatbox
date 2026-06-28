@@ -5,17 +5,18 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 const { resolveGradeLabel } = require('../services/wordOfDayService');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const { getJwtSecret } = require('./jwtConfig');
+const { COOKIE_NAME } = require('./authCookies');
 
 async function resolvePuzzleGrade(req) {
-  const { getGlobalConfig } = require('../utils/puzzleSettings');
+  const { getGlobalConfig } = require('./puzzleSettings');
   const global = await getGlobalConfig();
 
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const bearer = req.headers.authorization?.split(' ')[1];
+    const token = req.cookies?.[COOKIE_NAME] || bearer;
     if (token) {
-      const decoded = jwt.verify(token, JWT_SECRET);
+      const decoded = jwt.verify(token, getJwtSecret());
       const r = await pool.query(
         `SELECT grade FROM users WHERE id = $1 AND grade IS NOT NULL AND grade != ''`,
         [decoded.userId],

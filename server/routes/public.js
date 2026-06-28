@@ -176,6 +176,24 @@ router.get('/home-views', async (req, res, next) => {
   }
 });
 
+/** Validate optional ?word= query param for dictionary lookup */
+const WORD_QUERY_RE = /^[a-zA-Z-]{1,50}$/;
+
+function resolveWordOfDayQuery(req) {
+  const raw = req.query.word;
+  if (raw == null || raw === '') {
+    return { word: getWordOfTheDay(), error: null };
+  }
+  const word = String(raw).trim();
+  if (!WORD_QUERY_RE.test(word)) {
+    return {
+      word: null,
+      error: 'Invalid word parameter. Use 1–50 letters or hyphens only.',
+    };
+  }
+  return { word, error: null };
+}
+
 /**
  * Get Word of the Day with definition, examples, and phonetics
  * GET /api/public/word-of-the-day
@@ -183,7 +201,11 @@ router.get('/home-views', async (req, res, next) => {
  */
 router.get('/word-of-the-day', async (req, res, next) => {
   try {
-    const word = req.query.word || getWordOfTheDay();
+    const { word, error } = resolveWordOfDayQuery(req);
+    if (error) {
+      return res.status(400).json({ success: false, message: error });
+    }
+
     const wordKey = String(word).toLowerCase().trim();
     const cacheDate = wordOfTheDayCacheDate();
 
@@ -393,12 +415,13 @@ router.get('/news', async (req, res) => {
  * GET /api/public/analytics-config
  * Google Analytics measurement ID (from DB cache; no auth)
  */
-router.get('/analytics-config', async (req, res, next) => {
+router.get('/analytics-config', async (req, res) => {
   try {
     const {
       getCachedGoogleAnalyticsSettings,
       loadGoogleAnalyticsSettings,
     } = require('../utils/googleAnalyticsSettings');
+    const { DEFAULT_GA_ID } = require('../scripts/migrate-app-analytics-settings');
 
     let settings = getCachedGoogleAnalyticsSettings();
     if (!settings.googleAnalyticsId) {
@@ -411,7 +434,12 @@ router.get('/analytics-config', async (req, res, next) => {
       enabled: settings.enabled,
     });
   } catch (error) {
-    next(error);
+    console.warn('[public/analytics-config]', error.message || error);
+    res.json({
+      success: true,
+      googleAnalyticsId: '',
+      enabled: false,
+    });
   }
 });
 

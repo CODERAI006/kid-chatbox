@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission, checkRole } = require('../middleware/rbac');
+const { validatePassword } = require('../utils/passwordPolicy');
 const { getFreemiumPlan, assignPlanToUser } = require('../utils/plans');
 const { sendWelcomeEmail, sendCredentialsEmail } = require('../utils/email');
 const { generateUniqueBuddyId } = require('../utils/buddyId');
@@ -467,11 +468,14 @@ router.put('/users/:id/reset-password', checkPermission('manage_users'), async (
     const trimmedPassword = typeof newPassword === 'string' ? newPassword.trim() : '';
     const password = trimmedPassword || generatePassword(12);
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters',
-      });
+    if (trimmedPassword) {
+      const policy = validatePassword(password);
+      if (!policy.ok) {
+        return res.status(400).json({
+          success: false,
+          message: policy.message,
+        });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -496,17 +500,11 @@ router.put('/users/:id/reset-password', checkPermission('manage_users'), async (
       }
     }
 
-    const response = {
+    res.json({
       success: true,
       message: hadPassword ? 'Password reset successfully' : 'Password created successfully',
       emailSent,
-    };
-
-    if (!sendEmail && !trimmedPassword) {
-      response.generatedPassword = password;
-    }
-
-    res.json(response);
+    });
   } catch (error) {
     next(error);
   }
@@ -659,6 +657,17 @@ router.post('/users/create', checkPermission('manage_users'), async (req, res, n
 
     // Generate password if not provided
     const userPassword = password || generatePassword(12);
+
+    if (password) {
+      const policy = validatePassword(userPassword);
+      if (!policy.ok) {
+        return res.status(400).json({
+          success: false,
+          message: policy.message,
+        });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(userPassword, 10);
 
     // Create user

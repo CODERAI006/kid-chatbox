@@ -36,7 +36,7 @@ const storage = multer.diskStorage({
 
 const ALLOWED_EXTENSIONS = new Set([
   '.ppt', '.pptx', '.pdf', '.txt',
-  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tif', '.tiff', '.heic', '.avif',
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.ico', '.tif', '.tiff', '.heic', '.avif',
   '.doc', '.docx', '.odt', '.rtf',
 ]);
 
@@ -54,7 +54,6 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/gif',
   'image/webp',
   'image/bmp',
-  'image/svg+xml',
   'image/x-icon',
   'image/tiff',
   'image/heic',
@@ -66,7 +65,7 @@ const ALLOWED_MIME_TYPES = new Set([
 const VALID_CONTENT_TYPES = ['ppt', 'pdf', 'text', 'image', 'doc'];
 
 const IMAGE_EXTENSIONS = new Set([
-  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tif', '.tiff', '.heic', '.avif',
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.ico', '.tif', '.tiff', '.heic', '.avif',
 ]);
 
 const DOC_EXTENSIONS = new Set(['.doc', '.docx', '.odt', '.rtf']);

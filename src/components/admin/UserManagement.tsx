@@ -47,7 +47,7 @@ import {
   Divider,
 } from '@/shared/design-system';
 import { adminApi, User, Role } from '@/services/admin';
-import { apiClient } from '@/services/api';
+import { apiClient, planApi } from '@/services/api';
 import { UserPasswordModal } from '@/components/admin/UserPasswordModal';
 
 /**
@@ -61,7 +61,24 @@ interface Plan {
   daily_topic_limit: number;
   monthly_cost: number;
   status: 'active' | 'inactive';
+  default_duration_days?: number | null;
 }
+
+interface UserPlanDetail {
+  planId: string;
+  planEndDate: string | null;
+  planActive: boolean;
+}
+
+const formatPlanEndDate = (value: string | null | undefined) => {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString();
+};
+
+const toDateInputValue = (value: string | null | undefined) => {
+  if (!value) return '';
+  return value.split('T')[0];
+};
 
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -77,6 +94,7 @@ export const UserManagement: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [userPlans, setUserPlans] = useState<Record<string, string>>({}); // userId -> planId
+  const [userPlanDetails, setUserPlanDetails] = useState<Record<string, UserPlanDetail>>({});
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
@@ -105,6 +123,8 @@ export const UserManagement: React.FC = () => {
     ageGroup: '',
     grade: '',
     parentContact: '',
+    planId: '',
+    planEndDate: '',
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -132,20 +152,26 @@ export const UserManagement: React.FC = () => {
       
       // Load plan info for each user
       const planMap: Record<string, string> = {};
+      const planDetailMap: Record<string, UserPlanDetail> = {};
       await Promise.all(
         data.users.map(async (user) => {
           try {
-            const response = await apiClient.get<{ success: boolean; plan: Plan | null }>(`/plans/user/${user.id}`);
-            if (response.data.success && response.data.plan) {
-              planMap[user.id] = response.data.plan.id;
+            const response = await planApi.getUserPlan(user.id);
+            if (response.success && response.plan) {
+              planMap[user.id] = response.plan.id;
+              planDetailMap[user.id] = {
+                planId: response.plan.id,
+                planEndDate: response.planEndDate ?? response.plan.plan_end_date ?? null,
+                planActive: response.planActive ?? response.plan.is_plan_active ?? true,
+              };
             }
           } catch (err) {
-            // User might not have a plan assigned, that's okay
             console.debug(`No plan found for user ${user.id}`);
           }
         })
       );
       setUserPlans(planMap);
+      setUserPlanDetails(planDetailMap);
     } catch (err) {
       setError('Failed to load users');
       console.error(err);
@@ -302,12 +328,15 @@ export const UserManagement: React.FC = () => {
    */
   const handleOpenEdit = (user: User) => {
     setSelectedUser(user);
+    const planDetail = userPlanDetails[user.id];
     setEditFormData({
       name: user.name || '',
       age: user.age?.toString() || '',
       ageGroup: user.ageGroup || '',
       grade: user.grade || '',
       parentContact: user.parentContact || '',
+      planId: userPlans[user.id] || planDetail?.planId || '',
+      planEndDate: toDateInputValue(planDetail?.planEndDate),
     });
     onEditOpen();
   };
@@ -329,6 +358,18 @@ export const UserManagement: React.FC = () => {
         grade: editFormData.grade || undefined,
         parentContact: editFormData.parentContact || undefined,
       });
+
+      const currentPlanId = userPlans[selectedUser.id];
+      if (editFormData.planId && editFormData.planId !== currentPlanId) {
+        await apiClient.post(`/plans/${editFormData.planId}/assign/${selectedUser.id}`, {
+          planEndDate: editFormData.planEndDate || undefined,
+        });
+      } else if (editFormData.planId) {
+        await planApi.updateUserPlanEndDate(
+          selectedUser.id,
+          editFormData.planEndDate || null
+        );
+      }
 
       toast({
         title: 'Success',
@@ -511,11 +552,22 @@ export const UserManagement: React.FC = () => {
 
   const handleInlinePlanAssign = async (userId: string, planId: string) => {
     if (!planId) return;
-    
+
     try {
       setAssigningPlan(userId);
       await apiClient.post(`/plans/${planId}/assign/${userId}`);
       setUserPlans((prev) => ({ ...prev, [userId]: planId }));
+      const planResponse = await planApi.getUserPlan(userId);
+      if (planResponse.success && planResponse.plan) {
+        setUserPlanDetails((prev) => ({
+          ...prev,
+          [userId]: {
+            planId: planResponse.plan.id,
+            planEndDate: planResponse.planEndDate ?? planResponse.plan.plan_end_date ?? null,
+            planActive: planResponse.planActive ?? planResponse.plan.is_plan_active ?? true,
+          },
+        }));
+      }
       toast({
         title: 'Success',
         description: 'Plan assigned successfully',
@@ -715,6 +767,7 @@ export const UserManagement: React.FC = () => {
                   <Th>Enabled</Th>
                   <Th>Roles</Th>
                   <Th>Plan</Th>
+                  <Th>Plan End Date</Th>
                   <Th>Created</Th>
                   <Th>Actions</Th>
                 </Tr>
@@ -774,6 +827,23 @@ export const UserManagement: React.FC = () => {
                             </option>
                           ))}
                         </Select>
+                      </Td>
+                      <Td>
+                        {userPlanDetails[user.id]?.planEndDate ? (
+                          <VStack align="start" spacing={0}>
+                            <Text fontSize="sm">
+                              {formatPlanEndDate(userPlanDetails[user.id].planEndDate)}
+                            </Text>
+                            <Badge
+                              colorScheme={userPlanDetails[user.id].planActive ? 'green' : 'red'}
+                              fontSize="xs"
+                            >
+                              {userPlanDetails[user.id].planActive ? 'Active' : 'Expired'}
+                            </Badge>
+                          </VStack>
+                        ) : (
+                          <Text fontSize="sm" color="gray.500">—</Text>
+                        )}
                       </Td>
                       <Td>{new Date(user.createdAt).toLocaleDateString()}</Td>
                       <Td>
@@ -936,6 +1006,19 @@ export const UserManagement: React.FC = () => {
                             ))}
                           </Select>
                         </FormControl>
+                        {userPlanDetails[user.id]?.planEndDate && (
+                          <HStack justify="space-between">
+                            <Text fontSize="sm" color="gray.600">
+                              Plan ends: {formatPlanEndDate(userPlanDetails[user.id].planEndDate)}
+                            </Text>
+                            <Badge
+                              colorScheme={userPlanDetails[user.id].planActive ? 'green' : 'red'}
+                              fontSize="xs"
+                            >
+                              {userPlanDetails[user.id].planActive ? 'Active' : 'Expired'}
+                            </Badge>
+                          </HStack>
+                        )}
                       </VStack>
                     </VStack>
                   </CardBody>
@@ -1182,6 +1265,37 @@ export const UserManagement: React.FC = () => {
                       setEditFormData({ ...editFormData, parentContact: e.target.value })
                     }
                   />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Plan</FormLabel>
+                  <Select
+                    value={editFormData.planId}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, planId: e.target.value })
+                    }
+                    placeholder="Select plan"
+                  >
+                    {plans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Plan End Date</FormLabel>
+                  <Input
+                    type="date"
+                    value={editFormData.planEndDate}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, planEndDate: e.target.value })
+                    }
+                  />
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    Freemium defaults to 30 days. Clear to remove end date for paid plans.
+                  </Text>
                 </FormControl>
               </VStack>
             </ModalBody>

@@ -9,15 +9,11 @@ const { ollamaChat, isLlmConfigured, getOllamaRuntimeConfig } = require('../util
 
 const router = express.Router();
 
-/** Unauthenticated health for mounts / curl (POST /chat still requires JWT). */
-router.get('/ping', (req, res) => {
-  const runtime = getOllamaRuntimeConfig();
+/** Authenticated health check (no internal config exposed). */
+router.get('/ping', authenticateToken, (req, res) => {
   res.json({
     ok: true,
     llmEnabled: isLlmConfigured(),
-    ollamaMode: runtime.mode,
-    model: runtime.model,
-    postChat: 'POST /api/ai/chat with Authorization: Bearer <token> and JSON { messages: [...] }',
   });
 });
 

@@ -4,8 +4,10 @@
 
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
+const { getJwtSecret } = require('../utils/jwtConfig');
+const { COOKIE_NAME } = require('../utils/authCookies');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const ALLOWED_STATUSES = new Set(['enabled', 'approved']);
 
 /**
  * Verify JWT token and attach user to request
@@ -13,7 +15,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const bearerToken = authHeader && authHeader.split(' ')[1];
+    const token = req.cookies?.[COOKIE_NAME] || bearerToken;
 
     if (!token) {
       return res.status(401).json({
@@ -22,9 +25,8 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
 
-    // Get user from database with roles and permissions
     const result = await pool.query(
       `SELECT 
         u.id, 
@@ -51,7 +53,13 @@ const authenticateToken = async (req, res, next) => {
 
     const user = result.rows[0];
 
-    // Get user roles
+    if (!ALLOWED_STATUSES.has(user.status)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account access is restricted. Please contact an administrator.',
+      });
+    }
+
     const rolesResult = await pool.query(
       `SELECT r.name 
        FROM roles r
@@ -60,7 +68,6 @@ const authenticateToken = async (req, res, next) => {
       [user.id]
     );
 
-    // Get user permissions
     const permissionsResult = await pool.query(
       `SELECT DISTINCT p.name 
        FROM permissions p
@@ -78,10 +85,23 @@ const authenticateToken = async (req, res, next) => {
 
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
         message: 'Invalid token',
+      });
+    }
+    if (/JWT_SECRET/i.test(error.message || '')) {
+      console.error('[auth] JWT configuration error:', error.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Authentication service misconfigured',
+      });
+    }
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === '53300') {
+      return res.status(503).json({
+        success: false,
+        message: 'Database temporarily unavailable',
       });
     }
     next(error);
@@ -89,4 +109,3 @@ const authenticateToken = async (req, res, next) => {
 };
 
 module.exports = { authenticateToken };
-

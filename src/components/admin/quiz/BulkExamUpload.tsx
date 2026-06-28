@@ -5,7 +5,6 @@
  */
 
 import React, { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
 import {
   Box, VStack, HStack, Heading, Text, Button, Alert, AlertIcon, AlertDescription,
   Badge, Table, Thead, Tbody, Tr, Th, Td, Accordion, AccordionItem,
@@ -49,11 +48,10 @@ export const BulkExamUpload: React.FC<BulkExamUploadProps> = ({ onUploadComplete
     }
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const data  = new Uint8Array(ev.target!.result as ArrayBuffer);
-        const wb    = XLSX.read(data, { type: 'array' });
-        const exams = parseWorkbook(wb);
+        const data = ev.target!.result as ArrayBuffer;
+        const exams = await parseWorkbook(data);
 
         if (exams.length === 0) {
           toast({ title: 'No exams found', description: 'Each sheet tab becomes one exam.', status: 'warning', duration: 4000 });
@@ -156,7 +154,7 @@ export const BulkExamUpload: React.FC<BulkExamUploadProps> = ({ onUploadComplete
               Upload up to {MAX_EXAMS} exams at once. Settings are read from the Excel file — no manual input needed.
             </Text>
           </Box>
-          <Button size="sm" colorScheme="green" variant="outline" leftIcon={<Text>📥</Text>} onClick={downloadBulkTemplate}>
+          <Button size="sm" colorScheme="green" variant="outline" leftIcon={<Text>📥</Text>} onClick={() => void downloadBulkTemplate()}>
             Download Template
           </Button>
         </HStack>

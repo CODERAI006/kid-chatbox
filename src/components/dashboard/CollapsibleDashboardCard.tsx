@@ -46,44 +46,44 @@ export const CollapsibleDashboardCard: React.FC<CollapsibleDashboardCardProps> =
   return (
     <Card borderWidth="1px" borderColor={rowBorder} boxShadow="sm" w="100%">
       <CardBody p={{ base: 3, md: 4 }}>
-        <HStack
-          as="button"
-          type="button"
-          w="100%"
-          justify="space-between"
-          align="center"
-          spacing={3}
-          onClick={() => setOpen((v) => !v)}
-          borderRadius="md"
-          p={1}
-          mx={-1}
-          transition="background 0.15s"
-          _hover={{ bg: hoverBg }}
-          aria-expanded={open}
-        >
-          <HStack spacing={2} flex={1} minW={0} align="flex-start">
-            <Box mt={0.5} aria-hidden>{icon}</Box>
-            <VStack align="start" spacing={0.5} flex={1} minW={0}>
-              <HStack spacing={2} flexWrap="wrap">
-                <Heading size={{ base: 'xs', sm: 'sm' }} color={titleColor} textAlign="left">
-                  {title}
-                </Heading>
-                {count !== undefined && count > 0 && (
-                  <Badge colorScheme="blue" fontSize="2xs" borderRadius="full">
-                    {count}
-                  </Badge>
+        <HStack w="100%" justify="space-between" align="center" spacing={3}>
+          <HStack
+            as="button"
+            type="button"
+            flex={1}
+            minW={0}
+            justify="space-between"
+            align="center"
+            spacing={3}
+            onClick={() => setOpen((v) => !v)}
+            borderRadius="md"
+            p={1}
+            mx={-1}
+            transition="background 0.15s"
+            _hover={{ bg: hoverBg }}
+            aria-expanded={open}
+          >
+            <HStack spacing={2} flex={1} minW={0} align="flex-start">
+              <Box mt={0.5} aria-hidden>{icon}</Box>
+              <VStack align="start" spacing={0.5} flex={1} minW={0}>
+                <HStack spacing={2} flexWrap="wrap">
+                  <Heading size={{ base: 'xs', sm: 'sm' }} color={titleColor} textAlign="left">
+                    {title}
+                  </Heading>
+                  {count !== undefined && count > 0 && (
+                    <Badge colorScheme="blue" fontSize="2xs" borderRadius="full">
+                      {count}
+                    </Badge>
+                  )}
+                </HStack>
+                {!open && (
+                  <Text fontSize="xs" color={subtitleColor} noOfLines={2} textAlign="left">
+                    {summary}
+                  </Text>
                 )}
-              </HStack>
-              {!open && (
-                <Text fontSize="xs" color={subtitleColor} noOfLines={2} textAlign="left">
-                  {summary}
-                </Text>
-              )}
-            </VStack>
-          </HStack>
+              </VStack>
+            </HStack>
 
-          <HStack spacing={2} flexShrink={0} onClick={(e) => e.stopPropagation()}>
-            {headerAction}
             <motion.div
               animate={{ rotate: open ? 180 : 0 }}
               transition={{ duration: 0.25 }}
@@ -93,6 +93,8 @@ export const CollapsibleDashboardCard: React.FC<CollapsibleDashboardCardProps> =
               <FiChevronDown size={18} />
             </motion.div>
           </HStack>
+
+          {headerAction && <Box flexShrink={0}>{headerAction}</Box>}
         </HStack>
 
         <Collapse in={open} animateOpacity>

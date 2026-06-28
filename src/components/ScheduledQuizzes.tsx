@@ -9,6 +9,7 @@ import {
   SimpleGrid, useColorModeValue, useToast,
 } from '@/shared/design-system';
 import { motion } from 'framer-motion';
+import { apiClient } from '@/services/api';
 
 interface GeneratedQuiz {
   id: string;
@@ -37,11 +38,8 @@ export const ScheduledQuizzes: React.FC<{ onStartQuiz?: (quiz: GeneratedQuiz) =>
   useEffect(() => {
     const fetchActive = async () => {
       try {
-        const r = await fetch('/api/quiz-scheduler/active', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
-        });
-        const d = await r.json();
-        if (d.success) setQuizzes(d.data);
+        const r = await apiClient.get<{ success: boolean; data: GeneratedQuiz[] }>('/quiz-scheduler/active');
+        if (r.data.success) setQuizzes(r.data.data);
       } catch {
         toast({ title: 'Could not load scheduled quizzes', status: 'error', duration: 3000 });
       } finally {

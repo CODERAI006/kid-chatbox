@@ -12,6 +12,9 @@ const {
   getUserPlan,
   getDailyUsage,
   getFreemiumPlan,
+  updateUserPlanEndDate,
+  isPlanActive,
+  getDaysRemaining,
 } = require('../utils/plans');
 
 const router = express.Router();
@@ -94,6 +97,7 @@ router.post('/', checkPermission('manage_users'), async (req, res, next) => {
       status = 'active',
       hideAiStudy = false,
       hideAiQuiz = false,
+      defaultDurationDays = null,
     } = req.body;
 
     // Validate input
@@ -126,9 +130,10 @@ router.post('/', checkPermission('manage_users'), async (req, res, next) => {
         monthly_cost, 
         status,
         hide_ai_study,
-        hide_ai_quiz
+        hide_ai_quiz,
+        default_duration_days
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *`,
       [
         name,
@@ -139,6 +144,9 @@ router.post('/', checkPermission('manage_users'), async (req, res, next) => {
         status,
         Boolean(hideAiStudy),
         Boolean(hideAiQuiz),
+        defaultDurationDays != null && defaultDurationDays !== ''
+          ? parseInt(defaultDurationDays, 10)
+          : null,
       ]
     );
 
@@ -168,6 +176,7 @@ router.put('/:id', checkPermission('manage_users'), async (req, res, next) => {
       status,
       hideAiStudy,
       hideAiQuiz,
+      defaultDurationDays,
     } = req.body;
 
     // Check if plan exists
@@ -234,6 +243,16 @@ router.put('/:id', checkPermission('manage_users'), async (req, res, next) => {
       paramCount++;
       updates.push(`hide_ai_quiz = $${paramCount}`);
       values.push(Boolean(hideAiQuiz));
+    }
+
+    if (defaultDurationDays !== undefined) {
+      paramCount++;
+      updates.push(`default_duration_days = $${paramCount}`);
+      values.push(
+        defaultDurationDays != null && defaultDurationDays !== ''
+          ? parseInt(defaultDurationDays, 10)
+          : null
+      );
     }
 
     if (updates.length === 0) {
@@ -358,8 +377,9 @@ router.post(
         });
       }
 
-      // Assign plan
-      await assignPlanToUser(userId, planId, req.user.id);
+      // Assign plan (optional planEndDate in body)
+      const { planEndDate } = req.body;
+      await assignPlanToUser(userId, planId, req.user.id, null, planEndDate || null);
 
       // Get updated user plan info
       const userPlan = await getUserPlan(userId);
@@ -395,11 +415,18 @@ router.get('/user/:userId', authenticateToken, async (req, res, next) => {
     const usage = await getDailyUsage(userId);
 
     // If no plan assigned, return Freemium plan
-    const userPlan = plan || await getFreemiumPlan();
+    const userPlan = plan || (await getFreemiumPlan());
+    const planEndDate = plan?.plan_end_date || null;
+    const planActive = plan ? plan.is_plan_active : true;
 
     res.json({
       success: true,
-      plan: userPlan,
+      plan: {
+        ...userPlan,
+        plan_end_date: planEndDate,
+        is_plan_active: planActive,
+        days_remaining: plan ? plan.days_remaining : null,
+      },
       usage: {
         quizCount: usage ? usage.quiz_count : 0,
         topicCount: usage ? usage.topic_count : 0,
@@ -408,14 +435,68 @@ router.get('/user/:userId', authenticateToken, async (req, res, next) => {
       limits: {
         dailyQuizLimit: userPlan.daily_quiz_limit,
         dailyTopicLimit: userPlan.daily_topic_limit,
-        remainingQuizzes: Math.max(0, userPlan.daily_quiz_limit - (usage ? usage.quiz_count : 0)),
-        remainingTopics: Math.max(0, userPlan.daily_topic_limit - (usage ? usage.topic_count : 0)),
+        remainingQuizzes: planActive
+          ? Math.max(0, userPlan.daily_quiz_limit - (usage ? usage.quiz_count : 0))
+          : 0,
+        remainingTopics: planActive
+          ? Math.max(0, userPlan.daily_topic_limit - (usage ? usage.topic_count : 0))
+          : 0,
       },
+      planActive,
+      planEndDate,
+      daysRemaining: plan ? plan.days_remaining : null,
     });
   } catch (error) {
     next(error);
   }
 });
+
+/**
+ * Update user's plan end date
+ * PUT /api/plans/user/:userId/end-date
+ */
+router.put(
+  '/user/:userId/end-date',
+  checkPermission('manage_users'),
+  async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      const { planEndDate } = req.body;
+
+      if (planEndDate !== null && planEndDate !== undefined && planEndDate !== '') {
+        const parsed = new Date(planEndDate);
+        if (Number.isNaN(parsed.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid planEndDate format. Use YYYY-MM-DD.',
+          });
+        }
+      }
+
+      const updated = await updateUserPlanEndDate(
+        userId,
+        planEndDate === '' ? null : planEndDate || null
+      );
+
+      if (!updated) {
+        return res.status(404).json({
+          success: false,
+          message: 'User has no plan assigned',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Plan end date updated',
+        plan: updated,
+        planActive: isPlanActive(updated.plan_end_date),
+        daysRemaining: getDaysRemaining(updated.plan_end_date),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 module.exports = router;
 

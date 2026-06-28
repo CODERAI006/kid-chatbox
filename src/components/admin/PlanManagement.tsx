@@ -55,6 +55,7 @@ interface Plan {
   status: 'active' | 'inactive';
   hide_ai_study?: boolean;
   hide_ai_quiz?: boolean;
+  default_duration_days?: number | null;
   created_at: string;
   updated_at: string;
   user_count?: number;
@@ -69,6 +70,7 @@ interface PlanFormData {
   status: 'active' | 'inactive';
   hideAiStudy: boolean;
   hideAiQuiz: boolean;
+  defaultDurationDays: number | '';
 }
 
 /**
@@ -90,6 +92,7 @@ export const PlanManagement: React.FC = () => {
     status: 'active',
     hideAiStudy: false,
     hideAiQuiz: false,
+    defaultDurationDays: 30,
   });
   const [formLoading, setFormLoading] = useState(false);
   const [assignUserId, setAssignUserId] = useState('');
@@ -129,6 +132,7 @@ export const PlanManagement: React.FC = () => {
       status: 'active',
       hideAiStudy: false,
       hideAiQuiz: false,
+      defaultDurationDays: 30,
     });
     onOpen();
   };
@@ -144,6 +148,7 @@ export const PlanManagement: React.FC = () => {
       status: plan.status,
       hideAiStudy: Boolean(plan.hide_ai_study),
       hideAiQuiz: Boolean(plan.hide_ai_quiz),
+      defaultDurationDays: plan.default_duration_days ?? '',
     });
     onOpen();
   };
@@ -309,6 +314,7 @@ export const PlanManagement: React.FC = () => {
                 <Th>Daily Quiz Limit</Th>
                 <Th>Daily Topic Limit</Th>
                 <Th>Monthly Cost</Th>
+                <Th>Duration (days)</Th>
                 <Th>Hide AI Study</Th>
                 <Th>Hide AI Quiz</Th>
                 <Th>Status</Th>
@@ -324,6 +330,7 @@ export const PlanManagement: React.FC = () => {
                   <Td>{plan.daily_quiz_limit}</Td>
                   <Td>{plan.daily_topic_limit}</Td>
                   <Td>{formatPlanPrice(plan.monthly_cost)}</Td>
+                  <Td>{plan.default_duration_days ?? 'No limit'}</Td>
                   <Td>
                     <Badge colorScheme={plan.hide_ai_study ? 'orange' : 'green'} fontSize="xs">
                       {plan.hide_ai_study ? 'Hidden' : 'Shown'}
@@ -443,6 +450,29 @@ export const PlanManagement: React.FC = () => {
                       <NumberDecrementStepper />
                     </NumberInputStepper>
                   </NumberInput>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Default Duration (days)</FormLabel>
+                  <NumberInput
+                    value={formData.defaultDurationDays}
+                    onChange={(_: string, value: number) =>
+                      setFormData({
+                        ...formData,
+                        defaultDurationDays: isNaN(value) ? '' : value,
+                      })
+                    }
+                    min={0}
+                  >
+                    <NumberInputField placeholder="e.g. 30 for Freemium" />
+                    <NumberInputStepper>
+                      <NumberIncrementStepper />
+                      <NumberDecrementStepper />
+                    </NumberInputStepper>
+                  </NumberInput>
+                  <FormHelperText>
+                    Days a new assignment stays active. Leave empty for no automatic end date.
+                  </FormHelperText>
                 </FormControl>
 
                 <FormControl>
