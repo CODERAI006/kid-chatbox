@@ -13,6 +13,7 @@ import {
   warmUpSpeechSynthesis,
 } from '@/utils/speechSynthesis';
 import { preloadPiperVoice } from '@/utils/piperSpeech';
+import { BROWSER_TTS_RATE, GURU_VOICE_LABEL } from '@/utils/voiceConfig';
 
 export type VoicePhase = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -38,6 +39,7 @@ export interface UseVoiceConversationResult {
   voiceError: string | null;
   voiceLabel: string;
   toggleVoiceMode: () => void;
+  enableVoiceMode: () => void;
   startMic: () => void;
   stopMic: () => void;
   stopSpeakingNow: () => void;
@@ -172,6 +174,7 @@ export function useVoiceConversation(
         unlockSpeechSynthesis();
         try {
           const result = await speakText(text, {
+            rate: BROWSER_TTS_RATE,
             onStart: () => setTtsError(null),
           });
           if (!result.ok && speakingRef.current) {
@@ -208,6 +211,17 @@ export function useVoiceConversation(
     startListening();
     setPhase('listening');
   }, [resetTranscript, startListening]);
+
+  const enableVoiceMode = useCallback(() => {
+    if (!voiceSupported || voiceModeRef.current) return;
+    voiceModeRef.current = true;
+    setVoiceMode(true);
+    unlockSpeechSynthesis();
+    warmUpSpeechSynthesis();
+    void preloadPiperVoice();
+    lastSpokenCountRef.current = assistantMessageCount;
+    beginListening();
+  }, [voiceSupported, beginListening, assistantMessageCount]);
 
   const toggleVoiceMode = useCallback(() => {
     setVoiceMode((prev) => {
@@ -284,10 +298,10 @@ export function useVoiceConversation(
       : phase === 'thinking'
         ? 'Thinking…'
         : phase === 'speaking'
-          ? ttsError ?? 'Speaking… tap speaker icon to skip'
+          ? ttsError ?? `${GURU_VOICE_LABEL} — tap speaker to skip`
           : voiceMode
             ? 'Tap mic to ask'
-            : 'Tap mic to talk with Guru';
+            : 'Tap mic for voice conversation';
 
   return {
     voiceMode,
@@ -298,6 +312,7 @@ export function useVoiceConversation(
     voiceError: sttError ?? ttsError,
     voiceLabel,
     toggleVoiceMode,
+    enableVoiceMode,
     startMic,
     stopMic,
     stopSpeakingNow,

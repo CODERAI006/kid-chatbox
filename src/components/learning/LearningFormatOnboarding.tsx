@@ -39,6 +39,7 @@ interface Props {
     mode: LearningBotMode;
     format: LearningStudyFormat;
     quizCount?: number;
+    startVoice?: boolean;
   }) => void;
 }
 
@@ -67,6 +68,7 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
       mode: option.mode,
       format,
       quizCount: count,
+      startVoice: format === 'conversation',
     });
     setStep('format');
     setFormat(null);
@@ -187,12 +189,21 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
       )}
 
       <Text fontSize="sm" fontWeight="semibold">
-        What topic should we study?
+        {format === 'conversation' ? 'What would you like to talk about?' : 'What topic should we study?'}
       </Text>
+      {format === 'conversation' && (
+        <Text fontSize="xs" color="gray.500">
+          Guru will reply with a soft-spoken voice. Allow microphone access when prompted.
+        </Text>
+      )}
       <Input
         value={topic}
         onChange={(e) => setTopic(e.target.value)}
-        placeholder="e.g. Photosynthesis, fractions, World War 2…"
+        placeholder={
+          format === 'conversation'
+            ? 'e.g. Tell me about the solar system…'
+            : 'e.g. Photosynthesis, fractions, World War 2…'
+        }
         size="md"
         isDisabled={disabled}
         onKeyDown={(e) => {
@@ -204,7 +215,7 @@ export function LearningFormatOnboarding({ disabled, onStart }: Props) {
         onClick={submitTopic}
         isDisabled={disabled || !topic.trim()}
       >
-        Start learning
+        {format === 'conversation' ? 'Start voice chat' : 'Start learning'}
       </Button>
     </VStack>
   );

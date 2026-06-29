@@ -1,6 +1,6 @@
 /**
  * Open-source Piper neural TTS in the browser (ONNX / WASM).
- * Voice: en_IN-spicor-medium — Indian English (hosted on the piper-tts-web HuggingFace repo).
+ * Voice: en_US-lessac-medium — soft-spoken US English female.
  */
 
 import { download, predict } from '@the-vedantic-coder/piper-tts-web';
@@ -10,9 +10,9 @@ import {
   resetAudioAbort,
   stopAudioPlayback,
 } from '@/utils/audioPlayback';
+import { PIPER_VOICE_ID, VOICE_PLAYBACK_RATE } from '@/utils/voiceConfig';
 
-/** Indian English Piper voice (NavGurukul SPICOR; rhasspy-compatible in browser bundle). */
-export const PIPER_VOICE_ID = 'en_IN-spicor-medium';
+export { PIPER_VOICE_ID };
 
 let modelReady = false;
 let modelLoading: Promise<boolean> | null = null;
@@ -52,6 +52,7 @@ export function stopPiperSpeech(): void {
 }
 
 export interface PiperSpeakOptions {
+  rate?: number;
   onStart?: () => void;
   onEnd?: () => void;
 }
@@ -80,7 +81,9 @@ export async function speakWithPiper(
         options.onStart?.();
       }
 
-      const played = await playAudioBlob(wav);
+      const played = await playAudioBlob(wav, {
+        playbackRate: options.rate ?? VOICE_PLAYBACK_RATE,
+      });
       if (!played) break;
     } catch (err) {
       console.warn('[piper] synthesis failed', err);

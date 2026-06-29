@@ -6,7 +6,8 @@ require('dotenv').config();
 
 const { pool } = require('../config/database');
 
-const DEFAULT_GA_ID = 'G-GC9H1MJ5MH';
+const DEFAULT_GA_ID = 'G-T7FVN8DMML';
+const LEGACY_GA_ID = 'G-GC9H1MJ5MH';
 
 async function migrateAppAnalyticsSettings() {
   await pool.query(`
@@ -23,6 +24,14 @@ async function migrateAppAnalyticsSettings() {
      VALUES (1, $1, true)
      ON CONFLICT (id) DO NOTHING`,
     [DEFAULT_GA_ID]
+  );
+
+  // Upgrade rows seeded with the previous default ID
+  await pool.query(
+    `UPDATE app_analytics_settings
+     SET google_analytics_id = $1, updated_at = CURRENT_TIMESTAMP
+     WHERE id = 1 AND google_analytics_id = $2`,
+    [DEFAULT_GA_ID, LEGACY_GA_ID]
   );
 
   console.log('✅ app_analytics_settings table ready');

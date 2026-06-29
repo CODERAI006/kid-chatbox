@@ -25,7 +25,11 @@ export function isAudioAborted(): boolean {
   return abortPlayback;
 }
 
-export function playAudioBlob(blob: Blob): Promise<boolean> {
+export interface PlayAudioOptions {
+  playbackRate?: number;
+}
+
+export function playAudioBlob(blob: Blob, options: PlayAudioOptions = {}): Promise<boolean> {
   return new Promise((resolve) => {
     if (abortPlayback) {
       resolve(false);
@@ -35,6 +39,9 @@ export function playAudioBlob(blob: Blob): Promise<boolean> {
     if (activeUrl) URL.revokeObjectURL(activeUrl);
     activeUrl = URL.createObjectURL(blob);
     activeAudio = new Audio(activeUrl);
+    if (options.playbackRate && options.playbackRate > 0) {
+      activeAudio.playbackRate = options.playbackRate;
+    }
 
     const done = (ok: boolean) => {
       if (activeUrl) {

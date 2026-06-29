@@ -32,6 +32,14 @@ const CONVERSATIONAL_PROMPT =
   'Keep paragraphs short. End with a "## What\'s next?" section listing 2-3 follow-up questions as bullet points. ' +
   'Stay accurate; say when you are unsure. Match the student\'s level.';
 
+const VOICE_CONVERSATION_PROMPT =
+  'You are Guru AI, a warm, soft-spoken female study tutor for school learners. ' +
+  'The student is talking with you through voice — they will HEAR your reply, not read a long essay. ' +
+  'Keep EVERY reply SHORT: 2-4 sentences, under 80 words. Use a gentle, encouraging tone like a caring older sister. ' +
+  'No markdown headings, no bullet lists, no "## What\'s next?" section — speak naturally as in real conversation. ' +
+  'One idea at a time. End with a simple question to keep the chat going. ' +
+  'Stay accurate; admit briefly if unsure. Match the student\'s age and level.';
+
 const FORMAT_FOCUS = {
   learn:
     '\n\nSTUDY FORMAT: Quick explanation\n' +
@@ -78,9 +86,18 @@ const FORMAT_FOCUS = {
  * @param {string} [format]
  */
 function resolveSystemPrompt(mode, format) {
-  if (mode === 'chat') return CONVERSATIONAL_PROMPT;
+  if (mode === 'chat') {
+    if (format === 'conversation') return VOICE_CONVERSATION_PROMPT;
+    return CONVERSATIONAL_PROMPT;
+  }
   const focus = format && FORMAT_FOCUS[format] ? FORMAT_FOCUS[format] : '';
   return SYSTEM_PROMPT + focus;
 }
 
-module.exports = { SYSTEM_PROMPT, CONVERSATIONAL_PROMPT, MIN_FLASHCARDS, resolveSystemPrompt };
+module.exports = {
+  SYSTEM_PROMPT,
+  CONVERSATIONAL_PROMPT,
+  VOICE_CONVERSATION_PROMPT,
+  MIN_FLASHCARDS,
+  resolveSystemPrompt,
+};

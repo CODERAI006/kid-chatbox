@@ -12,6 +12,7 @@ import {
 import { speakWithServerPiper, stopServerPiperSpeech } from '@/utils/serverPiperSpeech';
 import { fetchTtsStatus } from '@/services/ttsApi';
 import { stopAudioPlayback } from '@/utils/audioPlayback';
+import { BROWSER_TTS_RATE, VOICE_PLAYBACK_RATE } from '@/utils/voiceConfig';
 
 const INDIAN_VOICE_HINTS = [
   'neerja',
@@ -255,17 +256,58 @@ export async function speakText(
   if (!cleaned) return { ok: false, voiceUsed: null };
 
   const chunks = splitForSpeech(cleaned);
+  const rate = options.rate ?? VOICE_PLAYBACK_RATE;
+  const ttsOpts = { ...options, rate };
 
   const serverStatus = await fetchTtsStatus();
   if (serverStatus.available) {
-    const serverResult = await speakWithServerPiper(chunks, options);
+    const serverResult = await speakWithServerPiper(chunks, ttsOpts);
     if (serverResult.ok) return serverResult;
   }
 
-  const piperResult = await speakWithPiper(chunks, options);
+  const piperResult = await speakWithPiper(chunks, ttsOpts);
   if (piperResult.ok) return piperResult;
 
-  return speakWithServerPiper(chunks, options);
+  const serverRetry = await speakWithServerPiper(chunks, ttsOpts);
+  if (serverRetry.ok) return serverRetry;
+
+  return speakWithBrowserFallback(chunks, { rate: options.rate ?? BROWSER_TTS_RATE });
+}
+
+async function speakWithBrowserFallback(
+  chunks: string[],
+  options: SpeakOptions
+): Promise<SpeakResult> {
+  if (!isBrowserTtsSupported() || !chunks.length) return { ok: false, voiceUsed: null };
+
+  const voices = await loadVoices();
+  const voice = getIndianFemaleVoice(voices);
+  if (!voice) return { ok: false, voiceUsed: null };
+
+  unlockSpeechSynthesis();
+  let started = false;
+
+  for (const chunk of chunks) {
+    if (!chunk.trim()) continue;
+    await new Promise<void>((resolve) => {
+      const utter = new SpeechSynthesisUtterance(chunk);
+      utter.voice = voice;
+      utter.rate = options.rate ?? BROWSER_TTS_RATE;
+      utter.pitch = options.pitch ?? 1.05;
+      utter.onstart = () => {
+        if (!started) {
+          started = true;
+          options.onStart?.();
+        }
+      };
+      utter.onend = () => resolve();
+      utter.onerror = () => resolve();
+      speechSynthesis.speak(utter);
+    });
+  }
+
+  options.onEnd?.();
+  return { ok: started, voiceUsed: voice.name };
 }
 
 export function stopSpeaking(): void {

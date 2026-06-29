@@ -25,8 +25,14 @@ import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { QuizPageUpload } from '@/components/quiz/QuizPageUpload';
 import type { QuizPageImage } from '@/utils/quizImageUpload';
 import { competitiveTopicsApi } from '@/services/competitiveTopics';
+import {
+  getProfileGradeLevel,
+  loadQuizSetupPrefs,
+  saveQuizSetupPrefs,
+  defaultQuizQuestionCount,
+  defaultQuizTimeLimit,
+} from '@/utils/learningFormatPrefs';
 
-const CLASSES = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 const QUESTION_TYPES = ['MCQ', 'Scenario Based', 'True / False', 'Fill in Blanks', 'Word Problems', 'Mixed'];
 const QUESTION_PRESETS = [5, 10, 15, 20, 25, 30, 40];
 const TIME_PRESETS = [5, 10, 15, 20, 30, 45, 60];
@@ -58,19 +64,19 @@ interface ConfigurationFormProps {
 export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
   onConfigComplete, isGenerating = false, generatingBatch = null, onCancelGeneration,
 }) => {
+  const savedPrefs = loadQuizSetupPrefs();
   const { canTakeQuiz, planInfo } = usePlanLimits();
   const [subject, setSubject] = useState<Subject | ''>('');
   const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
   const [customSubtopic, setCustomSubtopic] = useState('');
-  const [questionCount, setQuestionCount] = useState<number>(QUIZ_CONSTANTS.DEFAULT_QUESTIONS);
+  const [questionCount, setQuestionCount] = useState<number>(defaultQuizQuestionCount());
   const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTY_LEVELS.BASIC);
   const [instructions, setInstructions] = useState('');
-  const [timeLimit, setTimeLimit] = useState(10);
-  const [gradeLevel, setGradeLevel] = useState('');
-  const [examStyle, setExamStyle] = useState('');
+  const [timeLimit, setTimeLimit] = useState(defaultQuizTimeLimit());
+  const [examStyle, setExamStyle] = useState(savedPrefs.examStyle || '');
   const [competitiveTrack, setCompetitiveTrack] = useState('');
   const [competitiveTopics, setCompetitiveTopics] = useState<string[]>([]);
-  const [questionType, setQuestionType] = useState('');
+  const [questionType, setQuestionType] = useState(savedPrefs.questionType || '');
   const [customSubtopicInput, setCustomSubtopicInput] = useState('');
   const [profileReady, setProfileReady] = useState(false);
   const [submitLocked, setSubmitLocked] = useState(false);
@@ -159,13 +165,20 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
       difficulty,
       instructions: finalInstructions,
       timeLimit,
-      gradeLevel: gradeLevel.trim() || undefined,
+      gradeLevel: getProfileGradeLevel(),
       examStyle: examStyle.trim() || undefined,
       competitiveTrack: finalTrack,
       sourceImages: hasPageImages ? pageImages.map((p) => p.base64) : undefined,
     });
+
+    saveQuizSetupPrefs({
+      examStyle: examStyle.trim() || undefined,
+      questionType: questionType.trim() || undefined,
+      questionCount,
+      timeLimit,
+    });
   }, [subject, selectedSubtopics, customSubtopic, questionCount, difficulty,
-    instructions, timeLimit, gradeLevel, examStyle, competitiveTrack, competitiveTopics,
+    instructions, timeLimit, examStyle, competitiveTrack, competitiveTopics,
     questionType, onConfigComplete, isFormValid, submitLocked, isGenerating,
     hasPageImages, pageImages, isCompetitive]);
 
@@ -189,55 +202,6 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
                 </Text>
               </Box>
             )}
-
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={{ base: 3, md: 5 }}>
-              <Box>
-                <QuizSectionLabel>Class / Grade</QuizSectionLabel>
-                <HStack flexWrap="wrap" gap={1.5}>
-                  {CLASSES.map(c => (
-                    <QuizPill key={c} label={c} active={gradeLevel === `Class ${c}`}
-                      onClick={() => setGradeLevel(gradeLevel === `Class ${c}` ? '' : `Class ${c}`)} />
-                  ))}
-                </HStack>
-              </Box>
-              <Box>
-                <QuizSectionLabel>Exam Style</QuizSectionLabel>
-                <HStack flexWrap="wrap" gap={1.5}>
-                  {EXAM_BOARDS.map(s => (
-                    <QuizPill key={s} label={s} active={examStyle === s}
-                      onClick={() => setExamStyle(examStyle === s ? '' : s)} cs="purple" />
-                  ))}
-                </HStack>
-              </Box>
-            </SimpleGrid>
-
-            <AnimatePresence>
-              {isCompetitive && !hasPageImages && (
-                <motion.div key="competitive" initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                  <CompetitiveExamSection
-                    trackId={competitiveTrack}
-                    selectedTopics={competitiveTopics}
-                    gradeLevel={gradeLevel}
-                    disabled={isGenerating}
-                    onTrackChange={setCompetitiveTrack}
-                    onTopicsChange={setCompetitiveTopics}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <Box>
-              <QuizSectionLabel>Question Type</QuizSectionLabel>
-              <HStack flexWrap="wrap" gap={1.5}>
-                {QUESTION_TYPES.map(qt => (
-                  <QuizPill key={qt} label={qt} active={questionType === qt}
-                    onClick={() => setQuestionType(questionType === qt ? '' : qt)} cs="orange" />
-                ))}
-              </HStack>
-            </Box>
-
-            {showSchoolSubjects && <Divider />}
 
             {showSchoolSubjects && (
               <Box>
@@ -315,6 +279,44 @@ export const ConfigurationForm: React.FC<ConfigurationFormProps> = ({
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {showSchoolSubjects && <Divider />}
+
+            <Box>
+              <QuizSectionLabel>Exam Style</QuizSectionLabel>
+              <HStack flexWrap="wrap" gap={1.5}>
+                {EXAM_BOARDS.map(s => (
+                  <QuizPill key={s} label={s} active={examStyle === s}
+                    onClick={() => setExamStyle(examStyle === s ? '' : s)} cs="purple" />
+                ))}
+              </HStack>
+            </Box>
+
+            <AnimatePresence>
+              {isCompetitive && !hasPageImages && (
+                <motion.div key="competitive" initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                  <CompetitiveExamSection
+                    trackId={competitiveTrack}
+                    selectedTopics={competitiveTopics}
+                    gradeLevel={getProfileGradeLevel()}
+                    disabled={isGenerating}
+                    onTrackChange={setCompetitiveTrack}
+                    onTopicsChange={setCompetitiveTopics}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <Box>
+              <QuizSectionLabel>Question Type</QuizSectionLabel>
+              <HStack flexWrap="wrap" gap={1.5}>
+                {QUESTION_TYPES.map(qt => (
+                  <QuizPill key={qt} label={qt} active={questionType === qt}
+                    onClick={() => setQuestionType(questionType === qt ? '' : qt)} cs="orange" />
+                ))}
+              </HStack>
+            </Box>
 
             <Box>
               <QuizSectionLabel>Difficulty</QuizSectionLabel>

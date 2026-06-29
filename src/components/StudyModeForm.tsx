@@ -15,13 +15,13 @@ import {
   GENERAL_KNOWLEDGE_SUBTOPICS, CURRENT_AFFAIRS_SUBTOPICS,
   CHESS_SUBTOPICS,
 } from '@/constants/quiz';
+import { EXAM_BOARDS } from '@/constants/examBoard';
 import { Subject, Difficulty } from '@/types/quiz';
 import { isValidSubject } from '@/utils/validation';
 import { STUDY_MODE_MESSAGES } from '@/constants/study';
 import { STUDY_PROMPT_LIMITS } from '@/utils/studyPromptLimits';
+import { loadStudySetupPrefs, saveStudySetupPrefs } from '@/utils/learningFormatPrefs';
 
-const CLASSES = ['1','2','3','4','5','6','7','8','9','10','11','12'];
-const EXAM_STYLES = ['CBSE', 'NCERT', 'Olympiad', 'Competitive', 'ICSE', 'State Board'];
 const LESSON_STYLES = ['Story-based', 'Step-by-step', 'Visual', 'Exam-focused'];
 const LESSON_DEPTHS = ['Quick (5 min)', 'Standard (15 min)', 'Deep Dive (25 min)'];
 const CONTENT_FOCUS_OPTS = ['Q&A Practice', 'Fun Facts', 'Real Examples', 'Diagrams & Images'];
@@ -74,16 +74,20 @@ const Pill = ({ label, active, onClick, cs = 'blue' }: {
 export const StudyModeForm: React.FC<StudyModeFormProps> = ({
   onTopicSubmit, userGrade, isGenerating = false,
 }) => {
+  const savedPrefs = loadStudySetupPrefs();
   const [subject, setSubject] = useState<Subject | ''>('');
   const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
   const [customSubtopic, setCustomSubtopic] = useState('');
   const [customSubtopicInput, setCustomSubtopicInput] = useState('');
-  const [difficulty, setDifficulty] = useState<Difficulty>(DIFFICULTY_LEVELS.BASIC);
-  const [gradeLevel, setGradeLevel] = useState(userGrade || '');
-  const [examStyle, setExamStyle] = useState('');
-  const [lessonStyle, setLessonStyle] = useState('Story-based');
-  const [lessonDepth, setLessonDepth] = useState('Standard (15 min)');
-  const [contentFocus, setContentFocus] = useState<string[]>(['Q&A Practice', 'Fun Facts']);
+  const [difficulty, setDifficulty] = useState<Difficulty>(
+    (savedPrefs.difficulty as Difficulty) || DIFFICULTY_LEVELS.BASIC
+  );
+  const [examStyle, setExamStyle] = useState(savedPrefs.examStyle || '');
+  const [lessonStyle, setLessonStyle] = useState(savedPrefs.lessonStyle || 'Story-based');
+  const [lessonDepth, setLessonDepth] = useState(savedPrefs.lessonDepth || 'Standard (15 min)');
+  const [contentFocus, setContentFocus] = useState<string[]>(
+    savedPrefs.contentFocus?.length ? savedPrefs.contentFocus : ['Q&A Practice', 'Fun Facts']
+  );
   const [instructions, setInstructions] = useState('');
   const [profileReady, setProfileReady] = useState(false);
   const [submitLocked, setSubmitLocked] = useState(false);
@@ -126,14 +130,22 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
       subject,
       subtopics: finalSubtopics,
       difficulty,
-      gradeLevel: gradeLevel.trim() || userGrade || undefined,
+      gradeLevel: userGrade || undefined,
       examStyle: examStyle.trim() || undefined,
       lessonStyle,
       lessonDepth,
       contentFocus,
       instructions: instructions.trim() || undefined,
     });
-  }, [subject, selectedSubtopics, customSubtopic, difficulty, gradeLevel, examStyle,
+
+    saveStudySetupPrefs({
+      examStyle: examStyle.trim() || undefined,
+      lessonStyle,
+      lessonDepth,
+      difficulty,
+      contentFocus,
+    });
+  }, [subject, selectedSubtopics, customSubtopic, difficulty, examStyle,
     lessonStyle, lessonDepth, contentFocus, instructions, onTopicSubmit, isFormValid,
     submitLocked, isGenerating, profileReady, userGrade]);
 
@@ -143,60 +155,6 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
         <CardBody padding={{ base: 4, md: 6 }}>
           <VStack spacing={5} align="stretch">
             <ProfileQuizHint onReadyChange={setProfileReady} />
-
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-              <Box>
-                <SL>Class / Grade</SL>
-                <HStack flexWrap="wrap" gap={2}>
-                  {CLASSES.map((c) => (
-                    <Pill key={c} label={`Class ${c}`} active={gradeLevel === `Class ${c}`}
-                      onClick={() => setGradeLevel(gradeLevel === `Class ${c}` ? '' : `Class ${c}`)} />
-                  ))}
-                </HStack>
-              </Box>
-              <Box>
-                <SL>Exam Style</SL>
-                <HStack flexWrap="wrap" gap={2}>
-                  {EXAM_STYLES.map((s) => (
-                    <Pill key={s} label={s} active={examStyle === s} cs="purple"
-                      onClick={() => setExamStyle(examStyle === s ? '' : s)} />
-                  ))}
-                </HStack>
-              </Box>
-            </SimpleGrid>
-
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-              <Box>
-                <SL>Lesson Style</SL>
-                <HStack flexWrap="wrap" gap={2}>
-                  {LESSON_STYLES.map((s) => (
-                    <Pill key={s} label={s} active={lessonStyle === s} cs="orange"
-                      onClick={() => setLessonStyle(s)} />
-                  ))}
-                </HStack>
-              </Box>
-              <Box>
-                <SL>Lesson Depth</SL>
-                <HStack flexWrap="wrap" gap={2}>
-                  {LESSON_DEPTHS.map((d) => (
-                    <Pill key={d} label={d} active={lessonDepth === d} cs="teal"
-                      onClick={() => setLessonDepth(d)} />
-                  ))}
-                </HStack>
-              </Box>
-            </SimpleGrid>
-
-            <Box>
-              <SL>Include in Lesson (pick any)</SL>
-              <HStack flexWrap="wrap" gap={2}>
-                {CONTENT_FOCUS_OPTS.map((opt) => (
-                  <Pill key={opt} label={opt} active={contentFocus.includes(opt)} cs="cyan"
-                    onClick={() => toggleFocus(opt)} />
-                ))}
-              </HStack>
-            </Box>
-
-            <Divider />
 
             <Box>
               <SL>Subject <Text as="span" color="red.400">*</Text></SL>
@@ -256,6 +214,49 @@ export const StudyModeForm: React.FC<StudyModeFormProps> = ({
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <Divider />
+
+            <Box>
+              <SL>Exam Style</SL>
+              <HStack flexWrap="wrap" gap={2}>
+                {EXAM_BOARDS.map((s) => (
+                  <Pill key={s} label={s} active={examStyle === s} cs="purple"
+                    onClick={() => setExamStyle(examStyle === s ? '' : s)} />
+                ))}
+              </HStack>
+            </Box>
+
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
+              <Box>
+                <SL>Lesson Style</SL>
+                <HStack flexWrap="wrap" gap={2}>
+                  {LESSON_STYLES.map((s) => (
+                    <Pill key={s} label={s} active={lessonStyle === s} cs="orange"
+                      onClick={() => setLessonStyle(s)} />
+                  ))}
+                </HStack>
+              </Box>
+              <Box>
+                <SL>Lesson Depth</SL>
+                <HStack flexWrap="wrap" gap={2}>
+                  {LESSON_DEPTHS.map((d) => (
+                    <Pill key={d} label={d} active={lessonDepth === d} cs="teal"
+                      onClick={() => setLessonDepth(d)} />
+                  ))}
+                </HStack>
+              </Box>
+            </SimpleGrid>
+
+            <Box>
+              <SL>Include in Lesson (pick any)</SL>
+              <HStack flexWrap="wrap" gap={2}>
+                {CONTENT_FOCUS_OPTS.map((opt) => (
+                  <Pill key={opt} label={opt} active={contentFocus.includes(opt)} cs="cyan"
+                    onClick={() => toggleFocus(opt)} />
+                ))}
+              </HStack>
+            </Box>
 
             <Box>
               <SL>Difficulty</SL>

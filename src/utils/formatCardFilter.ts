@@ -10,6 +10,7 @@ const FORMAT_ALLOWED: Record<LearningStudyFormat, Set<LearningCardType>> = {
   flashcards: new Set(['flashcard']),
   quiz: new Set(['quiz', 'hook', 'text']),
   chat: new Set(),
+  conversation: new Set(),
   studyplan: new Set(['hook', 'explanation', 'text', 'quiz']),
   'studyplan-lesson': new Set(['hook', 'explanation', 'text', 'example', 'quiz']),
 };
@@ -32,7 +33,7 @@ export function filterCardsByStudyFormat(
   cards: LearningWorkspaceCard[],
   format: LearningStudyFormat | null | undefined
 ): LearningWorkspaceCard[] {
-  if (!format || format === 'chat') return cards;
+  if (!format || format === 'chat' || format === 'conversation') return cards;
 
   const allowed = FORMAT_ALLOWED[format];
   if (!allowed.size) return cards;

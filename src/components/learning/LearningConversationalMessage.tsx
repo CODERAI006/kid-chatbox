@@ -9,10 +9,16 @@ import { chatMessageContainerProps, chatResponsiveTextSx } from './chatResponsiv
 interface Props {
   content: string;
   speakAloud?: boolean;
+  voiceMode?: boolean;
   onAskPrompt?: (prompt: string) => void;
 }
 
-export function LearningConversationalMessage({ content, speakAloud, onAskPrompt }: Props) {
+export function LearningConversationalMessage({
+  content,
+  speakAloud,
+  voiceMode,
+  onAskPrompt,
+}: Props) {
   const bubbleBg = useColorModeValue('white', 'gray.800');
   const bubbleBorder = useColorModeValue('gray.200', 'gray.600');
 
@@ -31,9 +37,9 @@ export function LearningConversationalMessage({ content, speakAloud, onAskPrompt
     >
       <HStack justify="space-between" mb={2} align="flex-start" gap={2} minW={0}>
         <HStack spacing={2}>
-          <Text fontSize="lg">💬</Text>
+          <Text fontSize="lg">{voiceMode || speakAloud ? '🎙️' : '💬'}</Text>
           <Text fontSize="xs" color="gray.500" fontWeight="semibold">
-            AI Tutor
+            {voiceMode || speakAloud ? 'Guru (voice)' : 'AI Tutor'}
           </Text>
         </HStack>
         {!speakAloud && (

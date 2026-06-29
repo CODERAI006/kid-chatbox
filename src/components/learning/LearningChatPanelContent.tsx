@@ -40,7 +40,12 @@ export interface LearningChatPanelContentProps {
   onSend: () => void;
   onSendText: (
     text: string,
-    opts?: { mode?: LearningBotMode; format?: LearningStudyFormat | null; quizCount?: number }
+    opts?: {
+      mode?: LearningBotMode;
+      format?: LearningStudyFormat | null;
+      quizCount?: number;
+      startVoice?: boolean;
+    }
   ) => void;
   onKeyDown: (ev: KeyboardEvent) => void;
   onDraftChange: (value: string) => void;
@@ -124,8 +129,8 @@ export function LearningChatPanelContent({
               {showOnboarding && (
                 <LearningFormatOnboarding
                   disabled={pending}
-                  onStart={({ text, mode, format, quizCount }) =>
-                    void onSendText(text, { mode, format, quizCount })
+                  onStart={({ text, mode, format, quizCount, startVoice }) =>
+                    void onSendText(text, { mode, format, quizCount, startVoice })
                   }
                 />
               )}
@@ -151,6 +156,7 @@ export function LearningChatPanelContent({
                     <LearningConversationalMessage
                       content={m.content}
                       speakAloud={voice.voiceMode}
+                      voiceMode={studyFormat === 'conversation'}
                       onAskPrompt={(prompt) => void onSendText(prompt)}
                     />
                   </Box>

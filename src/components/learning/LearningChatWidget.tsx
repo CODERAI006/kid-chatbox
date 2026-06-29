@@ -53,6 +53,7 @@ export const LearningChatWidget: FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [saveHint, setSaveHint] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const pendingVoiceStartRef = useRef(false);
   const historyDrawer = useDisclosure();
   const pendingRef = useRef(false);
   const bootLoadingRef = useRef(false);
@@ -132,7 +133,12 @@ export const LearningChatWidget: FC = () => {
   const sendText = useCallback(
     async (
       text: string,
-      opts?: { mode?: LearningBotMode; format?: LearningStudyFormat | null; quizCount?: number }
+      opts?: {
+        mode?: LearningBotMode;
+        format?: LearningStudyFormat | null;
+        quizCount?: number;
+        startVoice?: boolean;
+      }
     ): Promise<boolean> => {
       const trimmed = text.trim();
       if (!trimmed || pendingRef.current || bootLoadingRef.current) return false;
@@ -148,6 +154,7 @@ export const LearningChatWidget: FC = () => {
       if (opts?.mode) setChatMode(opts.mode);
       if (opts?.format) setStudyFormat(opts.format);
       if (opts?.quizCount) setQuizQuestionCount(opts.quizCount);
+      if (opts?.startVoice) pendingVoiceStartRef.current = true;
 
       let outbound = trimmed;
       if (format === 'quiz' && !/separate quiz cards/i.test(trimmed)) {
@@ -409,6 +416,15 @@ export const LearningChatWidget: FC = () => {
     lastAssistantText,
     assistantMessageCount,
   });
+
+  const { enableVoiceMode, voiceSupported, voiceMode } = voice;
+
+  useEffect(() => {
+    if (pendingVoiceStartRef.current && voiceSupported && !voiceMode) {
+      pendingVoiceStartRef.current = false;
+      enableVoiceMode();
+    }
+  }, [voiceSupported, voiceMode, enableVoiceMode]);
 
   const panelProps = {
     userName,

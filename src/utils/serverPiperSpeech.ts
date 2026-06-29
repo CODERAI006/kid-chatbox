@@ -9,12 +9,14 @@ import {
   resetAudioAbort,
   stopAudioPlayback,
 } from '@/utils/audioPlayback';
+import { VOICE_PLAYBACK_RATE } from '@/utils/voiceConfig';
 
 export function stopServerPiperSpeech(): void {
   stopAudioPlayback();
 }
 
 export interface ServerPiperOptions {
+  rate?: number;
   onStart?: () => void;
   onEnd?: () => void;
 }
@@ -41,7 +43,9 @@ export async function speakWithServerPiper(
       options.onStart?.();
     }
 
-    const played = await playAudioBlob(wav);
+    const played = await playAudioBlob(wav, {
+      playbackRate: options.rate ?? VOICE_PLAYBACK_RATE,
+    });
     if (!played) break;
   }
 

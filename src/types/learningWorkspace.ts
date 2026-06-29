@@ -78,6 +78,7 @@ export type LearningStudyFormat =
   | 'flashcards'
   | 'quiz'
   | 'chat'
+  | 'conversation'
   | 'studyplan'
   | 'studyplan-lesson';
 
@@ -102,6 +103,7 @@ export const STUDY_FORMAT_OPTIONS: LearningFormatOption[] = [
   { key: 'flashcards', emoji: '⚡', label: 'Flashcards', hint: '20+ swipe cards', mode: 'workspace' },
   { key: 'quiz', emoji: '🎮', label: 'Quiz me', hint: 'Choose how many questions', mode: 'workspace' },
   { key: 'chat', emoji: '💬', label: 'Just chat', hint: 'Natural conversation', mode: 'chat' },
+  { key: 'conversation', emoji: '🎙️', label: 'Voice conversation', hint: 'Talk & listen with Guru', mode: 'chat' },
   { key: 'studyplan', emoji: '📅', label: 'Plan my studies', hint: 'Exam prep schedule', mode: 'workspace' },
 ];
 
@@ -141,6 +143,10 @@ export function buildStudyTopicPrompt(
       'Each card: one question, 3-4 options, correctOptionId, correctFeedback, wrongFeedback. ' +
       'Optional: one brief hook card. No flashcards or long lesson cards.',
     chat: `Let's talk about "${t}". I may ask follow-up questions — answer naturally.`,
+    conversation:
+      `Let's have a friendly voice conversation about "${t}". ` +
+      'Keep each reply short (2-4 sentences) so they are easy to listen to. ' +
+      'Be warm, soft-spoken, and encouraging like a caring tutor.',
     studyplan: `Plan my exam prep for "${t}".`,
     'studyplan-lesson': `Teach "${t}" as a fun scheduled exam-prep lesson with facts, tips, and Q&A.`,
   };

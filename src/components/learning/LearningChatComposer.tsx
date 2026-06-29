@@ -78,13 +78,15 @@ export function LearningChatComposer({
         ? listening
           ? 'Stop voice chat'
           : 'Start listening'
-        : 'Talk with Guru (natural voice)';
+        : 'Voice conversation (soft-spoken Guru)';
 
   const placeholder =
     voice.voiceMode && listening
       ? 'Listening… speak your question'
       : chatMode === 'chat'
-        ? 'Ask Guru anything…'
+        ? voice.voiceMode
+          ? 'Voice chat active — speak or type…'
+          : 'Ask Guru anything…'
         : showOnboarding
           ? 'Or type a topic + question…'
           : 'Ask a follow-up…';
