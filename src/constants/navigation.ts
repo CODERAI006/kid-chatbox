@@ -24,6 +24,7 @@ import {
   FiUser,
   FiUsers,
   FiGrid,
+  FiCreditCard,
 } from 'react-icons/fi';
 
 export type NavAction = 'feedback' | 'install';
@@ -45,6 +46,8 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/admin', label: 'Dashboard', icon: FiHome },
   { adminPath: '/admin/users', label: 'Users', icon: FiUsers },
   { adminPath: '/admin/plans', label: 'Plans', icon: FiSettings },
+  { adminPath: '/admin/payment-settings', label: 'Payment Settings', icon: FiCreditCard },
+  { adminPath: '/admin/payment-requests', label: 'Payment Requests', icon: FiCreditCard },
   { adminPath: '/admin/topics', label: 'Topics', icon: FiBook },
   { adminPath: '/admin/quizzes', label: 'Quizzes', icon: FiFileText },
   { adminPath: '/admin/analytics', label: 'Analytics', icon: FiBarChart2 },
@@ -100,6 +103,7 @@ export const ADMIN_TABLE_VIEW_PATHS = new Set([
   '/admin/quiz-scheduler',
   '/admin/daily-content-batch',
   '/admin/feedback',
+  '/admin/payment-requests',
 ]);
 
 export function getVisibleNavItems(isAdmin: boolean): AppNavItem[] {

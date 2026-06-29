@@ -50,6 +50,7 @@ export default function EducationTopicsPanel() {
   const [page, setPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [activeCategory, setActiveCategory] = useState<EducationCategory | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
@@ -84,6 +85,7 @@ export default function EducationTopicsPanel() {
         setTotalResults(res.totalResults);
         setActiveCategory(res.category);
         setPage(pageNum);
+        if (res.updatedAt) setLastUpdated(res.updatedAt);
       } else {
         setError(res.message || 'Could not load stories for this topic.');
       }
@@ -152,6 +154,18 @@ export default function EducationTopicsPanel() {
     [categories],
   );
 
+  const formattedUpdated = useMemo(() => {
+    if (!lastUpdated) return null;
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date(lastUpdated));
+    } catch {
+      return lastUpdated;
+    }
+  }, [lastUpdated]);
+
   return (
     <VStack align="stretch" spacing={{ base: 4, md: 5 }} w="100%" minW={0}>
       <Box
@@ -166,10 +180,11 @@ export default function EducationTopicsPanel() {
             <Text fontSize={{ base: 'sm', md: 'md' }} fontWeight="extrabold">
               Stories for curious learners
             </Text>
-            <Text fontSize={{ base: '2xs', sm: 'xs' }} color="blue.50" mt={0.5} noOfLines={1}>
+            <Text fontSize={{ base: '2xs', sm: 'xs' }} color="blue.50" mt={0.5} noOfLines={2}>
               {activeId === 'all' && totalResults > 0
                 ? `${totalResults} stories from every topic — tap any story to read in-app.`
                 : 'Pick a topic below — tap any story to read in-app.'}
+              {formattedUpdated && <> Last updated {formattedUpdated}.</>}
             </Text>
           </Box>
           <Button

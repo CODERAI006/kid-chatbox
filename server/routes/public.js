@@ -443,6 +443,21 @@ router.get('/analytics-config', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/public/payment-config
+ * UPI / payment details for upgrade flow (no auth)
+ */
+router.get('/payment-config', async (req, res) => {
+  try {
+    const { getPublicPaymentConfig } = require('../utils/paymentSettings');
+    const config = await getPublicPaymentConfig();
+    res.json({ success: true, ...config });
+  } catch (error) {
+    console.warn('[public/payment-config]', error.message || error);
+    res.json({ success: true, enabled: false, upiId: '', phoneNumber: '', payeeName: '', qrImageUrl: null, instructions: '' });
+  }
+});
+
 router.get('/plans', async (req, res, next) => {
   try {
     const result = await pool.query(

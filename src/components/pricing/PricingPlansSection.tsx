@@ -1,9 +1,10 @@
 /**
  * View-only pricing plans — shown on landing page and footer links.
- * Plan assignment is admin-only via Admin → Plans.
+ * Paid plans: students can upgrade via UPI + screenshot (admin activates).
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   VStack,
@@ -18,8 +19,9 @@ import {
   CardBody,
   List,
   ListItem,
+  Button,
 } from '@/shared/design-system';
-import { publicApi } from '@/services/api';
+import { publicApi, authApi } from '@/services/api';
 import { formatPlanPrice } from '@/utils/planPricing';
 
 interface CatalogPlan {
@@ -56,9 +58,11 @@ export const PricingPlansSection: React.FC<PricingPlansSectionProps> = ({
   showHeading = true,
 }) => {
   const isLanding = variant === 'landing';
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<CatalogPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isLoggedIn = Boolean(authApi.getCurrentUser().user);
 
   const loadPlans = useCallback(async () => {
     try {
@@ -100,7 +104,7 @@ export const PricingPlansSection: React.FC<PricingPlansSectionProps> = ({
               Pricing Plans
             </Heading>
             <Text color={isLanding ? 'whiteAlpha.800' : 'gray.600'} fontSize={{ base: 'sm', md: 'md' }}>
-              Compare plans and contact your admin to upgrade. Only admins can change user plans.
+              Compare plans and upgrade via UPI. Upload your payment screenshot — we activate after verification.
             </Text>
           </Box>
         )}
@@ -170,6 +174,23 @@ export const PricingPlansSection: React.FC<PricingPlansSectionProps> = ({
                         </ListItem>
                       ))}
                     </List>
+
+                    {plan.monthly_cost > 0 && (
+                      <Button
+                        size="sm"
+                        colorScheme={isPopular ? 'purple' : 'blue'}
+                        variant={isLanding ? 'solid' : 'outline'}
+                        onClick={() => {
+                          if (!isLoggedIn) {
+                            navigate('/login');
+                            return;
+                          }
+                          navigate(`/upgrade-plan?planId=${plan.id}`);
+                        }}
+                      >
+                        {isLoggedIn ? 'Upgrade' : 'Sign in to upgrade'}
+                      </Button>
+                    )}
                   </VStack>
                 </CardBody>
               </Card>

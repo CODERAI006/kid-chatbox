@@ -34,6 +34,9 @@ import { DailyContentBatchAdminPage } from '@/components/admin/DailyContentBatch
 import { FeedbackManagement } from '@/components/admin/FeedbackManagement';
 import { PuzzleSettingsPage } from '@/components/admin/PuzzleSettings';
 import { SitePagesManagement } from '@/components/admin/SitePagesManagement';
+import { PaymentSettingsPage } from '@/components/admin/PaymentSettingsPage';
+import { PaymentRequestsManagement } from '@/components/admin/PaymentRequestsManagement';
+import { UpgradePlanPage } from '@/components/pricing/UpgradePlanPage';
 import { SitePageView } from '@/components/legal/SitePageView';
 import { PuzzleHub } from '@/components/puzzles/PuzzleHub';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
@@ -339,6 +342,16 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/upgrade-plan"
+            element={
+              <StudentRoute>
+                <StudentLayout user={user}>
+                  <UpgradePlanPage />
+                </StudentLayout>
+              </StudentRoute>
+            }
+          />
+          <Route
             path="/past-chats"
             element={
               <StudentRoute>
@@ -630,6 +643,26 @@ export const App: React.FC = () => {
               <AdminGuard>
                 <AdminLayout>
                   <FeedbackManagement />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/payment-settings"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <PaymentSettingsPage />
+                </AdminLayout>
+              </AdminGuard>
+            }
+          />
+          <Route
+            path="/admin/payment-requests"
+            element={
+              <AdminGuard>
+                <AdminLayout>
+                  <PaymentRequestsManagement />
                 </AdminLayout>
               </AdminGuard>
             }

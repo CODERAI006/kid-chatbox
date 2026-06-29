@@ -18,4 +18,5 @@ function createProtectedUploads(subdir) {
 module.exports = {
   studyLibrary: createProtectedUploads('study-library'),
   quizImages: createProtectedUploads('quiz-images'),
+  paymentProofs: createProtectedUploads('payment-proofs'),
 };

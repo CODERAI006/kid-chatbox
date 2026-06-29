@@ -13,7 +13,7 @@ const {
 } = require('../utils/timezoneUtils');
 const { pregenerateForDate: pregenerateWordOfDay } = require('./wordOfDayService');
 const { pregenerateForDate: pregenerateFacts } = require('./dailyFactsService');
-const { pregenerateForDate: pregenerateNews } = require('./educationNewsService');
+const { ensureDailyNewsFresh } = require('./educationNewsService');
 const { readCache: readWotdCache, gradeCacheKey: wotdGradeKey } = require('../utils/wordOfDayDbCache');
 const { readCache: readFactsCache, gradeCacheKey: factsGradeKey } = require('../utils/dailyFactsDbCache');
 
@@ -28,6 +28,25 @@ const BATCH_JOBS = [
     contents: ['Word of Day', 'Expressions', 'Facts & Fun'],
     defaultTarget: 'tomorrow',
     skipNews: true,
+  },
+  {
+    id: 'news-morning',
+    name: 'Morning news refresh',
+    schedule: '05:45 IST daily',
+    description: 'Fetches fresh education news from RSS and Google News for all topics.',
+    contents: ['Education News'],
+    defaultTarget: 'today',
+    newsOnly: true,
+  },
+  {
+    id: 'news-afternoon',
+    name: 'Afternoon news refresh',
+    schedule: '14:00 IST daily',
+    description: 'Refreshes education news if the morning cache is older than 6 hours.',
+    contents: ['Education News'],
+    defaultTarget: 'today',
+    newsOnly: true,
+    newsMaxAgeHours: 6,
   },
   {
     id: 'catchup',
@@ -132,14 +151,37 @@ async function runDailyContentBatch(options = {}) {
   const targetDateObj = ymdToLocalDate(targetDate);
   let runId = options.runId || null;
   const skipNews = resolveSkipNews(options);
+  const newsOnly = options.newsOnly === true;
 
   try {
+    let news = { built: 0, skipped: true, cacheDate: targetDate };
+    if (!skipNews) {
+      news = await ensureDailyNewsFresh({
+        forceRefresh: Boolean(options.forceNewsRefresh),
+        maxAgeHours: options.newsMaxAgeHours ?? 20,
+      });
+    }
+
+    if (newsOnly) {
+      if (!runId) runId = await startBatchRun(targetDate, trigger);
+      const stats = { targetDate, trigger, newsOnly: true, news };
+      await finishBatchRun(runId, { status: 'completed', stats });
+      console.log(`[dailyContentBatch] news-only completed for ${targetDate} — built ${news.built || 0}`);
+      return { success: true, runId, targetDate, news };
+    }
+
     const gradeTargets = await getGradesForDailyBatch();
     const wotdGrades = gradeTargets.filter((g) => g.wordOfDayEnabled).map((g) => g.grade);
     const factsGrades = gradeTargets.filter((g) => g.factsEnabled).map((g) => g.grade);
 
     if (!gradeTargets.length) {
-      console.log('[dailyContentBatch] no active user grades — skipping');
+      console.log('[dailyContentBatch] no active user grades — skipping WOTD/facts');
+      if (!skipNews && (news.built > 0 || !news.skipped)) {
+        if (!runId) runId = await startBatchRun(targetDate, trigger);
+        const stats = { targetDate, trigger, reason: 'no_user_grades', news };
+        await finishBatchRun(runId, { status: 'completed', stats });
+        return { success: true, runId, targetDate, news, skippedGrades: true };
+      }
       if (runId) {
         await finishBatchRun(runId, {
           status: 'failed',
@@ -163,11 +205,6 @@ async function runDailyContentBatch(options = {}) {
     const facts = factsGrades.length
       ? await pregenerateFacts(targetDateObj, { grades: factsGrades })
       : { built: 0, total: 0, skipped: true, cacheDate: targetDate };
-
-    let news = { built: 0, skipped: true, cacheDate: targetDate };
-    if (!skipNews) {
-      news = await pregenerateNews({ forceRefresh: Boolean(options.forceNewsRefresh) });
-    }
 
     const stats = {
       targetDate,
@@ -285,6 +322,30 @@ async function runCatchupBatch() {
   return runDailyContentBatch({ targetDate, trigger: 'catchup', jobId: 'catchup' });
 }
 
+async function runNewsMorningBatch() {
+  const targetDate = todayYmdInTimezone(DEFAULT_TIMEZONE);
+  return runDailyContentBatch({
+    targetDate,
+    trigger: 'cron',
+    jobId: 'news-morning',
+    newsOnly: true,
+    forceNewsRefresh: true,
+    skipNews: false,
+  });
+}
+
+async function runNewsAfternoonBatch() {
+  const targetDate = todayYmdInTimezone(DEFAULT_TIMEZONE);
+  return runDailyContentBatch({
+    targetDate,
+    trigger: 'cron',
+    jobId: 'news-afternoon',
+    newsOnly: true,
+    skipNews: false,
+    newsMaxAgeHours: 6,
+  });
+}
+
 async function listRecentBatchRuns(limit = 14) {
   const { rows } = await pool.query(
     `SELECT id, target_date, trigger_type, status, started_at, finished_at, stats_json, error_message
@@ -325,6 +386,8 @@ module.exports = {
   enqueueDailyContentBatch,
   runNightlyBatch,
   runCatchupBatch,
+  runNewsMorningBatch,
+  runNewsAfternoonBatch,
   getLatestBatchRun,
   listRecentBatchRuns,
   getBatchOverview,

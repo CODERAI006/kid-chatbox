@@ -49,12 +49,20 @@ function toNewsArticle(article) {
   };
 }
 
+const STALE_CACHE_HOURS = Number(process.env.NEWS_STALE_HOURS) || 20;
+
+function isCacheStale(updatedAt) {
+  if (!updatedAt) return true;
+  const ageHours = (Date.now() - new Date(updatedAt).getTime()) / 3_600_000;
+  return ageHours >= STALE_CACHE_HOURS;
+}
+
 async function buildDailyCategory(categoryId, { forceRefresh = false } = {}) {
   const cacheDate = formatCacheDate();
 
   if (!forceRefresh) {
     const hit = await readCache(categoryId, cacheDate);
-    if (hit?.payload?.articles?.length) {
+    if (hit?.payload?.articles?.length && !isCacheStale(hit.updatedAt)) {
       return {
         articles: hit.payload.articles,
         cachedDate: cacheDate,
@@ -175,23 +183,35 @@ async function getArticleById(categoryId, articleId) {
 }
 
 async function pregenerateForDate({ forceRefresh = false } = {}) {
+  return ensureDailyNewsFresh({ forceRefresh, maxAgeHours: forceRefresh ? 0 : 20 });
+}
+
+/**
+ * Run the pipeline when today's cache is missing or older than maxAgeHours (IST day).
+ */
+async function ensureDailyNewsFresh({ forceRefresh = false, maxAgeHours = 20 } = {}) {
   const cacheDate = formatCacheDate();
 
   if (!forceRefresh) {
     const hit = await readCache('all', cacheDate);
     if (hit?.payload?.articles?.length) {
-      return { cacheDate, built: 0, skipped: true };
+      const updatedMs = hit.updatedAt ? new Date(hit.updatedAt).getTime() : 0;
+      const ageHours = updatedMs ? (Date.now() - updatedMs) / 3_600_000 : Infinity;
+      if (ageHours < maxAgeHours) {
+        return { cacheDate, built: 0, skipped: true, fromCache: true, updatedAt: hit.updatedAt };
+      }
+      console.log(`[educationNews] cache stale (${ageHours.toFixed(1)}h) — refreshing for ${cacheDate}`);
     }
   }
 
-  const result = await runDailySync({ forceRefresh, triggerType: 'cron' });
+  const result = await runDailySync({ forceRefresh: true, triggerType: 'cron' });
   if (result.skipped) {
     console.log('[educationNews] pregenerate skipped — sync already running');
     return { cacheDate, built: 0, skipped: true };
   }
   const built = Object.keys(result.stats?.categories || {}).length + 1;
   console.log(`[educationNews] pregenerated via pipeline for ${result.stats?.cacheDate}`);
-  return { cacheDate: result.stats?.cacheDate || formatCacheDate(), built };
+  return { cacheDate: result.stats?.cacheDate || cacheDate, built, updatedAt: new Date().toISOString() };
 }
 
 module.exports = {
@@ -200,4 +220,5 @@ module.exports = {
   getArticleById,
   getTopicsOverview,
   pregenerateForDate,
+  ensureDailyNewsFresh,
 };

@@ -8,7 +8,9 @@ import {
   HStack,
   Progress,
   Badge,
+  Button,
 } from '@/shared/design-system';
+import { useNavigate } from 'react-router-dom';
 import { formatPlanPrice } from '@/utils/planPricing';
 
 export interface PlanInfo {
@@ -71,7 +73,9 @@ function LimitRow({
   );
 }
 
-export const PlanSummaryCard: React.FC<{ planInfo: PlanInfo }> = ({ planInfo }) => (
+export const PlanSummaryCard: React.FC<{ planInfo: PlanInfo }> = ({ planInfo }) => {
+  const navigate = useNavigate();
+  return (
   <Box w="100%" alignSelf="start">
     <Card bgGradient="linear(to-br, blue.50, purple.50)" borderWidth={2} borderColor="blue.200" boxShadow="lg" width="100%">
       <CardBody p={{ base: 3, sm: 3.5, md: 4, lg: 5 }}>
@@ -126,8 +130,17 @@ export const PlanSummaryCard: React.FC<{ planInfo: PlanInfo }> = ({ planInfo }) 
               used={planInfo.usage.topicCount}
             />
           </VStack>
+          <Button
+            size="sm"
+            colorScheme="purple"
+            variant="outline"
+            onClick={() => navigate({ pathname: '/', hash: 'pricing' })}
+          >
+            View plans & upgrade
+          </Button>
         </VStack>
       </CardBody>
     </Card>
   </Box>
-);
+  );
+};

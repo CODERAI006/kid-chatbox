@@ -9,10 +9,13 @@ const { matchesRunTime, alreadyRanToday, DEFAULT_TIMEZONE } = require('../utils/
 const {
   runNightlyBatch,
   runCatchupBatch,
+  runNewsMorningBatch,
+  runNewsAfternoonBatch,
   runDailyContentBatch,
   cleanupStaleBatchRuns,
 } = require('./dailyContentBatchJob');
 const { todayYmdInTimezone } = require('../utils/timezoneUtils');
+const { ensureDailyNewsFresh } = require('./educationNewsService');
 
 /**
  * @param {Object} job
@@ -115,6 +118,40 @@ async function runMorningCatchup() {
   }
 }
 
+async function runNewsMorningSync() {
+  try {
+    const result = await runNewsMorningBatch();
+    if (!result.skipped) {
+      console.log(`[Scheduler] Morning news sync completed for ${result.targetDate}`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Morning news sync error:', err.message);
+  }
+}
+
+async function runNewsAfternoonSync() {
+  try {
+    const result = await runNewsAfternoonBatch();
+    if (!result.skipped) {
+      console.log(`[Scheduler] Afternoon news sync completed for ${result.targetDate}`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Afternoon news sync error:', err.message);
+  }
+}
+
+async function warmNewsOnBoot() {
+  if (process.env.DISABLE_BOOT_NEWS === '1') return;
+  try {
+    const result = await ensureDailyNewsFresh({ maxAgeHours: 20 });
+    if (!result.skipped) {
+      console.log(`[Scheduler] Boot news warm-up built ${result.built || 0} categories`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Boot news warm-up error:', err.message);
+  }
+}
+
 async function warmTodayOnBoot() {
   try {
     const targetDate = todayYmdInTimezone(DEFAULT_TIMEZONE);
@@ -138,17 +175,25 @@ function startScheduler() {
 
   cron.schedule('* * * * *', tickJobs, { timezone: 'UTC' });
   cron.schedule('*/5 * * * *', updateQuizStatuses, { timezone: 'UTC' });
-  // 23:45 IST — pregenerate tomorrow's WOTD, expressions, facts & news for active user grades
+  // 05:45 IST — fresh education news (independent of user grades)
+  cron.schedule('45 5 * * *', runNewsMorningSync, { timezone: 'Asia/Kolkata' });
+  // 14:00 IST — afternoon refresh if morning cache is stale
+  cron.schedule('0 14 * * *', runNewsAfternoonSync, { timezone: 'Asia/Kolkata' });
+  // 23:45 IST — pregenerate tomorrow's WOTD, expressions, facts for active user grades
   cron.schedule('45 23 * * *', pregenerateWordOfDay, { timezone: 'Asia/Kolkata' });
   // 00:20 IST — catch-up for today if nightly job missed anything
   cron.schedule('20 0 * * *', runMorningCatchup, { timezone: 'Asia/Kolkata' });
   updateQuizStatuses();
-  // Heavy Ollama/DB batch — production only (avoids starving the API pool in local dev)
+  // Warm vocabulary/facts on boot (production only)
   if (process.env.NODE_ENV === 'production' && process.env.DISABLE_BOOT_BATCH !== '1') {
     setTimeout(() => warmTodayOnBoot(), 20_000);
   }
+  // Warm news if today's cache is missing or stale (~45s after boot, all environments)
+  setTimeout(() => warmNewsOnBoot(), 45_000);
 
-  console.log('✅ Quiz Scheduler Engine started (IST nightly content batch @ 23:45, catch-up @ 00:20)');
+  console.log(
+    '✅ Quiz Scheduler Engine started (news @ 05:45 & 14:00 IST, nightly batch @ 23:45, catch-up @ 00:20)',
+  );
 }
 
 module.exports = { startScheduler, runSchedulerJob };

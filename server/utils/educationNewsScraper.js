@@ -7,6 +7,9 @@ const Parser = require('rss-parser');
 const cheerio = require('cheerio');
 const { EDUCATION_CATEGORIES } = require('./educationNewsCategories');
 const { resolveGoogleNewsUrl, isGoogleNewsArticleUrl } = require('./googleNewsUrlDecoder');
+const { FEEDS_BY_CATEGORY } = require('./newsFeedSources');
+const { ensureSourcesSeeded, listActiveSources } = require('./newsArticleRepo');
+const { formatCacheDate } = require('./educationNewsDbCache');
 
 function buildArticleId(categoryId, link) {
   const hash = crypto.createHash('sha256').update(link).digest('base64url').slice(0, 22);
@@ -24,42 +27,6 @@ const parser = new Parser({
   },
 });
 
-const FEEDS_BY_CATEGORY = {
-  science: [
-    'https://www.nasa.gov/rss/dyn/breaking_news.rss',
-    'https://www.sciencedaily.com/rss/all.xml',
-    'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
-  ],
-  history: [
-    'https://www.history.com/.rss/full',
-  ],
-  geography: [
-    'https://www.nationalgeographic.com/pages/topic/latest-stories/rss',
-  ],
-  current_affairs: [
-    'https://www.isro.gov.in/rss/isro.rss',
-  ],
-  technology: [
-    'https://techcrunch.com/feed/',
-    'https://github.blog/feed/',
-    'https://feeds.bbci.co.uk/news/technology/rss.xml',
-  ],
-  sports: [
-    'https://feeds.bbci.co.uk/sport/rss.xml',
-  ],
-  environment: [
-    'https://www.theguardian.com/environment/rss',
-    'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
-  ],
-  arts_culture: [
-    'https://www.theguardian.com/books/rss',
-    'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
-  ],
-  general_knowledge: [
-    'https://feeds.bbci.co.uk/news/world/rss.xml',
-  ],
-};
-
 const CACHE_TTL_MS = 45 * 60 * 1000;
 const cache = new Map();
 
@@ -69,7 +36,7 @@ function googleNewsRss(query) {
 }
 
 function cacheKey(categoryId) {
-  return `edu_news_${categoryId}_${new Date().toISOString().slice(0, 10)}`;
+  return `edu_news_${categoryId}_${formatCacheDate()}`;
 }
 
 function pickImage(item) {
@@ -207,11 +174,18 @@ async function fetchWikipediaSummaries(categoryId, limit = 4) {
   }
 }
 
-function categoryFeedUrls(categoryId) {
+async function categoryFeedUrls(categoryId) {
+  await ensureSourcesSeeded();
+  const dbSources = await listActiveSources(categoryId);
+  const dbUrls = dbSources
+    .filter((s) => s.source_type === 'rss' && s.is_active !== false)
+    .map((s) => s.url);
+
   const cat = EDUCATION_CATEGORIES.find((c) => c.id === categoryId);
   const staticFeeds = FEEDS_BY_CATEGORY[categoryId] || [];
   const googleFeed = cat ? [googleNewsRss(cat.searchTerms)] : [];
-  return [...staticFeeds, ...googleFeed];
+
+  return [...new Set([...staticFeeds, ...dbUrls, ...googleFeed])];
 }
 
 async function scrapeCategory(categoryId, { maxItems = 24, bypassCache = false } = {}) {
@@ -221,7 +195,7 @@ async function scrapeCategory(categoryId, { maxItems = 24, bypassCache = false }
     return hit.articles;
   }
 
-  const feeds = categoryFeedUrls(categoryId);
+  const feeds = await categoryFeedUrls(categoryId);
   const feedResults = await Promise.all(feeds.map(fetchFeed));
   const wikiArticles = await fetchWikipediaSummaries(categoryId, 5);
 
