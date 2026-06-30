@@ -1,5 +1,5 @@
 /**
- * Study lesson content page — 32-section premium module layout with sticky nav.
+ * Study lesson content page — visual-first interactive or legacy 32-section layout.
  */
 import { motion } from 'framer-motion';
 import {
@@ -18,6 +18,7 @@ import { countIntroLines } from '@/utils/studyPromptLimits';
 import { AnimatedCard } from './AnimatedCard';
 import { StudyLessonSectionNav } from './StudyLessonSectionNav';
 import { StudyLessonSections } from './StudyLessonSections';
+import { StudyInteractiveLessonView } from './StudyInteractiveLessonView';
 import type { StudyTopicConfig } from '../StudyModeForm';
 
 interface StudyLessonViewProps {
@@ -49,6 +50,20 @@ export const StudyLessonView: React.FC<StudyLessonViewProps> = ({
   const ageBand = getStudyAgeBand(studentAge);
   const sectionVisibility = getStudySectionVisibility(ageBand);
   const storyLines = countIntroLines(introText);
+
+  if (lesson.sections?.length) {
+    return (
+      <StudyInteractiveLessonView
+        lesson={lesson}
+        config={config}
+        studyMeta={studyMeta}
+        fontSize={fontSize}
+        sessionSaved={sessionSaved}
+        onTakeQuiz={onTakeQuiz}
+        onBack={onBack}
+      />
+    );
+  }
 
   return (
     <Box padding={{ base: 4, md: 6 }} bg="gray.50" minHeight="100vh" style={{ fontSize }}>

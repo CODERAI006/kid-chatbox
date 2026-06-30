@@ -16,6 +16,12 @@ import {
   STUDY_PROMPT_LIMITS,
 } from '@/utils/studyPromptLimits';
 import type { StudyModuleExtensions } from './studyLessonTypes';
+import type { StudyInteractiveSection } from '@/types/studyInteractive';
+import {
+  getSectionByType,
+  isInteractiveLesson,
+  normalizeInteractiveSections,
+} from './studyInteractiveNormalize';
 import {
   normalizeActivities,
   normalizeAiTutorQa,
@@ -97,8 +103,12 @@ export interface StudyGalleryImage {
   keyword: string;
 }
 
+export type { StudyInteractiveSection } from '@/types/studyInteractive';
+
 export interface Lesson extends StudyModuleExtensions {
   title: string;
+  /** Visual-first 18-section interactive layout (new format). */
+  sections?: StudyInteractiveSection[];
   whyLearnThis?: string;
   quickSummary?: string;
   memoryTricks?: string[];
@@ -211,8 +221,87 @@ function normalizeKeyTerms(raw: unknown): KeyTerm[] {
     .filter((t) => Boolean(t?.term)) as KeyTerm[];
 }
 
+function extractFlashcardsFromSections(sections: StudyInteractiveSection[]) {
+  const fc = getSectionByType(sections, 'flashcards');
+  const cards = Array.isArray(fc?.content?.cards) ? fc!.content.cards : [];
+  return normalizeFlashcardList(cards);
+}
+
+function extractMcqsFromSections(sections: StudyInteractiveSection[]) {
+  const quiz = getSectionByType(sections, 'quick-quiz');
+  const questions = Array.isArray(quiz?.content?.questions) ? quiz!.content.questions : [];
+  return questions
+    .map((q) => {
+      const item = q as Record<string, unknown>;
+      const question = String(item.question || '').trim();
+      const options = Array.isArray(item.options) ? item.options.map(String) : [];
+      if (!question || options.length < 2) return null;
+      return {
+        question,
+        options,
+        correctIndex: typeof item.correctIndex === 'number' ? item.correctIndex : 0,
+        explanation: String(item.explanation || '').trim(),
+      };
+    })
+    .filter(Boolean) as import('./studyLessonTypes').McqQuestion[];
+}
+
+function hydrateLegacyFromSections(lesson: Lesson): void {
+  if (!lesson.sections?.length) return;
+
+  const hero = getSectionByType(lesson.sections, 'hero');
+  const remember = getSectionByType(lesson.sections, 'remember-this');
+  const askAi = getSectionByType(lesson.sections, 'ask-ai');
+  const concepts = getSectionByType(lesson.sections, 'concept-cards');
+
+  if (hero?.content?.description) {
+    lesson.introduction = {
+      text: String(hero.content.description),
+      imageKeyword: String(hero.content.topicName || lesson.title),
+    };
+  }
+
+  if (!lesson.flashcards?.length) {
+    lesson.flashcards = extractFlashcardsFromSections(lesson.sections);
+  }
+  if (!lesson.mcqs?.length) {
+    lesson.mcqs = extractMcqsFromSections(lesson.sections);
+  }
+  if (!lesson.whyLearnThis && hero?.content?.description) {
+    lesson.whyLearnThis = String(hero.content.description);
+  }
+  if (!lesson.oneMinuteRevision?.length && Array.isArray(remember?.content?.bullets)) {
+    lesson.oneMinuteRevision = remember.content.bullets.map(String);
+  }
+  if (!lesson.askAiTeacherPrompts?.length && Array.isArray(askAi?.content?.suggestedQuestions)) {
+    lesson.askAiTeacherPrompts = askAi.content.suggestedQuestions.map(String);
+  }
+  if (!lesson.concepts?.length && Array.isArray(concepts?.content?.cards)) {
+    lesson.concepts = concepts.content.cards.map((c) => {
+      const card = c as Record<string, unknown>;
+      return {
+        name: String(card.title || ''),
+        definition: String(card.definition || ''),
+        explanation: Array.isArray(card.steps)
+          ? (card.steps as Array<{ detail?: string }>).map((s) => s.detail || '').join(' ')
+          : '',
+        example: String(card.example || ''),
+        commonMistake: card.commonMistake ? String(card.commonMistake) : undefined,
+        checkQuestion: (card.practice as { question?: string })?.question,
+      };
+    }).filter((c) => c.name);
+  }
+}
+
 function normalizeLesson(raw: Record<string, unknown>, topic: string): Lesson {
-  const intro = normalizeIntroduction(raw.introduction);
+  const sections = normalizeInteractiveSections(raw.sections);
+  const isInteractive = isInteractiveLesson(raw) && sections.length > 0;
+
+  const intro = normalizeIntroduction(
+    isInteractive
+      ? { text: String(getSectionByType(sections, 'hero')?.content?.description || topic), imageKeyword: topic }
+      : raw.introduction,
+  );
   const explanation = normalizeStringList(raw.explanation);
   const keyPoints = normalizeStringList(raw.keyPoints);
   const examples = normalizeStringList(raw.examples);
@@ -231,8 +320,9 @@ function normalizeLesson(raw: Record<string, unknown>, topic: string): Lesson {
   const legacyMistakes = normalizeStringList(raw.commonMistakes);
 
   const lesson: Lesson = {
+    sections: sections.length ? sections : undefined,
     lessonHeader: normalizeLessonHeader(raw.lessonHeader),
-    title: String(raw.title || topic),
+    title: String(raw.title || getSectionByType(sections, 'hero')?.content?.topicName || topic),
     whyLearnThis: raw.whyLearnThis ? String(raw.whyLearnThis).trim() : undefined,
     quickSummary: normalizeQuickSummary(raw.quickSummary),
     concepts: normalizeConcepts(raw.concepts),
@@ -308,6 +398,20 @@ function normalizeLesson(raw: Record<string, unknown>, topic: string): Lesson {
     lesson.imageKeywords = [intro.imageKeyword];
   }
 
+  if (lesson.sections?.length) {
+    hydrateLegacyFromSections(lesson);
+    const hero = getSectionByType(lesson.sections, 'hero');
+    if (hero && !lesson.lessonHeader) {
+      lesson.lessonHeader = {
+        topicName: String(hero.content.topicName || topic),
+        subject: String(hero.content.subject || ''),
+        grade: String(hero.content.grade || ''),
+        difficultyLevel: String(hero.content.difficulty || ''),
+        estimatedLearningTime: String(hero.content.estimatedTime || ''),
+      };
+    }
+  }
+
   return lesson;
 }
 
@@ -345,8 +449,51 @@ function applyIntroPadding(lesson: Lesson, topic: string): void {
   }
 }
 
+function assertInteractiveLessonQuality(lesson: Lesson): void {
+  const sections = lesson.sections ?? [];
+  if (sections.length < STUDY_PROMPT_LIMITS.minSections) {
+    throw new Error(
+      `Not enough sections (${sections.length}/${STUDY_PROMPT_LIMITS.minSections}). Please try again.`,
+    );
+  }
+  const concepts = getSectionByType(sections, 'concept-cards');
+  const conceptCount = Array.isArray(concepts?.content?.cards) ? concepts!.content.cards.length : 0;
+  if (conceptCount < STUDY_PROMPT_LIMITS.minConceptCards) {
+    throw new Error(
+      `Not enough concept cards (${conceptCount}/${STUDY_PROMPT_LIMITS.minConceptCards}). Please try again.`,
+    );
+  }
+  if ((lesson.flashcards?.length ?? 0) < STUDY_PROMPT_LIMITS.minFlashcards) {
+    throw new Error(
+      `Not enough flashcards (${lesson.flashcards?.length ?? 0}/${STUDY_PROMPT_LIMITS.minFlashcards}). Please try again.`,
+    );
+  }
+  const quiz = getSectionByType(sections, 'quick-quiz');
+  const quizCount = Array.isArray(quiz?.content?.questions) ? quiz!.content.questions.length : 0;
+  if (quizCount < STUDY_PROMPT_LIMITS.minQuickQuiz) {
+    throw new Error(
+      `Not enough quiz questions (${quizCount}/${STUDY_PROMPT_LIMITS.minQuickQuiz}). Please try again.`,
+    );
+  }
+}
+
 function assertLessonQuality(lesson: Lesson, topic: string): void {
-  if (!lesson.title || !getIntroductionText(lesson.introduction) || !lesson.summary) {
+  if (!lesson.title) {
+    throw new Error('Invalid lesson structure received');
+  }
+
+  if (lesson.sections?.length) {
+    assertInteractiveLessonQuality(lesson);
+    if (!lesson.summary) {
+      const remember = getSectionByType(lesson.sections, 'remember-this');
+      lesson.summary = Array.isArray(remember?.content?.bullets)
+        ? remember!.content.bullets.slice(0, 3).map(String).join(' ')
+        : `Great job learning about ${topic}!`;
+    }
+    return;
+  }
+
+  if (!getIntroductionText(lesson.introduction) || !lesson.summary) {
     throw new Error('Invalid lesson structure received');
   }
 
@@ -370,7 +517,7 @@ function isRetryableLessonError(err: unknown): boolean {
   if (err instanceof Error) {
     return (
       err.message.includes('too short') ||
-      err.message.includes('Not enough flashcards') ||
+      err.message.includes('Not enough') ||
       err.message.includes('Invalid lesson structure') ||
       err.message.includes('empty message')
     );
@@ -410,7 +557,7 @@ export async function generateLesson(
     const retryHint =
       attempt === 0
         ? undefined
-        : `Previous response failed validation. introduction.text MUST be a story with at least ${STUDY_PROMPT_LIMITS.minIntroLines} sentences/lines separated by blank lines. Include at least ${STUDY_PROMPT_LIMITS.minFlashcards} flashcards. Return complete valid JSON only.`;
+        : `Previous response failed validation. Return all 18 sections in sections array. Include at least ${STUDY_PROMPT_LIMITS.minConceptCards} concept cards, ${STUDY_PROMPT_LIMITS.minFlashcards} flashcards, ${STUDY_PROMPT_LIMITS.minQuickQuiz} quiz questions. Every section needs visual with nodes. Return complete valid JSON only.`;
 
     try {
       const { content } = await aiApi.chat({
@@ -418,8 +565,8 @@ export async function generateLesson(
           {
             role: 'system',
             content:
-              'You are an expert curriculum designer, child psychologist, and instructional designer. ' +
-              'Return ONLY valid JSON for the 32-section study module. No markdown fences.',
+              'You are an expert instructional designer and UX designer for K-12 learning. ' +
+              'Return ONLY valid JSON for the 18-section visual-first interactive study page. No markdown fences.',
           },
           {
             role: 'user',

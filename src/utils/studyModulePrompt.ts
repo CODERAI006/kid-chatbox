@@ -1,9 +1,12 @@
 /**
- * Builds the 32-section curriculum designer prompt for Study Mode AI.
+ * Builds the 18-section visual-first study page prompt for Study Mode AI.
  */
 import type { StudyAgeBand } from '@/utils/studyAgeProfile';
 import { STUDY_PROMPT_LIMITS } from '@/utils/studyPromptLimits';
-import { STUDY_MODULE_JSON_SCHEMA, STUDY_MODULE_STYLE_RULES } from './studyModulePromptSchema';
+import {
+  STUDY_INTERACTIVE_JSON_SCHEMA,
+  STUDY_INTERACTIVE_STYLE_RULES,
+} from './studyInteractivePromptSchema';
 
 export interface StudyModulePromptParams {
   topic: string;
@@ -15,7 +18,6 @@ export interface StudyModulePromptParams {
   studentName: string;
   language: string;
   lessonStyle: string;
-  storyGuidance: string;
   extraInstructions?: string;
   showExamSection: boolean;
 }
@@ -31,28 +33,30 @@ export function buildStudyModulePrompt(params: StudyModulePromptParams): string 
     studentName,
     language,
     lessonStyle,
-    storyGuidance,
     extraInstructions,
     showExamSection,
   } = params;
 
   const ageRules =
     ageBand === 'early'
-      ? 'Skip heavy exam jargon. misconceptions/examPrep may be shorter. thinkingQuestions: 3 minimum.'
+      ? 'Use very simple words. Quick quiz: mostly easy. Skip exam jargon in final-revision.'
       : ageBand === 'primary'
-        ? 'Light exam tips only. Include comparisons and activities.'
-        : 'Full exam prep, MCQs, case studies, and board-aligned content.';
+        ? 'Light exam tips in final-revision. Keep interactions playful like Duolingo.'
+        : 'Include exam tips, time-saving tricks, and board-aligned content in final-revision.';
 
   const examRule = showExamSection
-    ? 'Include examPrep (5+5+5), examNotes, mcqs (10), and board-focused tips.'
-    : 'Omit examPrep and examNotes or use empty arrays/objects.';
+    ? 'Include exam tips and time-saving tricks in final-revision section.'
+    : 'Keep final-revision focused on understanding, not exam pressure.';
 
-  return `You are an expert curriculum designer, child psychologist, instructional designer, and award-winning teacher.
+  return `You are an expert instructional designer, UX designer, and K-12 curriculum specialist.
 
-Create a COMPLETE, HIGHLY ENGAGING, VISUALLY DESCRIPTIVE, STUDENT-FRIENDLY learning module.
+Your task is NOT to write a textbook.
+Create an engaging, visual-first AI study page that helps students LEARN quickly, REMEMBER longer, and ENJOY studying.
+
+Feel like a mix of: Duolingo, Khan Academy, Brilliant.org, Quizlet, Canva Education.
 
 TOPIC: ${topic}
-Grade Level: ${grade}
+Grade: ${grade}
 Board/Curriculum: ${curriculum}
 Student Age: ${ageGroup}
 Subject: ${subject}
@@ -61,59 +65,40 @@ Language: ${language}
 Lesson style: ${lessonStyle}
 ${extraInstructions ? `Extra instructions (follow if safe): ${extraInstructions}` : ''}
 
-GOAL: Generate study material more engaging, memorable, and effective than a standard textbook chapter.
-Maximize: understanding, retention, curiosity, critical thinking, exam performance, real-world application.
+PRIMARY GOAL: Every section answers ONE learning question. More interaction than reading. Each concept under 2 minutes.
 
-SECTION GUIDE (map all into the JSON below):
-1. lessonHeader — topic, subject, grade, difficulty, time, 5-8 objectives
-2. introduction.text — STORY HOOK (300-500 words): relatable child protagonist, wonder, real-world examples, ends with a question
-3. whyLearnThis — why it matters in daily life and future learning
-4. quickSummary — 5-10 one-line revision bullets
-5. visualLearningDescription — diagram descriptions, shape comparisons, ASCII sketches
-6. concepts — each with definition, explanation, example, nonExample, commonMistake, checkQuestion
-7. realWorldConnections — dailyLife, local, national, global arrays
-8. memoryTricks — mnemonics, acronyms, analogies
-9. keyTerms — term, definition, easyExample (10-20 terms)
-10. funFacts — 5-10 surprising accurate facts
-11. didYouKnow — 5 trivia points
-12. thinkingQuestions — 5 reasoning questions (not memorization)
-13. comparisons — spot-the-difference tables when relevant
-14. misconceptions — wrong vs correct (5 items)
-15. examPrep — easy/medium/difficult (5 each with answers)
-16. mcqs — 10 with 4 options, correctIndex, explanation
-17. trueFalse — 10 with answers
-18. fillBlanks — 10 with answers
-19. matchFollowing — 10 pairs
-20. shortAnswer — 10 with model answers
-21. longAnswer — 5 exam-style with model answers
-22. caseStudies — 3 scenarios with application questions
-23. activities — safe, home/classroom hands-on (materials, steps, expectedLearning)
-24. projectWork — mini project, research, presentation, creative assignment
-25. gamifiedChallenges — explorer/detective/quiz/observation missions, rewards, badges
-26. flashcards — 20+ mixed definitions, comparisons, applications
-27. oneMinuteRevision — 10 bullets for 60-second revision
-28. hotQuestions — 5 critical + 5 creative + 5 analytical
-29. aiTutorQa — 15 likely student questions with teacher-like answers
-30. discussionPrompts — 5 parent/teacher conversation starters
-31. learningLevels — beginner/intermediate/advanced/challenge questions with answers
-32. learningOutcomes — measurable checklist (define, explain, compare, apply, analyze)
-
-STORY RULE (CRITICAL):
-- introduction.text is a STORY opening, NOT a bullet list.
-- Minimum ${STUDY_PROMPT_LIMITS.minIntroLines} sentences/lines. ${storyGuidance}
-- Separate paragraphs with \\n\\n.
+PAGE STRUCTURE — return exactly these 18 sections in the sections array:
+1. hero — topic, difficulty, time, grade, subject, one-line description, hero visual
+2. why-learn — 3-5 icon cards (icon, title, one sentence each)
+3. big-picture — infographic visual (tree/flow) showing topic overview
+4. roadmap — learning journey steps with completed/current icons
+5. concept-cards — 3+ cards: title, definition (2 lines), visual diagram, steps, example, practice+hint, mistake, memory trick, recap
+6. infographics — structured diagram (flowchart/mindmap/comparison)
+7. memory-aids — visual mnemonics with remember text
+8. learning-steps — animation sequence for frontend (visual.animation + content.steps)
+9. real-life — cards: Shopping, Sports, Gaming, Cooking, Travel, School (one sentence each)
+10. common-mistakes — warning cards: mistake, why, fix
+11. remember-this — max 8 exam-revision bullets
+12. cheat-sheet — one-screen revision: formulas, steps, rules, tricks (6-10 items)
+13. flashcards — ${STUDY_PROMPT_LIMITS.minFlashcards}+ interactive cards (front question, back max 2 lines)
+14. quick-quiz — easy→medium→hard progression with explanation + whyWrong for each
+15. knowledge-check — mix of true-false, fill-blank, match, sequence items
+16. ask-ai — 8-12 concept-specific student doubts (NOT generic)
+17. final-revision — key formulas, mind map visual, exam tips, time tricks
+18. celebration — progress, XP, stars, achievement, next topic recommendation
 
 AGE RULES: ${ageRules}
 EXAM RULES: ${examRule}
 
 MINIMUM COUNTS:
+- concept cards: 3
 - flashcards: ${STUDY_PROMPT_LIMITS.minFlashcards}
-- keyPoints: ${STUDY_PROMPT_LIMITS.minKeyPoints}
-- keyTerms: 10
-- concepts: at least 3
+- quick-quiz questions: 7 (2 easy, 3 medium, 2 hard)
+- why-learn cards: 3
+- knowledge-check items: 5
 
 OUTPUT JSON SCHEMA:
-${STUDY_MODULE_JSON_SCHEMA}
+${STUDY_INTERACTIVE_JSON_SCHEMA}
 
-${STUDY_MODULE_STYLE_RULES}`;
+${STUDY_INTERACTIVE_STYLE_RULES}`;
 }

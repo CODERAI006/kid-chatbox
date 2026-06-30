@@ -15,6 +15,7 @@ import {
 } from '@/utils/studyAgeProfile';
 import { StudyLessonSections } from './StudyLessonSections';
 import { StudyLessonSectionNav } from './StudyLessonSectionNav';
+import { StudyInteractiveLessonView } from './StudyInteractiveLessonView';
 
 interface Props {
   lesson: Lesson;
@@ -34,6 +35,19 @@ export const StudySavedLessonView: React.FC<Props> = ({
   const studentAge = resolveStudentAge(config.age, gradeLabel);
   const ageBand = getStudyAgeBand(studentAge);
   const sectionVisibility = getStudySectionVisibility(ageBand);
+
+  if (lesson.sections?.length) {
+    return (
+      <StudyInteractiveLessonView
+        lesson={lesson}
+        config={config}
+        fontSize={fontSize}
+        sessionSaved={false}
+        onTakeQuiz={() => {}}
+        onBack={() => {}}
+      />
+    );
+  }
 
   return (
     <Container maxW="container.xl" px={0}>

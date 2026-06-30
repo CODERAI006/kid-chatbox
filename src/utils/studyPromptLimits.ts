@@ -4,10 +4,13 @@ export const STUDY_PROMPT_LIMITS = {
   maxExtraInstructionsChars: 400,
   maxTopicChars: 120,
   maxSubjectChars: 60,
-  /** Minimum story sentences/lines — AI often returns 8–9; pad or retry below this. */
+  /** Legacy story intro — only enforced for old-format lessons. */
   minIntroLines: 8,
-  minFlashcards: 20,
-  minKeyPoints: 20,
+  minFlashcards: 12,
+  minKeyPoints: 8,
+  minConceptCards: 3,
+  minQuickQuiz: 5,
+  minSections: 15,
   minExplanationSteps: 4,
   maxNumPredict: 16384,
   maxLessonAttempts: 3,

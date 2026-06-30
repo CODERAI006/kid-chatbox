@@ -1,11 +1,10 @@
 /**
- * CBSE study lesson prompt — 32-section premium curriculum module for Study Mode.
+ * CBSE study lesson prompt — 18-section visual-first interactive page for Study Mode.
  */
 import { QuizConfig } from '@/types/quiz';
 import type { StudyLessonOptions } from './study';
 import {
   getAgeBandLabel,
-  getAgeBandStoryGuidance,
   getStudyAgeBand,
   resolveStudentAge,
 } from '@/utils/studyAgeProfile';
@@ -26,7 +25,6 @@ export function buildStudyLessonPrompt(
   const grade = studyOptions?.gradeLevel || classLevel;
   const studentAge = resolveStudentAge(config.age, grade);
   const ageBand = getStudyAgeBand(studentAge);
-  const storyGuide = getAgeBandStoryGuidance(ageBand, kidName);
   const extraInstructions = (config.instructions || '').trim().slice(
     0,
     STUDY_PROMPT_LIMITS.maxExtraInstructionsChars,
@@ -44,7 +42,6 @@ export function buildStudyLessonPrompt(
     studentName: kidName,
     language,
     lessonStyle,
-    storyGuidance: storyGuide,
     extraInstructions: extraInstructions || undefined,
     showExamSection,
   });
