@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Box, VStack, Text, Spinner, Alert, AlertIcon, Container,
+  Box, Alert, AlertIcon, Container,
 } from '@/shared/design-system';
 import { StudyModeForm, StudyTopicConfig } from './StudyModeForm';
 import { StudyLessonView } from './study/StudyLessonView';
@@ -17,6 +17,7 @@ import { authApi, studyApi, profileApi, getErrorMessage } from '@/services/api';
 import { User } from '@/types';
 import { STUDY_MODE_MESSAGES } from '@/constants/study';
 import { useFontSize } from '@/contexts/FontSizeContext';
+import { AiGenerationWaitExperience } from '@/components/shared/AiGenerationWaitExperience';
 
 type StudyPhase = 'config' | 'loading' | 'lesson';
 
@@ -30,6 +31,7 @@ export const StudyMode: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [sessionSaved, setSessionSaved] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStartedAt, setGenerationStartedAt] = useState<number | undefined>();
 
   const handleTopicSubmit = useCallback(async (topicConfig: StudyTopicConfig) => {
     setIsGenerating(true);
@@ -72,6 +74,7 @@ export const StudyMode: React.FC = () => {
     setPhase('loading');
     setError(null);
     setSessionSaved(false);
+    setGenerationStartedAt(Date.now());
 
     try {
       const generatedLesson = await generateLesson(quizConfig, userProfile, {
@@ -139,7 +142,6 @@ export const StudyMode: React.FC = () => {
 
   const baseFontSize = `${fontSize}px`;
   const headingSize = `${fontSize * 1.5}px`;
-  const subHeadingSize = `${fontSize * 1.25}px`;
 
   if (phase === 'config') {
     return (
@@ -163,18 +165,15 @@ export const StudyMode: React.FC = () => {
 
   if (phase === 'loading') {
     return (
-      <Box padding={{ base: 4, md: 6 }} display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <VStack spacing={6}>
-          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-            <Spinner size="xl" color="blue.500" thickness="4px" />
-          </motion.div>
-          <VStack spacing={2}>
-            <Text fontSize={subHeadingSize} fontWeight="bold">{STUDY_MODE_MESSAGES.LOADING_MESSAGE}</Text>
-            <Text fontSize={baseFontSize} color="gray.600">
-              Building your {studyMeta?.lessonStyle?.toLowerCase() || 'personalized'} lesson…
-            </Text>
-          </VStack>
-        </VStack>
+      <Box minHeight="60vh" bg="gray.50">
+        <AiGenerationWaitExperience
+          mode="study"
+          title={STUDY_MODE_MESSAGES.LOADING_MESSAGE}
+          subtitle={`Building your ${studyMeta?.lessonStyle?.toLowerCase() || 'personalized'} lesson on ${studyMeta?.subtopics[0] || 'your topic'}…`}
+          gradeLabel={getUserGrade()}
+          generationStartedAt={generationStartedAt}
+          variant="study"
+        />
       </Box>
     );
   }

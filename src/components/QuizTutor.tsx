@@ -1072,6 +1072,7 @@ export const QuizTutor: React.FC<QuizTutorProps> = ({ mode = 'default' }) => {
             batchProgress={genBatchProgress}
             onCancelGeneration={handleCancelQuizGeneration}
             generationStartedAt={generationStartedAt}
+            gradeLabel={config?.gradeLevel}
           />
           <Modal isOpen={isConfirmOpen} onClose={handleCancelLeave} isCentered>
             <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(4px)" />
