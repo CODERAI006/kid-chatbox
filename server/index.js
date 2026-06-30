@@ -55,6 +55,9 @@ const adminSitePagesRoutes = require('./routes/admin-site-pages');
 const studyBuddiesRoutes = require('./routes/study-buddies');
 const notificationsRoutes = require('./routes/notifications');
 const imagesRoutes = require('./routes/images');
+const paymentRequestsRoutes = require('./routes/payment-requests');
+const adminPaymentSettingsRoutes = require('./routes/admin-payment-settings');
+const adminPaymentRequestsRoutes = require('./routes/admin-payment-requests');
 const protectedUploads = require('./middleware/protectedUploads');
 const { startScheduler } = require('./services/schedulerEngine');
 const { initializeDatabase } = require('./config/database');
@@ -164,6 +167,8 @@ app.use((req, res, next) => {
 // All user uploads require authentication (study library + quiz images)
 app.use('/uploads/study-library', protectedUploads.studyLibrary);
 app.use('/uploads/quiz-images', protectedUploads.quizImages);
+app.use('/uploads/payment-proofs', protectedUploads.paymentProofs);
+app.use('/uploads/payment-public', express.static(path.join(__dirname, '../uploads/payment-public')));
 
 // Health check endpoints
 app.get('/health', (req, res) => {
@@ -209,6 +214,9 @@ app.use('/api/images', imagesRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/quiz-scheduler', quizSchedulerRoutes);
 app.use('/api/bulk-exam-upload', bulkExamUploadRoutes);
+app.use('/api/payment-requests', paymentRequestsRoutes);
+app.use('/api/admin/payment-settings', adminPaymentSettingsRoutes);
+app.use('/api/admin/payment-requests', adminPaymentRequestsRoutes);
 
 // Serve static files from React app in production
 if (NODE_ENV === 'production') {

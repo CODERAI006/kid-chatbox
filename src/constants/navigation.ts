@@ -76,6 +76,7 @@ const STUDENT_NAV_ITEMS: AppNavItem[] = [
   { adminPath: '/study-buddies', label: 'Study Buddies', icon: FiUsers, consumerPath: '/study-buddies', module: 'quiz' },
   { adminPath: '/education-news', label: 'Education News', icon: FiFileText, consumerPath: '/education-news' },
   { adminPath: '/news', label: 'Facts & Fun', icon: FiGlobe, consumerPath: '/news' },
+  { adminPath: '/plans', label: 'Plans', icon: FiCreditCard, consumerPath: '/plans' },
   { adminPath: '/profile', label: 'Profile', icon: FiUser, consumerPath: '/profile' },
   {
     adminPath: 'action:feedback',

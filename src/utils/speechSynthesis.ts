@@ -5,7 +5,6 @@
 import { resolveWorkspace } from '@/utils/learningWorkspaceParser';
 import {
   isPiperBrowserSupported,
-  preloadPiperVoice,
   speakWithPiper,
   stopPiperSpeech,
 } from '@/utils/piperSpeech';
@@ -127,7 +126,7 @@ export function preloadVoices(): void {
       getIndianFemaleVoice();
     };
   }
-  void preloadPiperVoice();
+  // Piper models are large — preload only when voice mode is enabled (see useVoiceConversation).
 }
 
 export function unlockSpeechSynthesis(): void {

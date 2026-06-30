@@ -1116,6 +1116,20 @@ export const publicApi = {
     return response.data;
   },
 
+  /** UPI / payment details for upgrade flow */
+  getPaymentConfig: async (): Promise<{
+    enabled: boolean;
+    upiId: string;
+    phoneNumber: string;
+    payeeName: string;
+    qrImageUrl: string | null;
+    instructions: string;
+  }> => {
+    const response = await apiClient.get('/public/payment-config');
+    const { success: _s, ...config } = response.data;
+    return config;
+  },
+
   /**
    * Get Word of the Day with definition, examples, and phonetics
    */

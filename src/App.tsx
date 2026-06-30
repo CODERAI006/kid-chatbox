@@ -37,6 +37,7 @@ import { SitePagesManagement } from '@/components/admin/SitePagesManagement';
 import { PaymentSettingsPage } from '@/components/admin/PaymentSettingsPage';
 import { PaymentRequestsManagement } from '@/components/admin/PaymentRequestsManagement';
 import { UpgradePlanPage } from '@/components/pricing/UpgradePlanPage';
+import { PlansPage } from '@/components/pricing/PlansPage';
 import { SitePageView } from '@/components/legal/SitePageView';
 import { PuzzleHub } from '@/components/puzzles/PuzzleHub';
 import { WordOfDayDetailPage } from '@/components/WordOfDayDetailPage';
@@ -337,6 +338,16 @@ export const App: React.FC = () => {
               <StudentRoute requireCompleteProfile={false}>
                 <StudentLayout user={user}>
                   {user && <Profile user={user} />}
+                </StudentLayout>
+              </StudentRoute>
+            }
+          />
+          <Route
+            path="/plans"
+            element={
+              <StudentRoute>
+                <StudentLayout user={user}>
+                  <PlansPage />
                 </StudentLayout>
               </StudentRoute>
             }

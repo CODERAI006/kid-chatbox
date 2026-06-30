@@ -1,9 +1,26 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+/** Piper npm package points at a removed HF repo; use rhasspy/piper-voices instead. */
+const PIPER_HF_BROKEN =
+  'https://huggingface.co/navgurukul-ai-labs/text-to-speech-en-IN-piper/resolve/main';
+const PIPER_HF_FIXED =
+  'https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0';
+
+function piperHuggingFaceFix(): Plugin {
+  return {
+    name: 'piper-huggingface-fix',
+    transform(code, id) {
+      if (!id.includes('piper-tts-web')) return null;
+      if (!code.includes(PIPER_HF_BROKEN)) return null;
+      return code.replaceAll(PIPER_HF_BROKEN, PIPER_HF_FIXED);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), piperHuggingFaceFix()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

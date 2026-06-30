@@ -4,10 +4,17 @@
 
 import { QuizConfig } from '@/types/quiz';
 import { User } from '@/types';
-import { aiApi } from '@/services/api';
+import axios from 'axios';
+import { aiApi, getErrorMessage } from '@/services/api';
+import { isAiServiceUnreachable } from '@/services/openai';
 import { buildStudyLessonPrompt } from '@/services/studyPrompt';
 import { normalizeFlashcardList } from '@/utils/flashcardNormalize';
-import { validateStudyInputs, validateLessonIntro, STUDY_PROMPT_LIMITS } from '@/utils/studyPromptLimits';
+import {
+  validateStudyInputs,
+  validateLessonIntro,
+  padLessonIntro,
+  STUDY_PROMPT_LIMITS,
+} from '@/utils/studyPromptLimits';
 import type { StudyModuleExtensions } from './studyLessonTypes';
 import {
   normalizeActivities,
@@ -321,6 +328,56 @@ export function getIntroductionImagePrompt(intro: Lesson['introduction']): strin
   return typeof intro === 'string' ? undefined : intro.imagePrompt;
 }
 
+function applyIntroPadding(lesson: Lesson, topic: string): void {
+  const introText = getIntroductionText(lesson.introduction);
+  const padded = padLessonIntro(introText, {
+    whyLearnThis: lesson.whyLearnThis,
+    summary: lesson.summary,
+    keyPoints: lesson.keyPoints,
+  }, topic);
+
+  if (padded === introText) return;
+
+  if (typeof lesson.introduction === 'string') {
+    lesson.introduction = padded;
+  } else {
+    lesson.introduction = { ...lesson.introduction, text: padded };
+  }
+}
+
+function assertLessonQuality(lesson: Lesson, topic: string): void {
+  if (!lesson.title || !getIntroductionText(lesson.introduction) || !lesson.summary) {
+    throw new Error('Invalid lesson structure received');
+  }
+
+  applyIntroPadding(lesson, topic);
+
+  const introError = validateLessonIntro(getIntroductionText(lesson.introduction));
+  if (introError) {
+    throw new Error(introError);
+  }
+
+  if ((lesson.flashcards?.length ?? 0) < STUDY_PROMPT_LIMITS.minFlashcards) {
+    throw new Error(
+      `Not enough flashcards (${lesson.flashcards?.length ?? 0}/${STUDY_PROMPT_LIMITS.minFlashcards}). Please try again.`,
+    );
+  }
+}
+
+function isRetryableLessonError(err: unknown): boolean {
+  if (axios.isAxiosError(err) || isAiServiceUnreachable(err)) return false;
+  if (err instanceof SyntaxError) return true;
+  if (err instanceof Error) {
+    return (
+      err.message.includes('too short') ||
+      err.message.includes('Not enough flashcards') ||
+      err.message.includes('Invalid lesson structure') ||
+      err.message.includes('empty message')
+    );
+  }
+  return false;
+}
+
 export async function generateLesson(
   config: QuizConfig,
   userProfile?: User | null,
@@ -346,52 +403,61 @@ export async function generateLesson(
     throw new Error(inputCheck.message);
   }
 
-  const prompt = buildStudyLessonPrompt(config, kidName, classLevel, examStyle, studyOptions);
+  const basePrompt = buildStudyLessonPrompt(config, kidName, classLevel, examStyle, studyOptions);
+  let lastError: unknown;
 
-  try {
-    const { content } = await aiApi.chat({
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an expert curriculum designer, child psychologist, and instructional designer. ' +
-            'Return ONLY valid JSON for the 32-section study module. No markdown fences.',
-        },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.65,
-      num_predict: STUDY_PROMPT_LIMITS.maxNumPredict,
-    });
+  for (let attempt = 0; attempt < STUDY_PROMPT_LIMITS.maxLessonAttempts; attempt++) {
+    const retryHint =
+      attempt === 0
+        ? undefined
+        : `Previous response failed validation. introduction.text MUST be a story with at least ${STUDY_PROMPT_LIMITS.minIntroLines} sentences/lines separated by blank lines. Include at least ${STUDY_PROMPT_LIMITS.minFlashcards} flashcards. Return complete valid JSON only.`;
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const jsonString = jsonMatch ? jsonMatch[0] : content;
-    const parsed = JSON.parse(jsonString) as Record<string, unknown>;
-    const lesson = normalizeLesson(parsed, topic);
+    try {
+      const { content } = await aiApi.chat({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an expert curriculum designer, child psychologist, and instructional designer. ' +
+              'Return ONLY valid JSON for the 32-section study module. No markdown fences.',
+          },
+          {
+            role: 'user',
+            content: retryHint ? `${basePrompt}\n\n${retryHint}` : basePrompt,
+          },
+        ],
+        temperature: attempt === 0 ? 0.65 : 0.55,
+        num_predict: STUDY_PROMPT_LIMITS.maxNumPredict,
+        timeoutMs: 600_000,
+      });
 
-    if (!lesson.title || !getIntroductionText(lesson.introduction) || !lesson.summary) {
-      throw new Error('Invalid lesson structure received');
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : content;
+      const parsed = JSON.parse(jsonString) as Record<string, unknown>;
+      const lesson = normalizeLesson(parsed, topic);
+
+      assertLessonQuality(lesson, topic);
+
+      lesson.introImageUrl = null;
+      lesson.galleryImages = [];
+
+      return lesson;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableLessonError(error) || attempt >= STUDY_PROMPT_LIMITS.maxLessonAttempts - 1) {
+        break;
+      }
+      console.warn(`[Study] Lesson attempt ${attempt + 1} failed, retrying…`, error);
     }
-
-    const introError = validateLessonIntro(getIntroductionText(lesson.introduction));
-    if (introError) {
-      throw new Error(introError);
-    }
-
-    if ((lesson.flashcards?.length ?? 0) < STUDY_PROMPT_LIMITS.minFlashcards) {
-      throw new Error(
-        `Not enough flashcards (${lesson.flashcards?.length ?? 0}/${STUDY_PROMPT_LIMITS.minFlashcards}). Please try again.`,
-      );
-    }
-
-    lesson.introImageUrl = null;
-    lesson.galleryImages = [];
-
-    return lesson;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw new Error('Failed to parse lesson. Please try again.');
-    }
-    if (error instanceof Error) throw error;
-    throw new Error('Unknown error occurred while generating lesson');
   }
+
+  const error = lastError;
+  if (axios.isAxiosError(error) || isAiServiceUnreachable(error)) {
+    throw new Error(getErrorMessage(error));
+  }
+  if (error instanceof SyntaxError) {
+    throw new Error('Failed to parse lesson. Please try again.');
+  }
+  if (error instanceof Error) throw error;
+  throw new Error('Unknown error occurred while generating lesson');
 }

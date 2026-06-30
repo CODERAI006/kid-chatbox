@@ -64,6 +64,17 @@ export const REGISTER_CONSTANTS = {
   GRADE_LABEL: 'Grade/Class',
   GRADE_PLACEHOLDER: 'Select your grade/class',
   GRADE_REQUIRED: 'Please select your grade or class.',
+  NAME_REQUIRED: 'Please enter your full name.',
+  NAME_TOO_SHORT: 'Name must be at least 2 characters.',
+  EMAIL_REQUIRED: 'Email is required.',
+  EMAIL_INVALID: 'Please enter a valid email address.',
+  PASSWORD_REQUIRED: 'Password is required.',
+  PASSWORD_MIN_LENGTH: 'At least 8 characters',
+  PASSWORD_NEEDS_LETTER: 'At least one letter',
+  PASSWORD_NEEDS_NUMBER: 'At least one number',
+  PASSWORD_HINT: 'Use 8+ characters with letters and numbers.',
+  BIRTH_DATE_REQUIRED: 'Please enter your date of birth.',
+  BIRTH_DATE_INVALID: 'Please enter a valid date of birth.',
 } as const;
 
 export const GRADES = [

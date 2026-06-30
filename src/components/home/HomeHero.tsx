@@ -133,11 +133,11 @@ export const HomeHero: React.FC<HomeHeroProps> = ({ onGetStarted, onLogin }) => 
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
             style={{ cursor: 'pointer', display: 'inline-block' }}
-            onClick={() => document.querySelector('#daily')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
           >
             <VStack spacing={1} opacity={0.7} transition="opacity 0.2s" _hover={{ opacity: 1 }}>
               <Text fontSize="xs" color="whiteAlpha.700" letterSpacing="wider" textTransform="uppercase">
-                Explore daily content
+                Explore features
               </Text>
               <Text fontSize="lg" color="cyan.300" aria-hidden>↓</Text>
             </VStack>

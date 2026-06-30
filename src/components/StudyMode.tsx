@@ -13,7 +13,7 @@ import { generateLesson, getIntroductionText } from '@/services/study';
 import { lessonToPersist } from '@/utils/lessonPersist';
 import { QuizConfig } from '@/types/quiz';
 import { Lesson } from '@/services/study';
-import { authApi, studyApi, profileApi } from '@/services/api';
+import { authApi, studyApi, profileApi, getErrorMessage } from '@/services/api';
 import { User } from '@/types';
 import { STUDY_MODE_MESSAGES } from '@/constants/study';
 import { useFontSize } from '@/contexts/FontSizeContext';
@@ -109,9 +109,7 @@ export const StudyMode: React.FC = () => {
         console.error('Failed to save study session:', saveErr);
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : STUDY_MODE_MESSAGES.ERROR_GENERATION_FAILED,
-      );
+      setError(getErrorMessage(err) || STUDY_MODE_MESSAGES.ERROR_GENERATION_FAILED);
       setPhase('config');
     } finally {
       setIsGenerating(false);

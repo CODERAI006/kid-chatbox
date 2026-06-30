@@ -38,6 +38,8 @@ interface CatalogPlan {
 interface PricingPlansSectionProps {
   variant?: 'landing' | 'default';
   showHeading?: boolean;
+  /** When provided, skips internal fetch (avoids double-loading on /plans). */
+  plans?: CatalogPlan[];
 }
 
 const planFeatures = (plan: CatalogPlan): string[] => {
@@ -56,15 +58,17 @@ const planFeatures = (plan: CatalogPlan): string[] => {
 export const PricingPlansSection: React.FC<PricingPlansSectionProps> = ({
   variant = 'default',
   showHeading = true,
+  plans: externalPlans,
 }) => {
   const isLanding = variant === 'landing';
   const navigate = useNavigate();
-  const [plans, setPlans] = useState<CatalogPlan[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState<CatalogPlan[]>(externalPlans ?? []);
+  const [loading, setLoading] = useState(externalPlans === undefined);
   const [error, setError] = useState<string | null>(null);
   const isLoggedIn = Boolean(authApi.getCurrentUser().user);
 
   const loadPlans = useCallback(async () => {
+    if (externalPlans !== undefined) return;
     try {
       setLoading(true);
       setError(null);
@@ -76,11 +80,16 @@ export const PricingPlansSection: React.FC<PricingPlansSectionProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [externalPlans]);
 
   useEffect(() => {
+    if (externalPlans !== undefined) {
+      setPlans(externalPlans);
+      setLoading(false);
+      return;
+    }
     loadPlans();
-  }, [loadPlans]);
+  }, [externalPlans, loadPlans]);
 
   if (loading) {
     return (

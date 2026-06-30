@@ -4,11 +4,13 @@ export const STUDY_PROMPT_LIMITS = {
   maxExtraInstructionsChars: 400,
   maxTopicChars: 120,
   maxSubjectChars: 60,
-  minIntroLines: 10,
+  /** Minimum story sentences/lines — AI often returns 8–9; pad or retry below this. */
+  minIntroLines: 8,
   minFlashcards: 20,
   minKeyPoints: 20,
   minExplanationSteps: 4,
   maxNumPredict: 16384,
+  maxLessonAttempts: 3,
 } as const;
 
 const CONTROL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
@@ -65,4 +67,44 @@ export function validateLessonIntro(introText: string): string | null {
     return `Story introduction is too short (${lines}/${STUDY_PROMPT_LIMITS.minIntroLines} lines). Please try generating again.`;
   }
   return null;
+}
+
+/** Expand a slightly-short story intro using lesson context instead of failing generation. */
+export function padLessonIntro(
+  introText: string,
+  extras: { whyLearnThis?: string; summary?: string; keyPoints?: string[] },
+  topic: string,
+): string {
+  let text = introText.trim();
+  if (!text || countIntroLines(text) >= STUDY_PROMPT_LIMITS.minIntroLines) {
+    return text;
+  }
+
+  const sources = [
+    extras.whyLearnThis,
+    extras.summary,
+    ...(extras.keyPoints || []).slice(0, 6),
+  ].filter((s): s is string => Boolean(s?.trim()));
+
+  for (const source of sources) {
+    if (countIntroLines(text) >= STUDY_PROMPT_LIMITS.minIntroLines) break;
+    const parts = source
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 12);
+    for (const part of parts) {
+      if (countIntroLines(text) >= STUDY_PROMPT_LIMITS.minIntroLines) break;
+      if (text.includes(part)) continue;
+      text += `\n\n${part}`;
+    }
+  }
+
+  let safety = 0;
+  while (countIntroLines(text) < STUDY_PROMPT_LIMITS.minIntroLines && safety < 2) {
+    text +=
+      `\n\nAs our story about ${topic} continues, each new detail helps you see why this topic matters in real life.`;
+    safety += 1;
+  }
+
+  return text.trim();
 }

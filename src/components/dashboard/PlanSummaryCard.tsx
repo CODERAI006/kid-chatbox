@@ -134,7 +134,7 @@ export const PlanSummaryCard: React.FC<{ planInfo: PlanInfo }> = ({ planInfo }) 
             size="sm"
             colorScheme="purple"
             variant="outline"
-            onClick={() => navigate({ pathname: '/', hash: 'pricing' })}
+            onClick={() => navigate('/plans')}
           >
             View plans & upgrade
           </Button>

@@ -1,5 +1,5 @@
 /**
- * Unified Home page — landing layout with sticky nav, hero, daily preview, and auth modal.
+ * Unified Home page — landing layout with sticky nav, hero, and auth modal.
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -10,8 +10,6 @@ import {
   Container,
   Text,
   HStack,
-  SimpleGrid,
-  Heading,
   useDisclosure,
 } from '@/shared/design-system';
 import { ThreeJSBackground } from '@/components/home/ThreeJSBackground';
@@ -21,9 +19,6 @@ import { HomeHero } from '@/components/home/HomeHero';
 import { HomeAnimatedSection } from '@/components/home/HomeAnimatedSection';
 import { HomeAuthModal } from '@/components/home/HomeAuthModal';
 import { LandingShowcase } from '@/components/home/LandingShowcase';
-import { DailyPuzzlesPanel } from '@/components/puzzles/DailyPuzzlesPanel';
-import { HomeWordOfDayPanel } from '@/components/home/HomeWordOfDayPanel';
-import { PUZZLE_HOME_PREVIEW_COUNT } from '@/constants/puzzles';
 import { useAutoAppInstallPrompt } from '@/hooks/useAutoAppInstallPrompt';
 import { PricingPlansSection } from '@/components/pricing/PricingPlansSection';
 import { APP_CONSTANTS } from '@/constants/app';
@@ -132,27 +127,6 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
         <VStack spacing={{ base: 12, md: 16 }} align="stretch" pb={{ base: 8, md: 12 }}>
           <HomeHero onGetStarted={handleGetStarted} onLogin={handleLogin} />
 
-          <HomeAnimatedSection id="daily">
-            <VStack spacing={4} align="stretch">
-              <VStack spacing={1} textAlign="center">
-                <Heading
-                  size={{ base: 'md', md: 'lg' }}
-                  color="cyan.300"
-                  fontWeight="extrabold"
-                >
-                  Today&apos;s learning picks 🌟
-                </Heading>
-                <Text fontSize={{ base: 'sm', md: 'md' }} color="whiteAlpha.800" maxW="560px" mx="auto">
-                  Fresh words and brain-teasing puzzles — updated every day. Sign up to save your streak.
-                </Text>
-              </VStack>
-              <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={{ base: 4, md: 6 }} alignItems="stretch">
-                <HomeWordOfDayPanel onGetStarted={handleGetStarted} />
-                <DailyPuzzlesPanel variant="dark" maxCount={PUZZLE_HOME_PREVIEW_COUNT} showViewAll={false} />
-              </SimpleGrid>
-            </VStack>
-          </HomeAnimatedSection>
-
           <HomeAnimatedSection id="features" delay={0.05}>
             <LandingShowcase onGetStarted={handleGetStarted} />
           </HomeAnimatedSection>
@@ -180,7 +154,6 @@ export const Home: React.FC<HomeProps> = ({ onAuthSuccess }) => {
           <HStack spacing={4} flexWrap="wrap">
             {[
               { label: 'Features', href: '#features' },
-              { label: 'Daily', href: '#daily' },
               { label: 'Pricing', href: '#pricing' },
             ].map((link) => (
               <Text

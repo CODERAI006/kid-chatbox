@@ -16,7 +16,6 @@ import { APP_CONSTANTS } from '@/constants/app';
 
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
-  { label: 'Daily', href: '#daily' },
   { label: 'Pricing', href: '#pricing' },
 ] as const;
 
